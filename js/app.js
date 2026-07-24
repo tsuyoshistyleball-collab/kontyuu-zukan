@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v5";
+  const APP_VERSION = "v6";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -618,16 +618,25 @@
     }, { once: true });
   }
 
-  async function resetData() {
-    if (!confirm("ぜんぶの きろく（しゃしん）を けして さいしょから やりなおしますか？\nこれは もとに もどせません。")) return;
-    try { await DB.reset(); } catch (e) { console.error(e); }
-    location.reload();
+  // リセット：open する まえに DBを けして きれいに やりなおす ため、URLに しるしを つけて さいよみこみ
+  function resetData() {
+    if (!confirm("ぜんぶの きろく（しゃしん）を けして さいしょから やりなおしますか？\nもとに もどせません。")) return;
+    location.href = location.pathname + "?reset=" + Date.now();
   }
 
   async function start() {
     wire();
     const ver = $("#app-ver"); if (ver) ver.textContent = "むしずかん " + APP_VERSION;
     const sver = $("#s-ver"); if (sver) sver.textContent = APP_VERSION;
+
+    // リセット モード：DBを ひらく まえに けす（ハング中でも かくじつに けせる）
+    if (/[?&]reset=/.test(location.search)) {
+      $("#progress-msg").textContent = "データを リセット中…";
+      try { await DB.reset(); } catch (e) { console.error("reset:", e); }
+      location.replace(location.pathname); // きれいな URLで ひらきなおし
+      return;
+    }
+
     try {
       await reload();
       renderProgress();
@@ -636,11 +645,14 @@
       console.error("load failed:", e);
       $("#progress-msg").textContent = "データを よみこめませんでした 😢";
       try { renderGrid(); } catch (_) {}
-      alert(
-        "データを よみこめませんでした 😢\n〔" + errText(e) + "〕\n\n" +
-        "・アプリを ぜんぶ とじて、ひらきなおして みてください。\n" +
-        "・なおらない ときは ⚙️せってい の いちばん したの\n　「データを けす」を おためしください。"
-      );
+      setTimeout(() => {
+        if (confirm(
+          "データを よみこめませんでした 😢\n〔" + errText(e) + "〕\n\n" +
+          "データを リセットして なおしますか？\n（これまでの しゃしんは きえますが、また あつめられます）"
+        )) {
+          location.href = location.pathname + "?reset=" + Date.now();
+        }
+      }, 150);
     }
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("./service-worker.js").catch(() => {});
   }
