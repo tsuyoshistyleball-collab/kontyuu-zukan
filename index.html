@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <meta name="theme-color" content="#2f9e5a" />
+  <title>むしずかん</title>
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="むしずかん" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+  <!-- ヘッダー -->
+  <header class="topbar">
+    <div class="topbar-row">
+      <h1 class="logo"><span class="logo-bug">🪲</span> むしずかん</h1>
+      <button id="sound-btn" class="icon-btn" aria-label="おとの おんおふ">🔊</button>
+    </div>
+    <p id="progress-msg" class="progress-msg">よみこみちゅう…</p>
+    <div class="progress">
+      <div class="progress-num"><span id="count">0</span> <small id="total">/ 0</small><span class="progress-label"> あつめた！</span></div>
+      <div class="bar">
+        <div id="bar-fill" class="bar-fill"></div>
+        <div id="bar-bug" class="bar-bug">🐛</div>
+      </div>
+    </div>
+    <div id="filters" class="filters">
+      <button class="chip active" data-f="all">ぜんぶ</button>
+      <button class="chip" data-f="found">みつけた</button>
+      <button class="chip" data-f="yet">まだ</button>
+    </div>
+  </header>
+
+  <!-- グリッド -->
+  <main>
+    <div id="grid" class="grid"></div>
+    <div class="foot-space"></div>
+  </main>
+
+  <!-- おっきい カメラ ボタン -->
+  <button id="fab" class="fab" aria-label="むしを みつけた">
+    <span class="fab-ico">📷</span><span class="fab-text">むしを みつけた！</span>
+  </button>
+
+  <!-- しょうさい モーダル -->
+  <dialog id="modal" class="modal">
+    <button id="m-close" class="m-close" aria-label="とじる">✕</button>
+    <div class="m-illust-wrap">
+      <div id="m-illust" class="m-illust"></div>
+    </div>
+    <div class="m-stars-row"><span id="m-stars" class="m-stars">★☆☆</span></div>
+    <h2 id="m-name" class="m-name">？？？</h2>
+    <p id="m-kana" class="m-kana"></p>
+    <p id="m-fact" class="m-fact"></p>
+    <p id="m-meta" class="m-meta"></p>
+
+    <div id="m-hint" class="m-hint" hidden>
+      <span class="hint-ico">🔍</span> <b>どこに いるかな？</b><br />
+      <span id="m-hint-text"></span>
+    </div>
+
+    <div id="m-gallery-wrap" class="m-gallery-wrap" hidden>
+      <p class="gallery-title">📸 とった しゃしん</p>
+      <div id="m-gallery" class="m-gallery"></div>
+    </div>
+
+    <button id="btn-shoot" class="btn-shoot">📷 しゃしんを とる！</button>
+  </dialog>
+
+  <input id="file-input" type="file" accept="image/*" capture="environment" hidden />
+
+  <!-- おいわい ぜんめん -->
+  <div id="celebrate" class="celebrate" hidden>
+    <div class="cel-card">
+      <p class="cel-title">やった！ あたらしい むし！</p>
+      <div class="cel-photo-wrap">
+        <img id="cel-photo" class="cel-photo" alt="" />
+        <div id="cel-illust" class="cel-illust"></div>
+      </div>
+      <span id="cel-stars" class="cel-stars">★☆☆</span>
+      <h2 id="cel-name" class="cel-name"></h2>
+      <p id="cel-kana" class="cel-kana"></p>
+      <p id="cel-fact" class="cel-fact"></p>
+      <p class="cel-sub">ずかんに とうろく したよ！</p>
+      <button id="cel-ok" class="cel-ok">やったー！</button>
+    </div>
+  </div>
+
+  <!-- また みつけた トースト -->
+  <div id="toast" class="toast" hidden>
+    <img id="toast-photo" class="toast-photo" alt="" />
+    <span id="toast-text" class="toast-text"></span>
+  </div>
+
+  <!-- よみこみ -->
+  <div id="loading" class="loading" hidden>
+    <div class="spinner">🐝</div>
+    <p>ほぞん ちゅう…</p>
+  </div>
+
+  <canvas id="confetti" class="confetti" hidden></canvas>
+
+  <script src="./js/data.js"></script>
+  <script src="./js/db.js"></script>
+  <script src="./js/app.js"></script>
+</body>
+</html>
