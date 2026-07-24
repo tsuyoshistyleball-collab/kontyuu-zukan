@@ -584,8 +584,8 @@
     $("#s-save").addEventListener("click", saveSettings);
     $("#s-test").addEventListener("click", testSettings);
     $("#s-key-toggle").addEventListener("click", () => {
-      const inp = $("#s-key"); inp.type = inp.type === "password" ? "text" : "password";
-      $("#s-key-toggle").textContent = inp.type === "password" ? "👁" : "🙈";
+      const masked = $("#s-key").classList.toggle("masked");
+      $("#s-key-toggle").textContent = masked ? "👁" : "🙈";
     });
 
     const sb = $("#sound-btn");

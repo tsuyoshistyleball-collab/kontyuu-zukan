@@ -76,7 +76,9 @@
     <p id="r-note" class="r-note"></p>
     <div class="m-stars-row"><span id="r-stars" class="r-stars">★☆☆</span></div>
     <label class="r-label">なまえ（なおせるよ）</label>
-    <input id="r-name-input" class="r-name-input" type="text" maxlength="24" placeholder="なまえを いれてね" />
+    <input id="r-name-input" class="r-name-input" type="text" maxlength="24" placeholder="なまえを いれてね"
+           autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+           name="mushi_name" data-lpignore="true" data-1p-ignore />
     <p id="r-kana" class="m-kana"></p>
     <p id="r-fact" class="m-fact"></p>
     <p id="r-hint" class="m-hint" hidden></p>
@@ -94,7 +96,9 @@
 
     <label class="s-label">Gemini APIキー</label>
     <div class="s-key-row">
-      <input id="s-key" class="s-input" type="password" placeholder="AIza..." autocomplete="off" spellcheck="false" />
+      <input id="s-key" class="s-input masked" type="text" inputmode="text" placeholder="AIza..."
+             autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+             name="gemini_api_key" data-lpignore="true" data-1p-ignore data-form-type="other" />
       <button id="s-key-toggle" class="s-key-toggle" type="button" aria-label="ひょうじ">👁</button>
     </div>
 
