@@ -45,6 +45,7 @@ const DB = (() => {
       };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
+      req.onblocked = () => reject(new Error("DBが ほかの タブで ひらいています"));
     });
     return dbp;
   }
@@ -55,11 +56,19 @@ const DB = (() => {
   }
 
   async function add(rec) {
+    // がぞうは ArrayBuffer で ほぞん（Blob だと たんまつに よって しっぱいする ため）
+    let toStore = rec;
+    if (rec && rec.blob instanceof Blob) {
+      const buf = await rec.blob.arrayBuffer();
+      toStore = Object.assign({}, rec, { img: buf, mime: rec.blob.type || "image/jpeg" });
+      delete toStore.blob;
+    }
     const s = await store("readwrite");
     return new Promise((resolve, reject) => {
-      const req = s.add(rec);
+      const req = s.add(toStore);
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
+      req.transaction.onabort = () => reject(req.transaction.error || new Error("hozon chuudan"));
     });
   }
 
@@ -67,7 +76,14 @@ const DB = (() => {
     const s = await store("readonly");
     return new Promise((resolve, reject) => {
       const req = s.getAll();
-      req.onsuccess = () => resolve(req.result || []);
+      req.onsuccess = () => {
+        const rows = (req.result || []).map((r) => {
+          // ArrayBuffer で ほぞんした ものは Blob に もどす
+          if (r && !r.blob && r.img) r.blob = new Blob([r.img], { type: r.mime || "image/jpeg" });
+          return r;
+        });
+        resolve(rows);
+      };
       req.onerror = () => reject(req.error);
     });
   }

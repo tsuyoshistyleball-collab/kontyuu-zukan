@@ -324,10 +324,15 @@
       $("#loading").hidden = false;
       try {
         await DB.add(rec);
-        await afterChange(pendingAppendName, true);
+      } catch (err) {
         $("#loading").hidden = true;
-        miniCheer(rec);
-      } catch (err) { $("#loading").hidden = true; alert("ほぞん できなかったよ。"); }
+        console.error("save failed:", err);
+        alert("ほぞん できなかったよ 😢\n〔" + errText(err) + "〕");
+        return;
+      }
+      try { await afterChange(pendingAppendName, true); } catch (e) { console.error(e); }
+      $("#loading").hidden = true;
+      miniCheer(rec);
       return;
     }
 
@@ -434,11 +439,22 @@
     $("#loading").hidden = false;
     try {
       await DB.add(rec);
-      await reload();
-      renderProgress(); renderGrid();
+    } catch (err) {
       $("#loading").hidden = true;
-      if (isNew) celebrate(rec); else miniCheer(rec);
-    } catch (err) { $("#loading").hidden = true; alert("ほぞん できなかったよ。"); }
+      console.error("save failed:", err);
+      alert("ほぞん できなかったよ 😢\n〔" + errText(err) + "〕\nもう いちど「とうろく」を おしてね。");
+      $("#result").showModal(); // やりなおせる ように もどす
+      return;
+    }
+    try { await reload(); renderProgress(); renderGrid(); } catch (e) { console.error("render after save:", e); }
+    $("#loading").hidden = true;
+    if (isNew) celebrate(rec); else miniCheer(rec);
+  }
+
+  function errText(err) {
+    if (!err) return "ふめいな エラー";
+    if (err.name === "QuotaExceededError") return "スマホの ほぞん ようりょうが いっぱいです";
+    return (err.name ? err.name + ": " : "") + (err.message || String(err));
   }
 
   // ---- おいわい ----
