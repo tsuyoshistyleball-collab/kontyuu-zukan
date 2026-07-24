@@ -19,62 +19,112 @@
   <header class="topbar">
     <div class="topbar-row">
       <h1 class="logo"><span class="logo-bug">🪲</span> むしずかん</h1>
-      <button id="sound-btn" class="icon-btn" aria-label="おとの おんおふ">🔊</button>
+      <div class="topbar-btns">
+        <button id="book-open" class="icon-btn" aria-label="ずかんを めくる" hidden>📖</button>
+        <button id="sound-btn" class="icon-btn" aria-label="おとの おんおふ">🔊</button>
+        <button id="settings-btn" class="icon-btn" aria-label="せってい">⚙️</button>
+      </div>
     </div>
     <p id="progress-msg" class="progress-msg">よみこみちゅう…</p>
     <div class="progress">
-      <div class="progress-num"><span id="count">0</span> <small id="total">/ 0</small><span class="progress-label"> あつめた！</span></div>
+      <div class="progress-num"><span id="count">0</span> <small id="total"></small><span class="progress-label"> あつめた！</span></div>
       <div class="bar">
         <div id="bar-fill" class="bar-fill"></div>
         <div id="bar-bug" class="bar-bug">🐛</div>
       </div>
     </div>
-    <div id="filters" class="filters">
-      <button class="chip active" data-f="all">ぜんぶ</button>
-      <button class="chip" data-f="found">みつけた</button>
-      <button class="chip" data-f="yet">まだ</button>
-    </div>
+    <button id="api-hint" class="api-hint" hidden>⚙️ AIで なまえを じどう にゅうりょく するには ここを タップ</button>
   </header>
 
-  <!-- グリッド -->
+  <!-- ずかん（カテゴリーごとの いちらん） -->
   <main>
-    <div id="grid" class="grid"></div>
+    <div id="sections"></div>
     <div class="foot-space"></div>
   </main>
 
-  <!-- おっきい カメラ ボタン -->
+  <!-- おっきい ボタン -->
   <button id="fab" class="fab" aria-label="むしを みつけた">
     <span class="fab-ico">📷</span><span class="fab-text">むしを みつけた！</span>
   </button>
 
-  <!-- しょうさい モーダル -->
-  <dialog id="modal" class="modal">
-    <button id="m-close" class="m-close" aria-label="とじる">✕</button>
-    <div class="m-illust-wrap">
-      <div id="m-illust" class="m-illust"></div>
+  <!-- しゃしんの えらびかた（カメラ / ファイル） -->
+  <div id="picker" class="sheet" hidden>
+    <div class="sheet-card">
+      <p class="sheet-title">むしの しゃしんを…</p>
+      <button id="pick-camera" class="sheet-btn cam">📷 カメラで とる</button>
+      <button id="pick-file" class="sheet-btn file">🖼️ アルバム・ファイルから</button>
+      <button id="pick-cancel" class="sheet-btn cancel">やめる</button>
     </div>
-    <div class="m-stars-row"><span id="m-stars" class="m-stars">★☆☆</span></div>
-    <h2 id="m-name" class="m-name">？？？</h2>
-    <p id="m-kana" class="m-kana"></p>
-    <p id="m-fact" class="m-fact"></p>
-    <p id="m-meta" class="m-meta"></p>
+  </div>
+  <input id="file-camera" type="file" accept="image/*" capture="environment" hidden />
+  <input id="file-gallery" type="file" accept="image/*" hidden />
 
-    <div id="m-hint" class="m-hint" hidden>
-      <span class="hint-ico">🔍</span> <b>どこに いるかな？</b><br />
-      <span id="m-hint-text"></span>
+  <!-- ブック（よこに めくる） -->
+  <div id="book" class="book" hidden>
+    <button id="book-close" class="book-close" aria-label="とじる">✕</button>
+    <div id="book-counter" class="book-counter"></div>
+    <div id="book-track" class="book-track"></div>
+    <button id="book-prev" class="book-nav prev" aria-label="まえ">‹</button>
+    <button id="book-next" class="book-nav next" aria-label="つぎ">›</button>
+    <div class="book-hint">← よこに めくってね →</div>
+  </div>
+
+  <!-- けっか（AIすいそく → なまえ しゅうせい → とうろく） -->
+  <dialog id="result" class="modal">
+    <div class="m-illust-wrap"><div id="r-illust" class="m-illust"></div></div>
+    <div class="r-photo-wrap"><img id="r-photo" class="r-photo" alt="" /></div>
+    <p id="r-note" class="r-note"></p>
+    <div class="m-stars-row"><span id="r-stars" class="r-stars">★☆☆</span></div>
+    <label class="r-label">なまえ（なおせるよ）</label>
+    <input id="r-name-input" class="r-name-input" type="text" maxlength="24" placeholder="なまえを いれてね" />
+    <p id="r-kana" class="m-kana"></p>
+    <p id="r-fact" class="m-fact"></p>
+    <p id="r-hint" class="m-hint" hidden></p>
+    <div class="r-actions">
+      <button id="r-cancel" class="r-cancel">やめる</button>
+      <button id="r-save" class="r-save">✓ ずかんに とうろく！</button>
     </div>
-
-    <div id="m-gallery-wrap" class="m-gallery-wrap" hidden>
-      <p class="gallery-title">📸 とった しゃしん</p>
-      <div id="m-gallery" class="m-gallery"></div>
-    </div>
-
-    <button id="btn-shoot" class="btn-shoot">📷 しゃしんを とる！</button>
   </dialog>
 
-  <input id="file-input" type="file" accept="image/*" capture="environment" hidden />
+  <!-- せってい（Gemini API） -->
+  <dialog id="settings" class="modal settings">
+    <button id="s-close" class="m-close" aria-label="とじる">✕</button>
+    <h2 class="s-title">⚙️ せってい</h2>
+    <p class="s-lead">Gemini（ジェミニ）の APIキーを いれると、しゃしんから じどうで むしの なまえを すいそく します。</p>
 
-  <!-- おいわい ぜんめん -->
+    <label class="s-label">Gemini APIキー</label>
+    <div class="s-key-row">
+      <input id="s-key" class="s-input" type="password" placeholder="AIza..." autocomplete="off" spellcheck="false" />
+      <button id="s-key-toggle" class="s-key-toggle" type="button" aria-label="ひょうじ">👁</button>
+    </div>
+
+    <label class="s-label">モデル</label>
+    <input id="s-model" class="s-input" type="text" placeholder="gemini-3-flash-preview" autocomplete="off" spellcheck="false" />
+
+    <button id="s-test" class="s-test-btn">せつぞく テスト</button>
+    <p id="s-test-result" class="s-test-result"></p>
+
+    <div class="s-help">
+      <p>🔑 APIキーの とりかた：</p>
+      <ol>
+        <li><b>Google AI Studio</b>（aistudio.google.com/apikey）を ひらく</li>
+        <li>Google アカウントで ログイン</li>
+        <li>「Create API key」で キーを つくって コピー</li>
+        <li>ここに はりつけて「ほぞん」</li>
+      </ol>
+      <p class="s-note">🔒 キーは この たんまつ（ブラウザ）だけに ほぞんされ、がいぶには おくられません。</p>
+    </div>
+
+    <button id="s-save" class="s-save">ほぞん</button>
+  </dialog>
+
+  <!-- AIが かんがえ中 -->
+  <div id="thinking" class="thinking" hidden>
+    <div class="thinking-bug">🔎🐛</div>
+    <p>AIが しらべているよ…</p>
+  </div>
+
+  <!-- おいわい -->
   <div id="celebrate" class="celebrate" hidden>
     <div class="cel-card">
       <p class="cel-title">やった！ あたらしい むし！</p>
@@ -82,6 +132,7 @@
         <img id="cel-photo" class="cel-photo" alt="" />
         <div id="cel-illust" class="cel-illust"></div>
       </div>
+      <div id="cel-cat" class="cel-cat"></div>
       <span id="cel-stars" class="cel-stars">★☆☆</span>
       <h2 id="cel-name" class="cel-name"></h2>
       <p id="cel-kana" class="cel-kana"></p>
@@ -97,7 +148,7 @@
     <span id="toast-text" class="toast-text"></span>
   </div>
 
-  <!-- よみこみ -->
+  <!-- ほぞん中 -->
   <div id="loading" class="loading" hidden>
     <div class="spinner">🐝</div>
     <p>ほぞん ちゅう…</p>
@@ -106,6 +157,7 @@
   <canvas id="confetti" class="confetti" hidden></canvas>
 
   <script src="./js/data.js"></script>
+  <script src="./js/gemini.js"></script>
   <script src="./js/db.js"></script>
   <script src="./js/app.js"></script>
 </body>

@@ -200,3 +200,115 @@ const INSECTS = [
     <path d="M40 74 l-6 22 M48 76 l-2 24" stroke="#333" stroke-width="2.5" stroke-linecap="round"/></svg>`
   }
 ];
+
+/* しらない むし ようの かわいい アイコン（AIが きめられない ときや ライブラリに ない とき） */
+const GENERIC_BUG = {
+  color: "#8a9a5b",
+  svg: `<svg viewBox="0 0 120 120"><g stroke="#5f6b3a" stroke-width="5" stroke-linecap="round">
+    <path d="M44 58 L22 48"/><path d="M44 72 L20 74"/><path d="M46 84 L24 96"/>
+    <path d="M76 58 L98 48"/><path d="M76 72 L100 74"/><path d="M74 84 L96 96"/></g>
+    <ellipse cx="60" cy="74" rx="26" ry="32" fill="#8a9a5b"/><path d="M60 44 v62" stroke="#5f6b3a" stroke-width="3"/>
+    <ellipse cx="60" cy="62" rx="22" ry="20" fill="#a3b36e"/><circle cx="60" cy="42" r="13" fill="#5f6b3a"/>
+    <circle cx="54" cy="40" r="3" fill="#fff"/><circle cx="66" cy="40" r="3" fill="#fff"/>
+    <path d="M53 32 Q49 20 51 15 M67 32 Q71 20 69 15" stroke="#5f6b3a" stroke-width="3" fill="none" stroke-linecap="round"/></svg>`
+};
+
+/* カタカナ → ひらがな（てらしあわせ ように） */
+function _toHira(s) {
+  return String(s || "").replace(/[ァ-ヶ]/g, (c) =>
+    String.fromCharCode(c.charCodeAt(0) - 0x60)
+  );
+}
+function _norm(s) {
+  return _toHira(s).replace(/[\s　　・,、。]/g, "").toLowerCase();
+}
+
+/* AIが かえした なまえで、ライブラリの むしと あうか さがす（あれば きれいな イラスト等を つかう）*/
+const _ALIASES = {
+  kabutomushi: ["甲虫", "兜虫", "かぶと"],
+  kuwagata: ["鍬形", "くわがたむし", "のこぎりくわがた", "みやまくわがた"],
+  tentoumushi: ["天道虫", "てんとう", "ななほしてんとう", "ナナホシテントウ"],
+  monshirochou: ["紋白蝶", "もんしろ", "ちょうちょ", "ちょう", "蝶", "しろちょう"],
+  agehachou: ["揚羽蝶", "揚羽", "あげは", "キアゲハ", "きあげは"],
+  tonbo: ["蜻蛉", "とんぼう", "しおからとんぼ", "あかとんぼ", "おにやんま"],
+  semi: ["蝉", "あぶらぜみ", "みんみんぜみ", "つくつくぼうし", "にいにいぜみ", "くまぜみ"],
+  batta: ["飛蝗", "しょうりょうばった", "とのさまばった", "おんぶばった", "いなご"],
+  koorogi: ["蟋蟀", "えんまこおろぎ"],
+  kamakiri: ["蟷螂", "おおかまきり", "はらびろかまきり"],
+  ari: ["蟻", "くろあり", "あかあり", "くろおおあり"],
+  dangomushi: ["団子虫", "わらじむし", "だんごむし"],
+  mitsubachi: ["蜜蜂", "はち", "せいようみつばち", "にほんみつばち", "みつばち"],
+  katatsumuri: ["蝸牛", "でんでんむし", "まいまい"],
+  kumo: ["蜘蛛", "じょろうぐも", "こがねぐも", "はえとりぐも"],
+  koganemushi: ["黄金虫", "かなぶん", "こがねむし", "どうがねぶいぶい"],
+  amenbo: ["水黽", "あめんぼう"],
+  suzumushi: ["鈴虫"]
+};
+
+function matchKnown(name) {
+  const q = _norm(name);
+  if (!q) return null;
+  for (const ins of INSECTS) {
+    const cands = [ins.name, ins.kana, ...(_ALIASES[ins.id] || [])].map(_norm);
+    for (const c of cands) {
+      if (!c) continue;
+      if (q === c) return ins;
+      // どちらかが もう ほうを ふくむ（2もじ いじょう）
+      if (c.length >= 2 && (q.includes(c) || c.includes(q))) return ins;
+    }
+  }
+  return null;
+}
+
+/* ====== カテゴリー（しゅるいごとの わけ）====== */
+const CATEGORIES = [
+  { id: "beetle",    label: "こうちゅう",       emoji: "🪲" },
+  { id: "butterfly", label: "ちょう・が",       emoji: "🦋" },
+  { id: "dragonfly", label: "とんぼ",           emoji: "💠" },
+  { id: "cicada",    label: "せみ",             emoji: "🎐" },
+  { id: "hopper",    label: "ばった・かまきり", emoji: "🦗" },
+  { id: "beeant",    label: "はち・あり",       emoji: "🐝" },
+  { id: "spider",    label: "くも",             emoji: "🕷️" },
+  { id: "snail",     label: "かたつむり",       emoji: "🐌" },
+  { id: "water",     label: "みずの むし",       emoji: "💧" },
+  { id: "other",     label: "そのほか",         emoji: "🐛" },
+];
+const CATEGORY_ORDER = CATEGORIES.map((c) => c.id);
+function categoryMeta(id) {
+  return CATEGORIES.find((c) => c.id === id) || CATEGORIES[CATEGORIES.length - 1];
+}
+
+const _KNOWN_CATEGORY = {
+  kabutomushi: "beetle", kuwagata: "beetle", tentoumushi: "beetle", koganemushi: "beetle",
+  monshirochou: "butterfly", agehachou: "butterfly",
+  tonbo: "dragonfly", semi: "cicada",
+  batta: "hopper", koorogi: "hopper", suzumushi: "hopper", kamakiri: "hopper",
+  mitsubachi: "beeant", ari: "beeant",
+  kumo: "spider", katatsumuri: "snail", dangomushi: "other", amenbo: "water",
+};
+
+const _CAT_KEYWORDS = [
+  ["beetle",    ["こうちゅう", "甲虫", "かぶと", "くわがた", "てんとう", "かなぶん", "こがね", "beetle", "ladybug", "weevil"]],
+  ["butterfly", ["ちょう", "蝶", "ちょうちょ", "が", "蛾", "あげは", "もんしろ", "butterfly", "moth"]],
+  ["dragonfly", ["とんぼ", "蜻蛉", "やんま", "dragonfly", "damselfly"]],
+  ["cicada",    ["せみ", "蝉", "cicada"]],
+  ["hopper",    ["ばった", "こおろぎ", "きりぎりす", "かまきり", "いなご", "すずむし", "grasshopper", "cricket", "mantis", "locust", "katydid"]],
+  ["beeant",    ["はち", "蜂", "あり", "蟻", "bee", "ant", "wasp", "hornet"]],
+  ["spider",    ["くも", "蜘蛛", "spider"]],
+  ["snail",     ["かたつむり", "でんでん", "まいまい", "snail", "slug", "なめくじ"]],
+  ["water",     ["あめんぼ", "みずすまし", "げんごろう", "たがめ", "water", "みず"]],
+];
+
+/* なまえ / AIの カテゴリー もじれつ から カテゴリーidを きめる */
+function categorize(name, aiCategory) {
+  const known = matchKnown(name);
+  if (known && _KNOWN_CATEGORY[known.id]) return _KNOWN_CATEGORY[known.id];
+  const hay = _norm((aiCategory || "") + " " + (name || ""));
+  for (const [id, kws] of _CAT_KEYWORDS) {
+    for (const kw of kws) {
+      const k = _norm(kw);
+      if (k && hay.includes(k)) return id;
+    }
+  }
+  return "other";
+}

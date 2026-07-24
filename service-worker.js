@@ -1,10 +1,11 @@
 /* むしずかん — サービスワーカー（オフラインでも つかえる） */
-const CACHE = "mushizukan-v1";
+const CACHE = "mushizukan-v2";
 const ASSETS = [
   "./",
   "./index.html",
   "./css/style.css",
   "./js/data.js",
+  "./js/gemini.js",
   "./js/db.js",
   "./js/app.js",
   "./manifest.webmanifest",
