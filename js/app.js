@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v6";
+  const APP_VERSION = "v7";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -318,7 +318,7 @@
     e.target.value = "";
     if (!file) return;
     let blob;
-    try { blob = await resizeImage(file, 1280, 0.82); }
+    try { blob = await resizeImage(file, 1024, 0.8); }
     catch (err) { alert("しゃしんを よみこめなかったよ。"); return; }
 
     if (pendingMode === "append" && pendingAppendName) {
