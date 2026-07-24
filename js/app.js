@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v8";
+  const APP_VERSION = "v9";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -92,6 +92,16 @@
     $("#book-open").hidden = n === 0;
   }
 
+  // ---- カードの おおきさ（1れつの まいすう）----
+  function applyCols(n) {
+    n = Math.min(5, Math.max(2, parseInt(n, 10) || 2));
+    const s = $("#sections");
+    s.style.setProperty("--cols", n);
+    s.dataset.cols = n;
+    localStorage.setItem("mz-cols", n);
+    $$(".size-btn").forEach((b) => b.classList.toggle("active", +b.dataset.cols === n));
+  }
+
   // ---- グリッド（ぜんぶ・カテゴリーわけ）----
   function renderGrid() {
     const wrap = $("#sections");
@@ -125,7 +135,7 @@
   function buildCard(g) {
     const ill = illustFor(g.name);
     const card = document.createElement("button");
-    card.className = "card found";
+    card.className = "card found r" + g.rarity;
     card.style.setProperty("--c", ill.color);
     card.setAttribute("aria-label", g.name);
 
@@ -269,7 +279,25 @@
     again.addEventListener("click", () => openPicker("append", g.name));
     page.appendChild(again);
 
+    const del = document.createElement("button");
+    del.className = "page-delete"; del.textContent = "🗑️ この むしを ずかんから けす";
+    del.addEventListener("click", () => deleteGroup(g.name));
+    page.appendChild(del);
+
     return page;
+  }
+
+  // むし（なまえ）ごと ぜんぶ けす
+  async function deleteGroup(name) {
+    const g = groups.get(name);
+    if (!g) return;
+    if (!confirm(`「${name}」を ずかんから けしますか？\n（しゃしん ${g.count}まいが きえます。もとに もどせません）`)) return;
+    $("#loading").hidden = false;
+    try {
+      for (const c of g.list.slice()) { await DB.remove(c.id); }
+    } catch (e) { console.error("delete group:", e); }
+    $("#loading").hidden = true;
+    await afterChange(name, true);
   }
 
   function currentPageName() {
@@ -420,6 +448,16 @@
     $("#result").style.setProperty("--c", ill.color);
   }
 
+  // なまえを なおしたら、ずかんの むしと あえば レアど表示も こうしん
+  function onResultNameInput(name) {
+    updateResultIllust(name);
+    const ill = illustFor(name);
+    const r = pendingResolved || {};
+    const rarity = clampR(ill.knownId ? ill.rarity : (r.rarity || 1));
+    $("#r-stars").textContent = stars(rarity);
+    $("#r-stars").className = "r-stars s" + rarity;
+  }
+
   async function saveResult() {
     const name = $("#r-name-input").value.trim();
     if (!name) { alert("なまえを いれてね"); $("#r-name-input").focus(); return; }
@@ -429,7 +467,8 @@
       name,
       kana: r.kana || ill.kana || "",
       fact: r.fact || ill.fact || "",
-      rarity: clampR(r.rarity || ill.rarity),
+      // なまえが ずかんの むしと あえば その レアど、なければ AIの すいそく
+      rarity: clampR(ill.knownId ? ill.rarity : (r.rarity || 1)),
       color: ill.color, knownId: ill.knownId,
       category: categorize(name, r.category),
       aiName: r.aiName || null,
@@ -592,7 +631,7 @@
 
     $("#r-save").addEventListener("click", saveResult);
     $("#r-cancel").addEventListener("click", () => $("#result").close());
-    $("#r-name-input").addEventListener("input", (e) => updateResultIllust(e.target.value));
+    $("#r-name-input").addEventListener("input", (e) => onResultNameInput(e.target.value));
 
     $("#cel-ok").addEventListener("click", () => { const ov = $("#celebrate"); ov.classList.remove("show"); setTimeout(() => (ov.hidden = true), 300); });
 
@@ -606,6 +645,8 @@
       const masked = $("#s-key").classList.toggle("masked");
       $("#s-key-toggle").textContent = masked ? "👁" : "🙈";
     });
+
+    $$(".size-btn").forEach((btn) => btn.addEventListener("click", () => applyCols(+btn.dataset.cols)));
 
     const sb = $("#sound-btn");
     const refreshSound = () => (sb.textContent = sound.on ? "🔊" : "🔈");
@@ -626,6 +667,7 @@
 
   async function start() {
     wire();
+    applyCols(localStorage.getItem("mz-cols") || 2);
     const ver = $("#app-ver"); if (ver) ver.textContent = "むしずかん " + APP_VERSION;
     const sver = $("#s-ver"); if (sver) sver.textContent = APP_VERSION;
 
