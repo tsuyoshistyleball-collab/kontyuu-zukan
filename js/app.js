@@ -2,6 +2,8 @@
 (() => {
   "use strict";
 
+  const APP_VERSION = "v5";
+
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
 
@@ -599,6 +601,7 @@
     $("#s-close").addEventListener("click", () => $("#settings").close());
     $("#s-save").addEventListener("click", saveSettings);
     $("#s-test").addEventListener("click", testSettings);
+    $("#s-reset").addEventListener("click", resetData);
     $("#s-key-toggle").addEventListener("click", () => {
       const masked = $("#s-key").classList.toggle("masked");
       $("#s-key-toggle").textContent = masked ? "👁" : "🙈";
@@ -615,11 +618,30 @@
     }, { once: true });
   }
 
+  async function resetData() {
+    if (!confirm("ぜんぶの きろく（しゃしん）を けして さいしょから やりなおしますか？\nこれは もとに もどせません。")) return;
+    try { await DB.reset(); } catch (e) { console.error(e); }
+    location.reload();
+  }
+
   async function start() {
     wire();
-    await reload();
-    renderProgress();
-    renderGrid();
+    const ver = $("#app-ver"); if (ver) ver.textContent = "むしずかん " + APP_VERSION;
+    const sver = $("#s-ver"); if (sver) sver.textContent = APP_VERSION;
+    try {
+      await reload();
+      renderProgress();
+      renderGrid();
+    } catch (e) {
+      console.error("load failed:", e);
+      $("#progress-msg").textContent = "データを よみこめませんでした 😢";
+      try { renderGrid(); } catch (_) {}
+      alert(
+        "データを よみこめませんでした 😢\n〔" + errText(e) + "〕\n\n" +
+        "・アプリを ぜんぶ とじて、ひらきなおして みてください。\n" +
+        "・なおらない ときは ⚙️せってい の いちばん したの\n　「データを けす」を おためしください。"
+      );
+    }
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("./service-worker.js").catch(() => {});
   }
   start();
