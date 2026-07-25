@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v25";
+  const APP_VERSION = "v26";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -1181,7 +1181,7 @@
   async function start() {
     wire();
     applyCols(localStorage.getItem("mz-cols") || 2);
-    const ver = $("#app-ver"); if (ver) ver.textContent = "むしずかん " + APP_VERSION;
+    const ver = $("#app-ver"); if (ver) ver.textContent = APP_VERSION;
     const sver = $("#s-ver"); if (sver) sver.textContent = APP_VERSION;
 
     // リセット モード：DBを ひらく まえに けす（ハング中でも かくじつに けせる）
