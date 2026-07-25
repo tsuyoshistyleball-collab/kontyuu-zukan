@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v28";
+  const APP_VERSION = "v29";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -230,6 +230,9 @@
     $("#pl-search-msg").textContent = "";
     $("#pl-address").textContent = placeAddress ? "📍 " + placeAddress : "";
     $("#pl-date").value = toDateInput(p ? p.last : Date.now());
+    $("#pl-first-wrap").hidden = !p;
+    $("#pl-date-label").textContent = p ? "📅 さいきん いった ひ" : "📅 いった ひ";
+    if (p) $("#pl-first").value = toDateInput(p.first || p.last);
     $("#pl-meta").textContent = p
       ? `はじめて：${fmtDate(p.first)} ・ いった かず：${p.visits}かい`
       : "";
@@ -353,8 +356,9 @@
         p.name = name; p.note = note; p.emoji = placeEmoji; p.photo = placePhoto || null;
         if (placeCoord) { p.lat = placeCoord.lat; p.lng = placeCoord.lng; }
         if (placeAddress) p.address = placeAddress;
-        p.last = when;
-        p.first = Math.min(p.first || when, when);
+        const firstIn = fromDateInput($("#pl-first").value, p.first || when);
+        p.first = Math.min(firstIn, when);
+        p.last = Math.max(firstIn, when);
       }
     } else {
       all.push({

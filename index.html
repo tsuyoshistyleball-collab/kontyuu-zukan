@@ -160,7 +160,14 @@
            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
            name="place_name" data-lpignore="true" data-1p-ignore />
 
-    <label class="s-label">📅 いった ひ</label>
+    <div id="pl-first-wrap" hidden>
+      <label class="s-label">📅 はじめて いった ひ</label>
+      <div class="pl-date-row">
+        <input id="pl-first" class="s-input" type="date" name="place_first" />
+      </div>
+    </div>
+
+    <label class="s-label" id="pl-date-label">📅 いった ひ</label>
     <div class="pl-date-row">
       <input id="pl-date" class="s-input" type="date" name="place_date" />
       <button id="pl-today" class="pl-today" type="button">きょう</button>
