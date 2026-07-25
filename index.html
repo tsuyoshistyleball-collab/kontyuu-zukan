@@ -25,8 +25,14 @@
       <div class="title-plate">
         <span class="plate-corner tl"></span><span class="plate-corner tr"></span>
         <span class="plate-corner bl"></span><span class="plate-corner br"></span>
-        <h1 class="logo"><span class="logo-bug">🪲</span> むしずかん</h1>
-        <span class="plate-sub">🌱 みつけた むしの きろく</span>
+        <span class="plate-tape left" aria-hidden="true"></span>
+        <span class="plate-tape right" aria-hidden="true"></span>
+        <div class="plate-title-row">
+          <span class="plate-leaf" aria-hidden="true">🌿</span>
+          <h1 class="logo"><span class="logo-bug">🪲</span> むしずかん</h1>
+          <span class="plate-leaf flip" aria-hidden="true">🌿</span>
+        </div>
+        <span class="plate-sub">みつけた むしの きろく</span>
       </div>
       <div class="topbar-btns">
         <button id="book-open" class="icon-btn" aria-label="ずかんを めくる" hidden>📖</button>
@@ -36,11 +42,16 @@
     </div>
     <p id="progress-msg" class="progress-msg">よみこみちゅう…</p>
     <div class="progress">
+      <div class="progress-top">
+        <span id="level-badge" class="level-badge">Lv.1</span>
+        <span id="level-title" class="level-title"></span>
+      </div>
       <div class="progress-num"><span id="count">0</span> <small id="total"></small><span class="progress-label"> あつめた！</span></div>
       <div class="bar">
         <div id="bar-fill" class="bar-fill"></div>
         <div id="bar-bug" class="bar-bug">🐛</div>
       </div>
+      <p id="level-next" class="level-next"></p>
     </div>
     <button id="api-hint" class="api-hint" hidden>⚙️ AIで なまえを じどう にゅうりょく するには ここを タップ</button>
     <div class="size-row">
@@ -170,6 +181,7 @@
   <!-- おいわい -->
   <div id="celebrate" class="celebrate" hidden>
     <div class="cel-card">
+      <div id="cel-level" class="cel-level" hidden></div>
       <p class="cel-title">やった！ あたらしい むし！</p>
       <div class="cel-photo-wrap">
         <img id="cel-photo" class="cel-photo" alt="" />

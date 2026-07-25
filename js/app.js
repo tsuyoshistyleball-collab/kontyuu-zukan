@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v13";
+  const APP_VERSION = "v15";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -75,12 +75,21 @@
     return out;
   }
 
-  // つぎの もくひょう しゅるいすう（じょうげんは なし・どこまでも のびる）
-  function nextGoal(n) {
-    const goals = [5, 10, 20, 30, 50, 75, 100, 150, 200, 300, 500, 750, 1000];
-    for (const g of goals) if (n < g) return g;
-    return Math.ceil((n + 1) / 500) * 500;
-  }
+  // ---- レベル（10しゅるいごとに アップ・じょうげんなし）----
+  const PER_LEVEL = 10;
+  const levelOf = (n) => Math.floor(n / PER_LEVEL) + 1;
+  const LEVEL_TITLES = [
+    "むしみつけ みならい",   // Lv1
+    "むしみつけ たんてい",   // Lv2
+    "むし ハンター",         // Lv3
+    "むし はかせ",           // Lv4
+    "むし マスター",         // Lv5
+    "むし キング",           // Lv6
+    "むし レジェンド",       // Lv7
+  ];
+  const levelTitle = (lv) =>
+    LEVEL_TITLES[Math.min(lv, LEVEL_TITLES.length) - 1] +
+    (lv > LEVEL_TITLES.length ? " ⭐️" + (lv - LEVEL_TITLES.length + 1) : "");
 
   // ---- ヘッダー ----
   function renderProgress() {
@@ -88,15 +97,21 @@
     const total = captures.length;
     $("#count").textContent = n;
     $("#total").textContent = n === 0 ? "" : "しゅるい";
-    // つぎの もくひょう（かぎりなく つづく）
-    const goal = nextGoal(n);
-    const pct = Math.round((n / goal) * 100);
+
+    const lv = levelOf(n);
+    const inLv = n % PER_LEVEL;
+    const pct = (inLv / PER_LEVEL) * 100;
     $("#bar-fill").style.width = pct + "%";
     $("#bar-bug").style.left = `calc(${pct}% - 14px)`;
+    $("#level-badge").textContent = "Lv." + lv;
+    $("#level-badge").className = "level-badge lv" + Math.min(lv, 7);
+    $("#level-title").textContent = levelTitle(lv);
+    $("#level-next").textContent = `つぎの レベルまで あと ${PER_LEVEL - inLv}しゅるい！`;
+
     const msg = $("#progress-msg");
     if (n === 0) msg.textContent = "むしを みつけて しゃしんを とろう！";
     else if (n === 1) msg.textContent = "さいしょの むし ゲット！ つぎは なにかな？";
-    else msg.textContent = `しゃしん ${total}まい ・ つぎは ${goal}しゅるい めざそう！`;
+    else msg.textContent = `しゃしん ${total}まい あつめたよ！`;
     $("#api-hint").hidden = !!Settings.key;
     $("#book-open").hidden = n === 0;
   }
@@ -533,6 +548,7 @@
       blob: pendingBlob, date: Date.now(),
     };
     const isNew = !groups.has(name);
+    const lvBefore = levelOf(groups.size);
     $("#result").close();
     $("#loading").hidden = false;
     try {
@@ -546,7 +562,8 @@
     }
     try { await reload(); renderProgress(); renderGrid(); } catch (e) { console.error("render after save:", e); }
     $("#loading").hidden = true;
-    if (isNew) celebrate(rec); else miniCheer(rec);
+    const leveledUp = levelOf(groups.size) > lvBefore;
+    if (isNew) celebrate(rec, leveledUp); else miniCheer(rec);
   }
 
   function errText(err) {
@@ -556,9 +573,17 @@
   }
 
   // ---- おいわい ----
-  function celebrate(rec) {
+  function celebrate(rec, leveledUp) {
     const ill = illustFor(rec.name);
     const ov = $("#celebrate");
+    const lvEl = $("#cel-level");
+    if (leveledUp) {
+      const lv = levelOf(groups.size);
+      lvEl.innerHTML = `🎉 レベル ${lv} に アップ！<span class="cel-level-title">${escapeHtml(levelTitle(lv))}</span>`;
+      lvEl.hidden = false;
+    } else {
+      lvEl.hidden = true;
+    }
     $("#cel-photo").src = urlFor(rec.blob);
     $("#cel-illust").innerHTML = ill.svg;
     $("#cel-name").textContent = rec.name;
@@ -570,8 +595,11 @@
     $("#cel-cat").textContent = `${cm.emoji} ${cm.label}`;
     ov.style.setProperty("--c", ill.color);
     ov.hidden = false; ov.classList.add("show");
-    confetti(rec.rarity); sound.fanfare(rec.rarity);
-    navigator.vibrate && navigator.vibrate([0, 60, 40, 60, 40, 120]);
+    // レベルアップの ときは もっと はでに！
+    confetti(leveledUp ? 3 : rec.rarity);
+    sound.fanfare(leveledUp ? 3 : rec.rarity);
+    if (leveledUp) setTimeout(() => { confetti(3); sound.blip(); }, 700);
+    navigator.vibrate && navigator.vibrate(leveledUp ? [0, 80, 50, 80, 50, 80, 50, 200] : [0, 60, 40, 60, 40, 120]);
   }
 
   function miniCheer(rec) {
