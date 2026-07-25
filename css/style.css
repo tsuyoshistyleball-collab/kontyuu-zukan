@@ -883,3 +883,8 @@ input[type="date"].s-input { -webkit-appearance: none; appearance: none; }
 .s-backup-btn.save { background: linear-gradient(180deg,#6cc3e8,#2f8fbf); color: #fff; box-shadow: 0 4px 0 #226f96; }
 .s-backup-btn.load { background: var(--paper2); color: var(--green-d); box-shadow: 0 3px 0 var(--frame-d); border-color: #fff; }
 .s-backup-btn:active { transform: translateY(2px); }
+
+/* バックアップの おすすめ / しゃしん ほぞん */
+.backup-hint { background: rgba(255,246,225,.96); color: #a05a12; }
+.g-save { position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%;
+  background: rgba(60,110,60,.72); color: #fff; font-size: 13px; line-height: 1; font-weight: 800; }

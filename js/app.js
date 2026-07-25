@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v27";
+  const APP_VERSION = "v28";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -129,6 +129,7 @@
     else msg.hidden = true;
     $("#api-hint").hidden = !!Settings.key;
     $("#book-open").hidden = n === 0;
+    updateBackupHint();
   }
 
   // ============ いった ばしょ（GPS・けんさく・しゃしん）============
@@ -645,6 +646,9 @@
     for (const c of [...g.list].reverse()) {
       const cell = document.createElement("div"); cell.className = "g-cell";
       const gi = document.createElement("img"); gi.src = urlFor(c.blob); gi.alt = g.name; cell.appendChild(gi);
+      const dl = document.createElement("button"); dl.className = "g-save"; dl.textContent = "⬇"; dl.title = "この しゃしんを たんまつに ほぞん";
+      dl.addEventListener("click", (e) => { e.stopPropagation(); downloadCapture(c, g.name); });
+      cell.appendChild(dl);
       const del = document.createElement("button"); del.className = "g-del"; del.textContent = "×"; del.title = "けす";
       del.addEventListener("click", (e) => { e.stopPropagation(); confirmDelete(c.id, g.name); });
       cell.appendChild(del);
@@ -1088,6 +1092,36 @@
   }
 
 
+
+  // しゃしん 1まいを たんまつに ほぞん
+  function downloadCapture(c, name) {
+    try {
+      const url = URL.createObjectURL(c.blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${name}-${toDateInput(c.date)}.jpg`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      sound.blip();
+    } catch (e) { alert("ほぞん できませんでした"); }
+  }
+
+  // バックアップの おすすめ（ながらく していない ときだけ）
+  const BACKUP_KEY = "mz-last-backup";
+  const BACKUP_EVERY = 7 * 24 * 60 * 60 * 1000;
+  function updateBackupHint() {
+    const el = $("#backup-hint");
+    if (!el) return;
+    const n = captures.length;
+    let last = 0;
+    try { last = parseInt(localStorage.getItem(BACKUP_KEY) || "0", 10) || 0; } catch (e) {}
+    const need = n > 0 && (!last || Date.now() - last > BACKUP_EVERY);
+    el.hidden = !need;
+    el.textContent = last
+      ? "💾 まえの バックアップから じかんが たったよ。タップで ほぞん"
+      : "💾 だいじな しゃしんを まもろう！ タップで バックアップ";
+  }
+
   // ============ バックアップ（ほぞん / もどす）============
   function blobToDataURL(blob) {
     return new Promise((res, rej) => {
@@ -1129,6 +1163,8 @@
       a.download = `mushizukan-backup-${toDateInput(Date.now())}.json`;
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 4000);
+      try { localStorage.setItem(BACKUP_KEY, String(Date.now())); } catch (e) {}
+      updateBackupHint();
       out.textContent = `✓ ${items.length}まいの しゃしんを ほぞんしたよ！`;
       out.className = "s-test-result ok";
     } catch (err) {
@@ -1226,6 +1262,7 @@
     $("#s-test").addEventListener("click", testSettings);
     $("#s-reclass").addEventListener("click", reclassifyWithAI);
     $("#s-export").addEventListener("click", exportBackup);
+    $("#backup-hint").addEventListener("click", exportBackup);
     $("#s-import").addEventListener("click", () => $("#s-import-file").click());
     $("#s-import-file").addEventListener("change", (e) => {
       const f = e.target.files && e.target.files[0];
