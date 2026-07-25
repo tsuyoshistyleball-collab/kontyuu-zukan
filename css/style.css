@@ -245,7 +245,7 @@ main { max-width: 760px; margin: 0 auto; }
 
 /* ページ＝クリームの かみ の 1まい */
 .page { flex: 0 0 100%; width: 100%; scroll-snap-align: center; overflow-y: auto;
-  padding: calc(var(--safe-top) + 46px) 16px calc(var(--safe-bot) + 68px);
+  padding: calc(var(--safe-top) + 46px) 16px calc(var(--safe-bot) + 86px);
   display: flex; flex-direction: column; align-items: center; }
 .page::before { /* かみの パネル */
   content: ""; position: absolute; z-index: -1; inset: calc(var(--safe-top) + 30px) 12px calc(var(--safe-bot) + 20px);
@@ -532,3 +532,98 @@ main { max-width: 760px; margin: 0 auto; }
 #sections[data-cols="5"] .card-stars { font-size: 9px; letter-spacing: 0; }
 #sections[data-cols="5"] .card-count { font-size: 10px; padding: 1px 6px; }
 #sections[data-cols="5"] .card.r3::before, #sections[data-cols="4"] .card.r3::before { font-size: 14px; top: -6px; }
+
+/* ============================================================
+   ★3 の ページ = ポケカみたいな キラキラ ホロ
+   ============================================================ */
+/* にじいろに ひかる わく */
+.page.r3::before {
+  animation: pageHoloFrame 4.5s linear infinite;
+}
+@keyframes pageHoloFrame {
+  0%   { box-shadow: 0 10px 26px rgba(70,50,30,.35), inset 0 0 0 3px #fff, inset 0 0 0 6px #ff6b6b, 0 0 30px 6px rgba(255,107,107,.55); }
+  17%  { box-shadow: 0 10px 26px rgba(70,50,30,.35), inset 0 0 0 3px #fff, inset 0 0 0 6px #ffa94d, 0 0 30px 6px rgba(255,169,77,.55); }
+  33%  { box-shadow: 0 10px 26px rgba(70,50,30,.35), inset 0 0 0 3px #fff, inset 0 0 0 6px #ffe14d, 0 0 30px 6px rgba(255,225,77,.55); }
+  50%  { box-shadow: 0 10px 26px rgba(70,50,30,.35), inset 0 0 0 3px #fff, inset 0 0 0 6px #5fd97a, 0 0 30px 6px rgba(95,217,122,.55); }
+  67%  { box-shadow: 0 10px 26px rgba(70,50,30,.35), inset 0 0 0 3px #fff, inset 0 0 0 6px #4dc4ff, 0 0 30px 6px rgba(77,196,255,.55); }
+  83%  { box-shadow: 0 10px 26px rgba(70,50,30,.35), inset 0 0 0 3px #fff, inset 0 0 0 6px #b47cff, 0 0 30px 6px rgba(180,124,255,.55); }
+  100% { box-shadow: 0 10px 26px rgba(70,50,30,.35), inset 0 0 0 3px #fff, inset 0 0 0 6px #ff6b6b, 0 0 30px 6px rgba(255,107,107,.55); }
+}
+
+/* ホロの そう（かみの うえ・もじの した）*/
+.page-holo {
+  position: absolute; z-index: -1; pointer-events: none;
+  inset: calc(var(--safe-top) + 30px) 12px calc(var(--safe-bot) + 20px);
+  border-radius: 24px; overflow: hidden;
+}
+/* にじいろの こうたく が ななめに ながれる */
+.page-holo::before {
+  content: ""; position: absolute; inset: -10%;
+  background: linear-gradient(115deg,
+    rgba(255,60,120,.30) 0%, rgba(255,170,40,.30) 14%, rgba(255,245,80,.32) 28%,
+    rgba(70,230,140,.30) 42%, rgba(70,190,255,.30) 56%, rgba(170,110,255,.30) 70%,
+    rgba(255,80,200,.30) 84%, rgba(255,60,120,.30) 100%);
+  background-size: 300% 300%;
+  mix-blend-mode: screen;
+  animation: holoSweep 5.5s linear infinite;
+}
+@keyframes holoSweep { 0% { background-position: 0% 50% } 100% { background-position: 300% 50% } }
+/* こまかい ラメ */
+.page-holo::after {
+  content: ""; position: absolute; inset: -20%;
+  background-image:
+    radial-gradient(circle, rgba(255,255,255,.95) 1px, transparent 1.7px),
+    radial-gradient(circle, rgba(255,245,170,.9) 1px, transparent 1.7px),
+    radial-gradient(circle, rgba(190,235,255,.9) 1px, transparent 1.7px);
+  background-size: 27px 27px, 43px 43px, 61px 61px;
+  background-position: 0 0, 14px 21px, 31px 9px;
+  animation: holoGlitter 2.8s ease-in-out infinite;
+}
+@keyframes holoGlitter {
+  0%,100% { opacity: .30; transform: translateY(0) }
+  50%     { opacity: .85; transform: translateY(-9px) }
+}
+
+/* うかぶ キラキラ（もじの うえ）*/
+.page-sparkles { position: absolute; inset: 0; pointer-events: none; z-index: 4; }
+/* もじの うえの こまかい ラメ（いろは かえない）*/
+.page-sparkles::before {
+  content: ""; position: absolute;
+  inset: calc(var(--safe-top) + 30px) 12px calc(var(--safe-bot) + 20px);
+  border-radius: 24px; overflow: hidden; pointer-events: none;
+  background-image:
+    radial-gradient(circle, rgba(255,255,255,.9) 1px, transparent 1.6px),
+    radial-gradient(circle, rgba(255,240,170,.75) 1px, transparent 1.6px);
+  background-size: 35px 35px, 54px 54px;
+  background-position: 0 0, 18px 27px;
+  animation: holoGlitter 3.2s ease-in-out infinite .6s;
+}
+.page-sparkles span { position: absolute; font-size: 20px; opacity: 0;
+  animation: spTwinkle 2.6s ease-in-out infinite; filter: drop-shadow(0 1px 3px rgba(255,220,120,.9)); }
+.page-sparkles span:nth-child(1) { top: 12%; left: 8%;  animation-delay: 0s }
+.page-sparkles span:nth-child(2) { top: 26%; right: 9%; animation-delay: .4s; font-size: 16px }
+.page-sparkles span:nth-child(3) { top: 54%; left: 5%;  animation-delay: .8s }
+.page-sparkles span:nth-child(4) { top: 68%; right: 7%; animation-delay: 1.2s; font-size: 17px }
+.page-sparkles span:nth-child(5) { top: 40%; right: 16%; animation-delay: 1.6s; font-size: 14px }
+.page-sparkles span:nth-child(6) { top: 84%; left: 12%; animation-delay: 2s; font-size: 15px }
+@keyframes spTwinkle {
+  0%,100% { opacity: 0; transform: scale(.4) rotate(-20deg) }
+  35%     { opacity: 1; transform: scale(1.25) rotate(12deg) }
+  60%     { opacity: .35; transform: scale(.85) rotate(0deg) }
+}
+
+/* ★3の なまえと ほしを きらめかせる */
+.page.r3 .page-stars { animation: starShine 2.4s ease-in-out infinite; }
+@keyframes starShine {
+  0%,100% { text-shadow: 0 0 6px rgba(255,200,80,.7) }
+  50%     { text-shadow: 0 0 16px rgba(255,220,120,1), 0 0 26px rgba(255,180,60,.8) }
+}
+.page.r3 .page-cat { box-shadow: 0 2px 0 var(--frame-d), 0 0 12px rgba(255,210,110,.8); }
+
+@media (prefers-reduced-motion: reduce) {
+  .page.r3::before { animation-duration: 9s !important; }
+  .page-holo::before { animation-duration: 11s !important; }
+  .page-holo::after { animation-duration: 6s !important; }
+  .page-sparkles span { animation-duration: 5s !important; }
+  .page.r3 .page-stars { animation-duration: 5s !important; }
+}

@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v11";
+  const APP_VERSION = "v12";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -198,9 +198,17 @@
     const ill = illustFor(g.name);
     const meta = categoryMeta(g.category);
     const page = document.createElement("section");
-    page.className = "page";
+    page.className = "page r" + g.rarity;
     page.dataset.name = g.name;
     page.style.setProperty("--c", ill.color);
+
+    // ★3は ページぜんたいを キラキラ（ホロ）に
+    if (g.rarity === 3) {
+      const holo = document.createElement("div");
+      holo.className = "page-holo";
+      holo.setAttribute("aria-hidden", "true");
+      page.appendChild(holo);
+    }
 
     const cat = document.createElement("div");
     cat.className = "page-cat";
@@ -288,6 +296,14 @@
     del.className = "page-delete"; del.textContent = "🗑️ この むしを ずかんから けす";
     del.addEventListener("click", () => deleteGroup(g.name));
     page.appendChild(del);
+
+    if (g.rarity === 3) {
+      const sp = document.createElement("div");
+      sp.className = "page-sparkles";
+      sp.setAttribute("aria-hidden", "true");
+      sp.innerHTML = "<span>✨</span><span>⭐</span><span>✨</span><span>💫</span><span>✨</span><span>⭐</span>";
+      page.appendChild(sp);
+    }
 
     return page;
   }
