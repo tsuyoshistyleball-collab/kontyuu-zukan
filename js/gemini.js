@@ -130,5 +130,57 @@ const Gemini = (() => {
     return true;
   }
 
-  return { identify, test, DEFAULT_MODEL };
+
+  // なまえの リストを まとめて なかまわけ（もじだけ・やすい）
+  const CATS = "こうちゅう / ちょう・が / とんぼ / せみ / ばった・かまきり / はち・あり / くも / かたつむり / みずのむし / かえる・いきもの / そのほか";
+  const CLASSIFY_SCHEMA = {
+    type: "OBJECT",
+    properties: {
+      items: {
+        type: "ARRAY",
+        items: {
+          type: "OBJECT",
+          properties: { name: { type: "STRING" }, category: { type: "STRING" } },
+          required: ["name", "category"],
+        },
+      },
+    },
+    required: ["items"],
+  };
+
+  async function classifyNames(names, key, model) {
+    if (!key) throw new Error("NO_KEY");
+    if (!names || !names.length) return {};
+    const prompt =
+      "つぎの いきものの なまえを、それぞれ なかまわけ して ください。\n" +
+      "なかまわけは かならず つぎの どれか ひとつ：" + CATS + "\n" +
+      "むし以外（かえる・とかげ など）は「かえる・いきもの」に して ください。\n" +
+      "なまえ：\n" + names.map((n) => "- " + n).join("\n");
+    const resp = await fetch(endpoint(model || DEFAULT_MODEL, key), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: CLASSIFY_SCHEMA,
+          temperature: 0,
+        },
+      }),
+    });
+    if (!resp.ok) {
+      let msg = "API " + resp.status;
+      try { const j = await resp.json(); if (j.error && j.error.message) msg = j.error.message; } catch (e) {}
+      throw new Error(msg);
+    }
+    const data = await resp.json();
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    let obj = {};
+    try { obj = JSON.parse(text); } catch (e) { obj = {}; }
+    const out = {};
+    for (const it of obj.items || []) if (it && it.name) out[it.name] = it.category || "";
+    return out;
+  }
+
+  return { identify, test, classifyNames, DEFAULT_MODEL };
 })();

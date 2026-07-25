@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v21";
+  const APP_VERSION = "v22";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -574,6 +574,7 @@
       if (!v) { alert("なまえを いれてね"); return; }
       if (v === g.name) { renameRow.hidden = true; nameRow.hidden = false; return; }
       await DB.renameGroup(g.name, v);
+      await DB.patchByName(v, { aiCategory: "" });
       await afterChange(v, true);
     });
 
@@ -848,7 +849,7 @@
       rarity: clampR(ill.knownId ? ill.rarity : (r.rarity || 1)),
       color: ill.color, knownId: ill.knownId,
       category: categorize(name, r.category),
-      aiCategory: r.category || "",
+      aiCategory: (r.aiName && name === r.aiName) ? (r.category || "") : "",
       aiName: r.aiName || null,
       confidence: r.confidence != null ? r.confidence : null,
       blob: pendingBlob, date: Date.now(),
@@ -990,6 +991,39 @@
     catch (err) { out.textContent = "✕ " + (err.message || "しっぱい"); out.className = "s-test-result warn"; }
   }
 
+
+  // AIに ぜんぶの なかまわけを やりなおして もらう
+  async function reclassifyWithAI() {
+    const out = $("#s-reclass-result");
+    const key = Settings.key;
+    if (!key) { out.textContent = "さきに APIキーを いれてね"; out.className = "s-test-result warn"; return; }
+    const names = [...groups.keys()];
+    if (!names.length) { out.textContent = "まだ むしが いないよ"; out.className = "s-test-result warn"; return; }
+    out.textContent = `AIが ${names.length}しゅるいを しらべているよ…`;
+    out.className = "s-test-result";
+    try {
+      const map = await Gemini.classifyNames(names, key, Settings.model);
+      let changed = 0;
+      for (const name of names) {
+        const label = map[name];
+        if (!label) continue;
+        const before = groups.get(name).category;
+        const after = categorize(name, label);
+        await DB.patchByName(name, { aiCategory: label });
+        if (after !== before) changed++;
+      }
+      await reload(); renderProgress(); renderGrid(); renderPlaces();
+      out.textContent = changed
+        ? `✓ ${changed}しゅるいの なかまわけを なおしたよ！`
+        : "✓ ぜんぶ あってたよ！";
+      out.className = "s-test-result ok";
+      if (changed) { sound.blip(); }
+    } catch (err) {
+      out.textContent = "✕ " + (err.message || "できませんでした");
+      out.className = "s-test-result warn";
+    }
+  }
+
   function resizeImage(file, maxSide, quality) {
     return new Promise((resolve, reject) => {
       const img = new Image(); const url = URL.createObjectURL(file);
@@ -1038,6 +1072,7 @@
     $("#s-close").addEventListener("click", () => $("#settings").close());
     $("#s-save").addEventListener("click", saveSettings);
     $("#s-test").addEventListener("click", testSettings);
+    $("#s-reclass").addEventListener("click", reclassifyWithAI);
     $("#s-reset").addEventListener("click", resetData);
     $("#s-key-toggle").addEventListener("click", () => {
       const masked = $("#s-key").classList.toggle("masked");

@@ -314,12 +314,33 @@ function _matchCat(hay) {
   }
   return null;
 }
+/* AIが かえす ラベル → カテゴリーid */
+const _CAT_LABEL_MAP = {
+  "こうちゅう": "beetle", "ちょうが": "butterfly", "とんぼ": "dragonfly", "せみ": "cicada",
+  "ばったかまきり": "hopper", "はちあり": "beeant", "くも": "spider", "かたつむり": "snail",
+  "みずのむし": "water", "かえるいきもの": "amphibian",
+};
+function _catFromLabel(label) {
+  const k = _norm(label);
+  if (!k) return null;
+  if (k === "そのほか") return null;      // 「そのほか」は こたえ なし あつかい
+  if (_CAT_LABEL_MAP[k]) return _CAT_LABEL_MAP[k];
+  for (const key in _CAT_LABEL_MAP) {     // ゆらぎ（ちょう / ばった など）にも たいおう
+    if (k.includes(key) || key.includes(k)) return _CAT_LABEL_MAP[key];
+  }
+  return _matchCat(k);
+}
+
 function categorize(name, aiCategory) {
+  // 1) ずかんに ある むしは きまった なかまわけ
   const known = matchKnown(name);
   if (known && _KNOWN_CATEGORY[known.id]) return _KNOWN_CATEGORY[known.id];
+  // 2) AIの なかまわけを ゆうせん
+  const byAi = _catFromLabel(aiCategory);
+  if (byAi) return byAi;
+  // 3) なまえの ことばで はんてい
   const nm = _norm(name);
-  // まず なまえで、つぎに AIの なかまわけで はんてい
-  const hit = _matchCat(nm) || _matchCat(_norm(aiCategory));
+  const hit = _matchCat(nm);
   if (hit) return hit;
   // 「〜が」で おわる なまえは たいてい 蛾（あまがえる などは のぞく）
   if (nm.length >= 3 && nm.endsWith("が")) return "butterfly";

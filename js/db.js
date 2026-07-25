@@ -116,6 +116,24 @@ const DB = (() => {
     });
   }
 
+
+  // おなじ なまえの レコードに あたいを かきこむ
+  function idbPatchByName(name, patch) {
+    return new Promise((resolve, reject) => {
+      const req = idbStore("readwrite").openCursor();
+      req.onsuccess = (e) => {
+        const cur = e.target.result; if (!cur) return resolve();
+        if (cur.value.name === name) cur.update(Object.assign({}, cur.value, patch));
+        cur.continue();
+      };
+      req.onerror = () => reject(req.error);
+    });
+  }
+  function lsPatchByName(name, patch) {
+    lsWrite(lsRead().map((r) => (r.name === name ? Object.assign({}, r, patch) : r)));
+    return Promise.resolve();
+  }
+
   // ---------- localStorage（フォールバック）----------
   function lsRead() { try { return JSON.parse(localStorage.getItem(LS_KEY) || "[]"); } catch (e) { return []; } }
   function lsWrite(arr) { localStorage.setItem(LS_KEY, JSON.stringify(arr)); }
@@ -159,6 +177,7 @@ const DB = (() => {
   async function getAll() { await init(); return backend === "idb" ? idbGetAll() : lsGetAll(); }
   async function remove(id) { await init(); return backend === "idb" ? idbRemove(id) : lsRemove(id); }
   async function renameGroup(o, n) { await init(); return backend === "idb" ? idbRename(o, n) : lsRename(o, n); }
+  async function patchByName(name, patch) { await init(); return backend === "idb" ? idbPatchByName(name, patch) : lsPatchByName(name, patch); }
 
   function reset() {
     // りょうほう けす
@@ -177,5 +196,5 @@ const DB = (() => {
 
   async function mode() { await init(); return backend; }
 
-  return { add, getAll, remove, renameGroup, reset, mode };
+  return { add, getAll, remove, renameGroup, patchByName, reset, mode };
 })();
