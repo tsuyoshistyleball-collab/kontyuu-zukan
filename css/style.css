@@ -847,3 +847,19 @@ main { max-width: 760px; margin: 0 auto; }
 /* ブックの ばしょ ひょうじ */
 .page-place { margin: 6px 0 0; font-size: 13px; font-weight: 800; color: var(--green-d);
   background: var(--paper2); padding: 5px 14px; border-radius: 999px; box-shadow: inset 0 0 0 2px #fff; }
+
+/* ---------- ★の かず（タップで かえられる）---------- */
+.star-pick { display: inline-flex; gap: 2px; align-items: center; }
+.star-pick .star {
+  background: none; border: none; padding: 2px 4px; line-height: 1;
+  font-size: inherit; color: inherit; cursor: pointer;
+  transition: transform .12s ease;
+}
+.star-pick .star:active { transform: scale(1.35) rotate(-8deg); }
+.star-pick .star:disabled { cursor: default; }
+.star-hint { font-size: 10.5px; font-weight: 800; color: var(--ink-sub); margin: 2px 0 0; opacity: .85; }
+.m-stars-row { display: flex; flex-direction: column; align-items: center; gap: 0; }
+#r-stars { font-size: 30px; }
+.page-stars { font-size: 30px; }
+.page-star-hint { color: rgba(90,70,40,.65); margin: 0 0 2px; }
+.page.r3 .page-star-hint { color: rgba(90,70,40,.8); }

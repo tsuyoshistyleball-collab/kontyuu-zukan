@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v23";
+  const APP_VERSION = "v24";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -16,6 +16,8 @@
   let pendingAppendName = null;
   let pendingBlob = null;
   let pendingResolved = null;
+  let pendingRarity = 1;      // とうろく画面で えらんだ ★の かず
+  let rarityTouched = false;  // てで かえたら AIの すいそくで うわがきしない
 
   const Settings = {
     get key() { return localStorage.getItem("mz-gemini-key") || ""; },
@@ -406,6 +408,25 @@
     } catch (e) { return ""; }
   }
 
+
+  // ★の かず（レアど）を タップで えらべる ようにする
+  function renderStars(el, rarity, onPick) {
+    const r = clampR(rarity);
+    el.innerHTML = "";
+    el.className = (el.dataset.base || el.className.split(" ")[0]) + " star-pick s" + r;
+    el.dataset.base = el.className.split(" ")[0];
+    for (let i = 1; i <= 3; i++) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "star" + (i <= r ? " on" : "");
+      b.textContent = i <= r ? "★" : "☆";
+      b.setAttribute("aria-label", i + "つ");
+      if (onPick) b.addEventListener("click", (e) => { e.stopPropagation(); onPick(i); });
+      else b.disabled = true;
+      el.appendChild(b);
+    }
+  }
+
   // ---- カードの おおきさ（1れつの まいすう）----
   function applyCols(n) {
     n = Math.min(5, Math.max(2, parseInt(n, 10) || 2));
@@ -545,8 +566,13 @@
     page.appendChild(pw);
 
     const st = document.createElement("div");
-    st.className = "page-stars s" + g.rarity; st.textContent = stars(g.rarity);
+    st.className = "page-stars";
+    renderStars(st, g.rarity, (v) => setRarity(g.name, v));
     page.appendChild(st);
+    const stHint = document.createElement("p");
+    stHint.className = "star-hint page-star-hint";
+    stHint.textContent = "★を タップで かえられるよ";
+    page.appendChild(stHint);
 
     // なまえ（＋ しゅうせい）
     const nameRow = document.createElement("div");
@@ -630,6 +656,18 @@
     }
 
     return page;
+  }
+
+
+  // ★の かずを かえて ほぞん（おなじ なまえ ぜんぶ）
+  async function setRarity(name, v) {
+    const g = groups.get(name);
+    if (!g || g.rarity === v) return;
+    try { await DB.patchByName(name, { rarity: v }); }
+    catch (e) { console.error(e); alert("★を かえられませんでした"); return; }
+    sound.blip();
+    if (v === 3) { confetti(3); }
+    await afterChange(name, true);
   }
 
   // むし（なまえ）ごと ぜんぶ けす
@@ -791,8 +829,9 @@
     $("#r-fact").textContent = r.fact || "";
     $("#r-hint").textContent = r.where ? "🔍 " + r.where : "";
     $("#r-hint").hidden = !r.where;
-    $("#r-stars").textContent = stars(r.rarity);
-    $("#r-stars").className = "r-stars s" + clampR(r.rarity);
+    pendingRarity = clampR(r.rarity);
+    rarityTouched = false;
+    drawResultStars();
 
     const note = $("#r-note");
     note.className = "r-note";
@@ -820,6 +859,15 @@
     guessPlaceId().then((id) => { if (id && !$("#r-place").value) $("#r-place").value = id; });
   }
 
+  function drawResultStars() {
+    renderStars($("#r-stars"), pendingRarity, (v) => {
+      pendingRarity = v;
+      rarityTouched = true;
+      drawResultStars();
+      sound.blip();
+    });
+  }
+
   function updateResultIllust(name) {
     const ill = illustFor(name);
     $("#r-illust").innerHTML = ill.svg;
@@ -831,9 +879,9 @@
     updateResultIllust(name);
     const ill = illustFor(name);
     const r = pendingResolved || {};
-    const rarity = clampR(ill.knownId ? ill.rarity : (r.rarity || 1));
-    $("#r-stars").textContent = stars(rarity);
-    $("#r-stars").className = "r-stars s" + rarity;
+    if (rarityTouched) return;   // てで えらんだ ★は そのまま
+    pendingRarity = clampR(ill.knownId ? ill.rarity : (r.rarity || 1));
+    drawResultStars();
   }
 
   async function saveResult() {
@@ -845,8 +893,7 @@
       name,
       kana: r.kana || ill.kana || "",
       fact: r.fact || ill.fact || "",
-      // なまえが ずかんの むしと あえば その レアど、なければ AIの すいそく
-      rarity: clampR(ill.knownId ? ill.rarity : (r.rarity || 1)),
+      rarity: clampR(pendingRarity),
       color: ill.color, knownId: ill.knownId,
       category: categorize(name, r.category),
       aiCategory: (r.aiName && name === r.aiName) ? (r.category || "") : "",
