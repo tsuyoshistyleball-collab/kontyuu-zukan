@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v19";
+  const APP_VERSION = "v20";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -1046,6 +1046,10 @@
 
     $("#place-add").addEventListener("click", () => openPlaceModal(null));
     $("#pl-close").addEventListener("click", () => $("#place-modal").close());
+    // はいけいを タップでも とじられる
+    for (const id of ["#place-modal", "#settings", "#result"]) {
+      $(id).addEventListener("click", (e) => { if (e.target === $(id)) $(id).close(); });
+    }
     $("#pl-save").addEventListener("click", savePlace);
     $("#pl-here").addEventListener("click", useCurrentPlace);
     $("#pl-search-btn").addEventListener("click", searchPlace);
