@@ -75,7 +75,7 @@ button { font-family: inherit; cursor: pointer; border: none; color: inherit; }
 @keyframes floaty { 0%,100% { transform: translateY(0) rotate(-8deg) } 50% { transform: translateY(-9px) rotate(10deg) } }
 
 /* ヘッダーの なかみを グリッドと そろえる（ひろい がめん たいさく）*/
-.topbar-row, .progress-msg, .progress, .api-hint, .size-row {
+.topbar-row, .progress-msg, .progress, .api-hint {
   max-width: 760px; margin-left: auto; margin-right: auto;
 }
 
@@ -558,13 +558,13 @@ main { max-width: 760px; margin: 0 auto; }
 @keyframes twinkle { 0%,100% { transform: scale(1) rotate(-10deg); opacity: .85 } 50% { transform: scale(1.3) rotate(10deg); opacity: 1 } }
 
 /* ---------- カードの おおきさ（1れつの まいすう）---------- */
-.size-row { display: flex; align-items: center; gap: 8px; margin-top: 11px; }
-.size-cap { font-size: 12px; font-weight: 800; opacity: .96; text-shadow: 0 1px 0 rgba(70,110,40,.3); }
-.size-seg { display: flex; gap: 6px; margin-left: auto; }
-.size-btn { width: 34px; height: 34px; border-radius: 12px; font-weight: 900; font-size: 15px;
-  background: rgba(255,255,255,.92); color: var(--green-d); box-shadow: 0 2px 0 #cda86a; }
-.size-btn:active { transform: translateY(1px); box-shadow: none; }
-.size-btn.active { background: var(--honey); color: #6a4b00; box-shadow: 0 2px 0 var(--honey-d); }
+/* カードの おおきさ（せってい の なか）*/
+.size-seg { display: flex; gap: 8px; }
+.size-btn { flex: 1; height: 44px; border-radius: 14px; font-weight: 900; font-size: 17px;
+  background: var(--paper2); color: var(--green-d); box-shadow: 0 3px 0 var(--frame-d); border: 2px solid #fff; }
+.size-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--frame-d); }
+.size-btn.active { background: linear-gradient(180deg, #ffe28c, var(--honey)); color: #6a4b00; box-shadow: 0 3px 0 var(--honey-d); }
+.s-divider { height: 0; border-top: 2px dashed var(--frame); margin: 18px 0 4px; }
 
 #sections .grid { grid-template-columns: repeat(var(--cols, 2), 1fr); }
 #sections[data-cols="4"] .grid, #sections[data-cols="5"] .grid { gap: 8px; padding: 0 10px; }
@@ -699,3 +699,60 @@ main { max-width: 760px; margin: 0 auto; }
   text-shadow: 0 2px 3px rgba(0,0,0,.35); box-shadow: 0 4px 12px rgba(70,50,30,.3);
 }
 .cel-level-title { display: block; font-size: 13px; margin-top: 2px; opacity: .97; }
+
+/* ============================================================
+   いった ばしょ（🗺️）
+   ============================================================ */
+.places { margin-bottom: 4px; }
+.places-list {
+  display: flex; gap: 10px; overflow-x: auto; padding: 2px 14px 8px;
+  scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.places-list::-webkit-scrollbar { display: none; }
+.place-card {
+  flex: 0 0 auto; width: 106px; scroll-snap-align: start;
+  background: var(--card); border: 3px solid #fff; border-radius: 18px;
+  padding: 10px 8px 9px; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  box-shadow: 0 4px 0 var(--frame-d), 0 7px 14px var(--shadow);
+  position: relative; text-align: center; transition: transform .12s ease;
+}
+.place-card::after {
+  content: ""; position: absolute; inset: 4px; border-radius: 13px;
+  border: 2px dashed var(--frame); pointer-events: none;
+}
+.place-card:active { transform: scale(.94) rotate(-1deg); }
+.place-emoji { font-size: 30px; line-height: 1.1; }
+.place-name { font-size: 13px; font-weight: 900; color: var(--ink); line-height: 1.2; }
+.place-visits {
+  font-size: 11px; font-weight: 800; color: #fff; background: var(--green);
+  padding: 1px 9px; border-radius: 999px; box-shadow: 0 2px 0 var(--green-d);
+}
+.place-date { font-size: 10px; font-weight: 700; color: var(--ink-sub); }
+.place-add-card {
+  background: repeating-linear-gradient(45deg, #fdf3e0, #fdf3e0 8px, #f7e9cf 8px, #f7e9cf 16px);
+  border-style: dashed; border-color: var(--frame-d);
+}
+.place-add-card .place-name { color: var(--green-d); font-size: 12px; }
+
+/* ばしょの とうろく ダイアログ */
+.place-modal .s-title { margin-bottom: 4px; }
+.pl-emoji-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.pl-emoji {
+  height: 42px; font-size: 21px; border-radius: 12px; background: var(--paper2);
+  box-shadow: 0 2px 0 var(--frame-d); border: 2px solid transparent;
+}
+.pl-emoji:active { transform: translateY(1px); box-shadow: none; }
+.pl-emoji.active {
+  background: linear-gradient(180deg,#ffe28c,var(--honey)); border-color: #fff;
+  box-shadow: 0 2px 0 var(--honey-d), 0 0 10px rgba(255,200,90,.7);
+}
+.pl-meta { text-align: center; font-size: 12.5px; font-weight: 800; color: var(--ink-sub); margin: 12px 0 0; }
+.pl-visit {
+  display: block; width: calc(100% - 44px); margin: 12px 22px 0; padding: 13px;
+  border-radius: 16px; font-size: 16px; font-weight: 900; color: #fff;
+  background: linear-gradient(180deg,#84c266,#4c8033); border: 3px solid #fff;
+  box-shadow: 0 4px 0 #3a6427;
+}
+.pl-visit:active { transform: translateY(3px); box-shadow: 0 1px 0 #3a6427; }
+.pl-delete { background: #fbe3dc; color: var(--terra-d); }

@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v15";
+  const APP_VERSION = "v17";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -114,6 +114,116 @@
     else msg.textContent = `しゃしん ${total}まい あつめたよ！`;
     $("#api-hint").hidden = !!Settings.key;
     $("#book-open").hidden = n === 0;
+  }
+
+  // ============ いった ばしょ ============
+  const PLACE_EMOJI = ["🌳", "🏞️", "🏕️", "🌲", "🏖️", "🌊", "🏔️", "🌸", "🏡", "🏫", "🪴", "🦋"];
+  let placeEditingId = null;
+  let placeEmoji = PLACE_EMOJI[0];
+
+  const Places = {
+    get all() {
+      try { return JSON.parse(localStorage.getItem("mz-places") || "[]"); }
+      catch (e) { return []; }
+    },
+    set all(v) { localStorage.setItem("mz-places", JSON.stringify(v)); },
+  };
+
+  function renderPlaces() {
+    const list = $("#places-list");
+    const all = Places.all.sort((a, b) => b.last - a.last);
+    $("#places-count").textContent = all.length;
+    list.innerHTML = "";
+
+    for (const p of all) {
+      const card = document.createElement("button");
+      card.className = "place-card";
+      card.innerHTML =
+        `<span class="place-emoji">${p.emoji || "🌳"}</span>` +
+        `<span class="place-name">${escapeHtml(p.name)}</span>` +
+        (p.visits > 1 ? `<span class="place-visits">${p.visits}かい</span>` : "") +
+        `<span class="place-date">${fmtDate(p.last)}</span>`;
+      card.addEventListener("click", () => openPlaceModal(p.id));
+      list.appendChild(card);
+    }
+
+    const add = document.createElement("button");
+    add.className = "place-card place-add-card";
+    add.innerHTML = `<span class="place-emoji">🗺️</span><span class="place-name">ばしょを<br>ふやす</span>`;
+    add.addEventListener("click", () => openPlaceModal(null));
+    list.appendChild(add);
+  }
+
+  function openPlaceModal(id) {
+    const p = id ? Places.all.find((x) => x.id === id) : null;
+    placeEditingId = p ? p.id : null;
+    placeEmoji = p ? (p.emoji || PLACE_EMOJI[0]) : PLACE_EMOJI[0];
+
+    $("#pl-title").textContent = p ? "🗺️ ばしょ" : "🗺️ ばしょを とうろく";
+    $("#pl-name").value = p ? p.name : "";
+    $("#pl-note").value = p ? (p.note || "") : "";
+    $("#pl-meta").textContent = p
+      ? `はじめて：${fmtDate(p.first)} ・ いった かず：${p.visits}かい`
+      : "";
+    $("#pl-visit").hidden = !p;
+    $("#pl-delete").hidden = !p;
+
+    // アイコン えらび
+    const row = $("#pl-emoji");
+    row.innerHTML = "";
+    for (const e of PLACE_EMOJI) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "pl-emoji" + (e === placeEmoji ? " active" : "");
+      b.textContent = e;
+      b.addEventListener("click", () => {
+        placeEmoji = e;
+        $$("#pl-emoji .pl-emoji").forEach((x) => x.classList.toggle("active", x.textContent === e));
+      });
+      row.appendChild(b);
+    }
+
+    $("#place-modal").showModal();
+    if (!p) setTimeout(() => $("#pl-name").focus(), 200);
+  }
+
+  function savePlace() {
+    const name = $("#pl-name").value.trim();
+    if (!name) { alert("ばしょの なまえを いれてね"); $("#pl-name").focus(); return; }
+    const note = $("#pl-note").value.trim();
+    const all = Places.all;
+    const now = Date.now();
+    if (placeEditingId) {
+      const p = all.find((x) => x.id === placeEditingId);
+      if (p) { p.name = name; p.note = note; p.emoji = placeEmoji; }
+    } else {
+      all.push({ id: "p" + now, name, note, emoji: placeEmoji, first: now, last: now, visits: 1 });
+    }
+    Places.all = all;
+    $("#place-modal").close();
+    renderPlaces();
+    if (!placeEditingId) { sound.blip(); confetti(1); }
+  }
+
+  function visitAgain() {
+    const all = Places.all;
+    const p = all.find((x) => x.id === placeEditingId);
+    if (!p) return;
+    p.visits = (p.visits || 1) + 1;
+    p.last = Date.now();
+    Places.all = all;
+    $("#place-modal").close();
+    renderPlaces();
+    sound.blip(); confetti(1);
+  }
+
+  function deletePlace() {
+    const p = Places.all.find((x) => x.id === placeEditingId);
+    if (!p) return;
+    if (!confirm(`「${p.name}」を けしても いい？`)) return;
+    Places.all = Places.all.filter((x) => x.id !== placeEditingId);
+    $("#place-modal").close();
+    renderPlaces();
   }
 
   // ---- カードの おおきさ（1れつの まいすう）----
@@ -733,6 +843,12 @@
 
     $$(".size-btn").forEach((btn) => btn.addEventListener("click", () => applyCols(+btn.dataset.cols)));
 
+    $("#place-add").addEventListener("click", () => openPlaceModal(null));
+    $("#pl-close").addEventListener("click", () => $("#place-modal").close());
+    $("#pl-save").addEventListener("click", savePlace);
+    $("#pl-visit").addEventListener("click", visitAgain);
+    $("#pl-delete").addEventListener("click", deletePlace);
+
     const sb = $("#sound-btn");
     const refreshSound = () => (sb.textContent = sound.on ? "🔊" : "🔈");
     refreshSound();
@@ -764,6 +880,7 @@
       return;
     }
 
+    renderPlaces();
     try {
       await reload();
       renderProgress();

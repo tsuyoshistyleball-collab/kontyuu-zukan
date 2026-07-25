@@ -35,6 +35,7 @@
         <span class="plate-sub">みつけた むしの きろく</span>
       </div>
       <div class="topbar-btns">
+        <button id="place-add" class="icon-btn" aria-label="いった ばしょを とうろく">🗺️</button>
         <button id="book-open" class="icon-btn" aria-label="ずかんを めくる" hidden>📖</button>
         <button id="sound-btn" class="icon-btn" aria-label="おとの おんおふ">🔊</button>
         <button id="settings-btn" class="icon-btn" aria-label="せってい">⚙️</button>
@@ -54,19 +55,20 @@
       <p id="level-next" class="level-next"></p>
     </div>
     <button id="api-hint" class="api-hint" hidden>⚙️ AIで なまえを じどう にゅうりょく するには ここを タップ</button>
-    <div class="size-row">
-      <span class="size-cap">カードの おおきさ</span>
-      <div class="size-seg">
-        <button class="size-btn" data-cols="2" aria-label="2れつ">2</button>
-        <button class="size-btn" data-cols="3" aria-label="3れつ">3</button>
-        <button class="size-btn" data-cols="4" aria-label="4れつ">4</button>
-        <button class="size-btn" data-cols="5" aria-label="5れつ">5</button>
-      </div>
-    </div>
   </header>
 
   <!-- ずかん（カテゴリーごとの いちらん） -->
   <main>
+    <!-- いった ばしょ -->
+    <section class="places">
+      <div class="cat-head">
+        <span class="cat-emoji">🗺️</span>
+        <span class="cat-label">いった ばしょ</span>
+        <span class="cat-count" id="places-count">0</span>
+      </div>
+      <div id="places-list" class="places-list"></div>
+    </section>
+
     <div id="sections"></div>
     <div class="app-ver" id="app-ver"></div>
     <div class="foot-space"></div>
@@ -118,10 +120,48 @@
     </div>
   </dialog>
 
+  <!-- ばしょの とうろく -->
+  <dialog id="place-modal" class="modal place-modal">
+    <button id="pl-close" class="m-close" aria-label="とじる">✕</button>
+    <h2 id="pl-title" class="s-title">🗺️ ばしょを とうろく</h2>
+
+    <label class="s-label">どんな ところ？</label>
+    <div id="pl-emoji" class="pl-emoji-row"></div>
+
+    <label class="s-label">ばしょの なまえ</label>
+    <input id="pl-name" class="s-input" type="text" maxlength="20" placeholder="こうえん・おやまなど"
+           autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+           name="place_name" data-lpignore="true" data-1p-ignore />
+
+    <label class="s-label">メモ（なくても いいよ）</label>
+    <input id="pl-note" class="s-input" type="text" maxlength="30" placeholder="かぶとむしが いた！"
+           autocomplete="off" spellcheck="false" name="place_note" data-lpignore="true" data-1p-ignore />
+
+    <p id="pl-meta" class="pl-meta"></p>
+
+    <button id="pl-visit" class="pl-visit" hidden>🎉 きょうも きた！（かいすう +1）</button>
+
+    <div class="r-actions">
+      <button id="pl-delete" class="r-cancel pl-delete" hidden>🗑️ けす</button>
+      <button id="pl-save" class="r-save">✓ ほぞん</button>
+    </div>
+  </dialog>
+
   <!-- せってい（Gemini API） -->
   <dialog id="settings" class="modal settings">
     <button id="s-close" class="m-close" aria-label="とじる">✕</button>
     <h2 class="s-title">⚙️ せってい</h2>
+
+    <label class="s-label">🖼️ カードの おおきさ（1れつの まいすう）</label>
+    <div class="size-seg">
+      <button class="size-btn" data-cols="2" aria-label="2れつ">2</button>
+      <button class="size-btn" data-cols="3" aria-label="3れつ">3</button>
+      <button class="size-btn" data-cols="4" aria-label="4れつ">4</button>
+      <button class="size-btn" data-cols="5" aria-label="5れつ">5</button>
+    </div>
+
+    <div class="s-divider"></div>
+
     <p class="s-lead">Gemini（ジェミニ）の APIキーを いれると、しゃしんから じどうで むしの なまえを すいそく します。</p>
 
     <label class="s-label">Gemini APIキー</label>
