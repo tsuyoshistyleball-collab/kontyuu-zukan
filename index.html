@@ -159,6 +159,12 @@
            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
            name="place_name" data-lpignore="true" data-1p-ignore />
 
+    <label class="s-label">📅 いった ひ</label>
+    <div class="pl-date-row">
+      <input id="pl-date" class="s-input" type="date" name="place_date" />
+      <button id="pl-today" class="pl-today" type="button">きょう</button>
+    </div>
+
     <label class="s-label">メモ（なくても いいよ）</label>
     <input id="pl-note" class="s-input" type="text" maxlength="30" placeholder="かぶとむしが いた！"
            autocomplete="off" spellcheck="false" name="place_note" data-lpignore="true" data-1p-ignore />
@@ -171,7 +177,7 @@
       <div id="pl-bugs" class="pl-bugs"></div>
     </div>
 
-    <button id="pl-visit" class="pl-visit" hidden>🎉 きょうも きた！（かいすう +1）</button>
+    <button id="pl-visit" class="pl-visit" hidden>🎉 また いった！（かいすう +1）</button>
 
     <div class="r-actions">
       <button id="pl-delete" class="r-cancel pl-delete" hidden>🗑️ けす</button>

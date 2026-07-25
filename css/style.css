@@ -863,3 +863,11 @@ main { max-width: 760px; margin: 0 auto; }
 .page-stars { font-size: 30px; }
 .page-star-hint { color: rgba(90,70,40,.65); margin: 0 0 2px; }
 .page.r3 .page-star-hint { color: rgba(90,70,40,.8); }
+
+/* ばしょの ひづけ */
+.pl-date-row { display: flex; gap: 8px; align-items: stretch; }
+.pl-date-row .s-input { flex: 1; min-height: 46px; font-family: inherit; }
+input[type="date"].s-input { -webkit-appearance: none; appearance: none; }
+.pl-today { flex-shrink: 0; padding: 0 16px; border-radius: 12px; font-weight: 900; font-size: 14px;
+  background: var(--paper2); color: var(--green-d); box-shadow: 0 3px 0 var(--frame-d); }
+.pl-today:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--frame-d); }

@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v24";
+  const APP_VERSION = "v25";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -30,6 +30,16 @@
   const clampR = (n) => Math.min(3, Math.max(1, parseInt(n, 10) || 1));
   const stars = (n) => "★".repeat(clampR(n)) + "☆".repeat(3 - clampR(n));
   const fmtDate = (ms) => { const d = new Date(ms); return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`; };
+  const toDateInput = (ms) => {
+    const d = new Date(ms || Date.now()); const p2 = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+  };
+  const fromDateInput = (v, fallback) => {
+    if (!v) return fallback;
+    const [y, m, d] = v.split("-").map(Number);
+    if (!y || !m || !d) return fallback;
+    return new Date(y, m - 1, d, 12, 0, 0).getTime();   // ひるに して じさの ずれを ふせぐ
+  };
   const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
   function illustFor(name) {
@@ -218,6 +228,7 @@
     $("#pl-results").innerHTML = "";
     $("#pl-search-msg").textContent = "";
     $("#pl-address").textContent = placeAddress ? "📍 " + placeAddress : "";
+    $("#pl-date").value = toDateInput(p ? p.last : Date.now());
     $("#pl-meta").textContent = p
       ? `はじめて：${fmtDate(p.first)} ・ いった かず：${p.visits}かい`
       : "";
@@ -334,19 +345,22 @@
     const note = $("#pl-note").value.trim();
     const all = Places.all;
     const now = Date.now();
+    const when = fromDateInput($("#pl-date").value, now);
     if (placeEditingId) {
       const p = all.find((x) => x.id === placeEditingId);
       if (p) {
         p.name = name; p.note = note; p.emoji = placeEmoji; p.photo = placePhoto || null;
         if (placeCoord) { p.lat = placeCoord.lat; p.lng = placeCoord.lng; }
         if (placeAddress) p.address = placeAddress;
+        p.last = when;
+        p.first = Math.min(p.first || when, when);
       }
     } else {
       all.push({
         id: "p" + now, name, note, emoji: placeEmoji,
         lat: placeCoord ? placeCoord.lat : null, lng: placeCoord ? placeCoord.lng : null,
         address: placeAddress || "", photo: placePhoto || null,
-        first: now, last: now, visits: 1,
+        first: when, last: when, visits: 1,
       });
     }
     try { Places.all = all; } catch (e) { return; }
@@ -359,8 +373,10 @@
     const all = Places.all;
     const p = all.find((x) => x.id === placeEditingId);
     if (!p) return;
+    const when = fromDateInput($("#pl-date").value, Date.now());
     p.visits = (p.visits || 1) + 1;
-    p.last = Date.now();
+    p.last = Math.max(p.last || when, when);
+    p.first = Math.min(p.first || when, when);
     try { Places.all = all; } catch (e) { return; }
     $("#place-modal").close();
     renderPlaces();
@@ -1136,6 +1152,7 @@
     }
     $("#pl-save").addEventListener("click", savePlace);
     $("#pl-here").addEventListener("click", useCurrentPlace);
+    $("#pl-today").addEventListener("click", () => { $("#pl-date").value = toDateInput(Date.now()); });
     $("#pl-search-btn").addEventListener("click", searchPlace);
     $("#pl-search").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); searchPlace(); } });
     $("#pl-photo-btn").addEventListener("click", () => $("#pl-photo-input").click());
