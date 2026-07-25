@@ -1,3 +1,13 @@
+/* タイトルの かわいい まるもじ（Mochiy Pop One / SIL OFL 1.1・サブセット同梱）*/
+@font-face {
+  font-family: "MushiTitle";
+  src: url("../fonts/mochiy-pop-one-jp-subset.woff2") format("woff2");
+  font-weight: 400 900;
+  font-display: swap;
+  unicode-range: U+3041-3096, U+30A1-30FA, U+30FC, U+30FB, U+3001, U+3002,
+                 U+FF01, U+FF1F, U+300C, U+300D, U+FF08, U+FF09, U+301C, U+3005, U+0030-0039;
+}
+
 /* =========================================================
    むしずかん — スタイル（絵本テイスト / ehon storybook）
    あたたかい クリームの かみ・やわらかい きの ぬくもり・
@@ -111,13 +121,15 @@ button { font-family: inherit; cursor: pointer; border: none; color: inherit; }
 .plate-leaf.flip { animation-name: leafSwayFlip; }
 @keyframes leafSwayFlip { 0%,100% { transform: scaleX(-1) rotate(-10deg) } 50% { transform: scaleX(-1) rotate(10deg) } }
 .logo {
-  margin: 0; font-size: 27px; font-weight: 900; letter-spacing: .07em; color: var(--green-d);
+  font-family: "MushiTitle", var(--font);
+  margin: 0; font-size: 28px; font-weight: 900; letter-spacing: .05em; color: var(--green-d);
   text-shadow: 0 2px 0 #fff, 0 3px 0 rgba(180,140,80,.25);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .logo-bug { display: inline-block; animation: wiggle 3s ease-in-out infinite; }
 @keyframes wiggle { 0%,100%{transform:rotate(-8deg)} 50%{transform:rotate(8deg)} }
 .plate-sub {
+  font-family: "MushiTitle", var(--font);
   display: inline-block; margin-top: 3px; font-size: 10.5px; font-weight: 800; color: var(--ink-sub);
   letter-spacing: .04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
   padding: 0 6px; position: relative;
