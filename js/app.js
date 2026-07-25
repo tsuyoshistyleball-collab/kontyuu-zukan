@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v10";
+  const APP_VERSION = "v11";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -375,15 +375,42 @@
     pendingBlob = blob;
     const key = Settings.key;
     if (!key) { openResult(blob, null, "NO_KEY"); return; }
-    $("#thinking").hidden = false;
+    startThinking(blob);
     try {
       const ai = await Gemini.identify(blob, key, Settings.model);
-      $("#thinking").hidden = true;
+      stopThinking();
       openResult(blob, ai, null);
     } catch (err) {
-      $("#thinking").hidden = true;
+      stopThinking();
       openResult(blob, null, String(err.message || err));
     }
+  }
+
+  // ---- とうろく中の えんしゅつ ----
+  const THINK_MSGS = [
+    "AIが むしを しらべているよ！",
+    "どんな むしかな…？",
+    "ずかんを めくって さがしてるよ📖",
+    "はっぱの うらまで かくにん中🍃",
+    "もうすこしで わかるよ！",
+  ];
+  function startThinking(blob) {
+    const t = $("#thinking");
+    $("#think-photo").src = urlFor(blob);
+    let i = 0;
+    $("#think-sub").textContent = THINK_MSGS[0];
+    clearInterval(startThinking._t);
+    startThinking._t = setInterval(() => {
+      i = (i + 1) % THINK_MSGS.length;
+      const el = $("#think-sub");
+      el.style.opacity = "0";
+      setTimeout(() => { el.textContent = THINK_MSGS[i]; el.style.opacity = "1"; }, 180);
+    }, 1800);
+    t.hidden = false;
+  }
+  function stopThinking() {
+    clearInterval(startThinking._t);
+    $("#thinking").hidden = true;
   }
 
   function pickMeta(name) {

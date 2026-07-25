@@ -17,8 +17,17 @@
 <body>
   <!-- ヘッダー -->
   <header class="topbar">
+    <div class="topbar-deco" aria-hidden="true">
+      <span class="deco d1">🍃</span><span class="deco d2">🦋</span>
+      <span class="deco d3">🌿</span><span class="deco d4">🐝</span>
+    </div>
     <div class="topbar-row">
-      <h1 class="logo"><span class="logo-bug">🪲</span> むしずかん</h1>
+      <div class="title-plate">
+        <span class="plate-corner tl"></span><span class="plate-corner tr"></span>
+        <span class="plate-corner bl"></span><span class="plate-corner br"></span>
+        <h1 class="logo"><span class="logo-bug">🪲</span> むしずかん</h1>
+        <span class="plate-sub">🌱 みつけた むしの きろく</span>
+      </div>
       <div class="topbar-btns">
         <button id="book-open" class="icon-btn" aria-label="ずかんを めくる" hidden>📖</button>
         <button id="sound-btn" class="icon-btn" aria-label="おとの おんおふ">🔊</button>
@@ -138,10 +147,24 @@
     </div>
   </dialog>
 
-  <!-- AIが かんがえ中 -->
+  <!-- AIが かんがえ中（とうろく中） -->
   <div id="thinking" class="thinking" hidden>
-    <div class="thinking-bug">🔎🐛</div>
-    <p>AIが しらべているよ…</p>
+    <div class="think-photo-wrap">
+      <div class="think-frame">
+        <img id="think-photo" class="think-photo" alt="" />
+        <div class="think-scan"></div>
+      </div>
+      <div class="think-glass">🔍</div>
+      <span class="think-spark s1">✨</span>
+      <span class="think-spark s2">✨</span>
+      <span class="think-spark s3">✨</span>
+    </div>
+    <div class="think-bugs">
+      <span>🐛</span><span>🦋</span><span>🐞</span><span>🐝</span><span>🦗</span>
+    </div>
+    <p class="think-title">とうろく中<span class="think-dots"><i>.</i><i>.</i><i>.</i></span></p>
+    <p id="think-sub" class="think-sub">AIが むしを しらべているよ！</p>
+    <div class="think-bar"><div class="think-bar-fill"></div></div>
   </div>
 
   <!-- おいわい -->
@@ -171,7 +194,7 @@
   <!-- ほぞん中 -->
   <div id="loading" class="loading" hidden>
     <div class="spinner">🐝</div>
-    <p>ほぞん ちゅう…</p>
+    <p>ずかんに かいているよ…</p>
   </div>
 
   <canvas id="confetti" class="confetti" hidden></canvas>
