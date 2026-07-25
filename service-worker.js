@@ -1,5 +1,5 @@
 /* むしずかん — サービスワーカー（オフラインでも つかえる） */
-const CACHE = "mushizukan-v26";
+const CACHE = "mushizukan-v27";
 const ASSETS = [
   "./",
   "./index.html",

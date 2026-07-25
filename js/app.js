@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v26";
+  const APP_VERSION = "v27";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -1087,6 +1087,95 @@
     }
   }
 
+
+  // ============ バックアップ（ほぞん / もどす）============
+  function blobToDataURL(blob) {
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(String(r.result));
+      r.onerror = () => rej(new Error("よみこみ しっぱい"));
+      r.readAsDataURL(blob);
+    });
+  }
+  function dataURLToBlob(d) {
+    const i = d.indexOf(",");
+    const mime = (d.slice(0, i).match(/:(.*?);/) || [])[1] || "image/jpeg";
+    const bin = atob(d.slice(i + 1));
+    const arr = new Uint8Array(bin.length);
+    for (let k = 0; k < bin.length; k++) arr[k] = bin.charCodeAt(k);
+    return new Blob([arr], { type: mime });
+  }
+
+  async function exportBackup() {
+    const out = $("#s-backup-result");
+    out.textContent = "バックアップを つくっているよ…"; out.className = "s-test-result";
+    try {
+      const rows = await DB.getAll();
+      const items = [];
+      for (const r of rows) {
+        const rec = Object.assign({}, r);
+        if (!rec.imgData && rec.blob) rec.imgData = await blobToDataURL(rec.blob);
+        delete rec.blob; delete rec.img; delete rec.id;
+        items.push(rec);
+      }
+      const data = {
+        app: "mushizukan", version: APP_VERSION, exportedAt: Date.now(),
+        captures: items, places: Places.all,
+      };
+      const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `mushizukan-backup-${toDateInput(Date.now())}.json`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      out.textContent = `✓ ${items.length}まいの しゃしんを ほぞんしたよ！`;
+      out.className = "s-test-result ok";
+    } catch (err) {
+      console.error(err);
+      out.textContent = "✕ " + (err.message || "できませんでした");
+      out.className = "s-test-result warn";
+    }
+  }
+
+  async function importBackup(file) {
+    const out = $("#s-backup-result");
+    out.textContent = "よみこんでいるよ…"; out.className = "s-test-result";
+    try {
+      const data = JSON.parse(await file.text());
+      if (!data || data.app !== "mushizukan") throw new Error("むしずかんの バックアップ ではないみたい");
+      const existing = await DB.getAll();
+      const keyOf = (c) => `${c.name}|${c.date}`;
+      const have = new Set(existing.map(keyOf));
+      let added = 0;
+      for (const c of data.captures || []) {
+        if (!c || !c.name || have.has(keyOf(c))) continue;
+        const rec = Object.assign({}, c);
+        delete rec.id;
+        if (rec.imgData) { rec.blob = dataURLToBlob(rec.imgData); delete rec.imgData; }
+        await DB.add(rec);
+        have.add(keyOf(c));
+        added++;
+      }
+      let addedPlaces = 0;
+      const cur = Places.all;
+      const ids = new Set(cur.map((p) => p.id));
+      for (const p of data.places || []) {
+        if (!p || !p.id || ids.has(p.id)) continue;
+        cur.push(p); ids.add(p.id); addedPlaces++;
+      }
+      if (addedPlaces) Places.all = cur;
+      await reload(); renderProgress(); renderGrid(); renderPlaces();
+      out.textContent = `✓ しゃしん ${added}まい・ばしょ ${addedPlaces}かしょを もどしたよ！`;
+      out.className = "s-test-result ok";
+      if (added) { sound.fanfare(2); confetti(2); }
+    } catch (err) {
+      console.error(err);
+      out.textContent = "✕ " + (err.message || "もどせませんでした");
+      out.className = "s-test-result warn";
+    }
+  }
+
   function resizeImage(file, maxSide, quality) {
     return new Promise((resolve, reject) => {
       const img = new Image(); const url = URL.createObjectURL(file);
@@ -1136,6 +1225,13 @@
     $("#s-save").addEventListener("click", saveSettings);
     $("#s-test").addEventListener("click", testSettings);
     $("#s-reclass").addEventListener("click", reclassifyWithAI);
+    $("#s-export").addEventListener("click", exportBackup);
+    $("#s-import").addEventListener("click", () => $("#s-import-file").click());
+    $("#s-import-file").addEventListener("change", (e) => {
+      const f = e.target.files && e.target.files[0];
+      e.target.value = "";
+      if (f) importBackup(f);
+    });
     $("#s-reset").addEventListener("click", resetData);
     $("#s-key-toggle").addEventListener("click", () => {
       const masked = $("#s-key").classList.toggle("masked");
