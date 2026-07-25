@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v17";
+  const APP_VERSION = "v18";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -116,17 +116,28 @@
     $("#book-open").hidden = n === 0;
   }
 
-  // ============ いった ばしょ ============
+  // ============ いった ばしょ（GPS・けんさく・しゃしん）============
   const PLACE_EMOJI = ["🌳", "🏞️", "🏕️", "🌲", "🏖️", "🌊", "🏔️", "🌸", "🏡", "🏫", "🪴", "🦋"];
+  const NEAR_M = 400; // これいないなら「その ばしょ」とみなす
   let placeEditingId = null;
   let placeEmoji = PLACE_EMOJI[0];
+  let placeCoord = null;   // { lat, lng }
+  let placeAddress = "";
+  let placePhoto = null;   // dataURL
+  let lastFix = null;      // さいごに とれた げんざいち
 
   const Places = {
     get all() {
       try { return JSON.parse(localStorage.getItem("mz-places") || "[]"); }
       catch (e) { return []; }
     },
-    set all(v) { localStorage.setItem("mz-places", JSON.stringify(v)); },
+    set all(v) {
+      try { localStorage.setItem("mz-places", JSON.stringify(v)); }
+      catch (e) {
+        alert("ばしょを ほぞん できませんでした。\nしゃしんを へらすと なおるかも しれません。");
+        throw e;
+      }
+    },
   };
 
   function renderPlaces() {
@@ -138,10 +149,17 @@
     for (const p of all) {
       const card = document.createElement("button");
       card.className = "place-card";
+      const bugs = bugsAtPlace(p.id).length;
+      const thumb = p.photo
+        ? `<img class="place-thumb" src="${p.photo}" alt="">`
+        : (p.lat != null ? `<img class="place-thumb map" src="${Geo.tileUrl(p.lat, p.lng)}" alt="" loading="lazy">` : "");
       card.innerHTML =
-        `<span class="place-emoji">${p.emoji || "🌳"}</span>` +
+        `<span class="place-pic">${thumb}<span class="place-emoji">${p.emoji || "🌳"}</span></span>` +
         `<span class="place-name">${escapeHtml(p.name)}</span>` +
-        (p.visits > 1 ? `<span class="place-visits">${p.visits}かい</span>` : "") +
+        `<span class="place-tags">` +
+          (p.visits > 1 ? `<span class="place-visits">${p.visits}かい</span>` : "") +
+          (bugs ? `<span class="place-bugs">🐛${bugs}</span>` : "") +
+        `</span>` +
         `<span class="place-date">${fmtDate(p.last)}</span>`;
       card.addEventListener("click", () => openPlaceModal(p.id));
       list.appendChild(card);
@@ -149,24 +167,71 @@
 
     const add = document.createElement("button");
     add.className = "place-card place-add-card";
-    add.innerHTML = `<span class="place-emoji">🗺️</span><span class="place-name">ばしょを<br>ふやす</span>`;
+    add.innerHTML = `<span class="place-emoji big">🗺️</span><span class="place-name">ばしょを<br>ふやす</span>`;
     add.addEventListener("click", () => openPlaceModal(null));
     list.appendChild(add);
+  }
+
+  // その ばしょで みつけた むし
+  function bugsAtPlace(placeId) {
+    if (!placeId) return [];
+    const seen = new Map();
+    for (const c of captures) {
+      if (c.placeId === placeId && !seen.has(c.name)) seen.set(c.name, c);
+    }
+    return [...seen.values()];
+  }
+
+  function setPlacePhoto(dataUrl) {
+    placePhoto = dataUrl || null;
+    const img = $("#pl-photo");
+    if (placePhoto) { img.src = placePhoto; img.hidden = false; $("#pl-photo-del").hidden = false; }
+    else { img.removeAttribute("src"); img.hidden = true; $("#pl-photo-del").hidden = true; }
+    updatePlaceMap();
+  }
+
+  function updatePlaceMap() {
+    const m = $("#pl-map");
+    if (!placePhoto && placeCoord) {
+      m.innerHTML = `<img src="${Geo.tileUrl(placeCoord.lat, placeCoord.lng)}" alt="ちず" loading="lazy">` +
+                    `<span class="pl-map-pin">📍</span>`;
+      m.hidden = false;
+    } else { m.innerHTML = ""; m.hidden = true; }
   }
 
   function openPlaceModal(id) {
     const p = id ? Places.all.find((x) => x.id === id) : null;
     placeEditingId = p ? p.id : null;
     placeEmoji = p ? (p.emoji || PLACE_EMOJI[0]) : PLACE_EMOJI[0];
+    placeCoord = p && p.lat != null ? { lat: p.lat, lng: p.lng } : null;
+    placeAddress = p ? (p.address || "") : "";
 
     $("#pl-title").textContent = p ? "🗺️ ばしょ" : "🗺️ ばしょを とうろく";
     $("#pl-name").value = p ? p.name : "";
     $("#pl-note").value = p ? (p.note || "") : "";
+    $("#pl-search").value = "";
+    $("#pl-results").innerHTML = "";
+    $("#pl-search-msg").textContent = "";
+    $("#pl-address").textContent = placeAddress ? "📍 " + placeAddress : "";
     $("#pl-meta").textContent = p
       ? `はじめて：${fmtDate(p.first)} ・ いった かず：${p.visits}かい`
       : "";
     $("#pl-visit").hidden = !p;
     $("#pl-delete").hidden = !p;
+    setPlacePhoto(p ? p.photo : null);
+
+    // ここで みつけた むし
+    const bugs = p ? bugsAtPlace(p.id) : [];
+    $("#pl-bugs-wrap").hidden = bugs.length === 0;
+    const bw = $("#pl-bugs");
+    bw.innerHTML = "";
+    for (const c of bugs) {
+      const cell = document.createElement("button");
+      cell.className = "pl-bug";
+      cell.innerHTML = `<img src="${urlFor(c.blob)}" alt=""><span>${escapeHtml(c.name)}</span>`;
+      cell.addEventListener("click", () => { $("#place-modal").close(); openBook(c.name); });
+      bw.appendChild(cell);
+    }
 
     // アイコン えらび
     const row = $("#pl-emoji");
@@ -187,6 +252,77 @@
     if (!p) setTimeout(() => $("#pl-name").focus(), 200);
   }
 
+  // 📍 いまいる ばしょ
+  async function useCurrentPlace() {
+    const msg = $("#pl-search-msg");
+    msg.className = "pl-search-msg";
+    msg.textContent = "📍 いまの ばしょを しらべているよ…";
+    try {
+      const fix = await Geo.current();
+      lastFix = fix;
+      placeCoord = { lat: fix.lat, lng: fix.lng };
+      updatePlaceMap();
+      try {
+        const r = await Geo.reverse(fix.lat, fix.lng);
+        placeAddress = r.address;
+        $("#pl-address").textContent = "📍 " + r.address;
+        if (!$("#pl-name").value.trim()) $("#pl-name").value = r.name.slice(0, 20);
+        msg.textContent = "✓ いまの ばしょが わかったよ！";
+      } catch (e) {
+        $("#pl-address").textContent = `📍 ${fix.lat.toFixed(5)}, ${fix.lng.toFixed(5)}`;
+        msg.textContent = "✓ いちを きろく したよ（なまえは てで いれてね）";
+      }
+      msg.className = "pl-search-msg ok";
+    } catch (err) {
+      msg.textContent = "✕ " + (err.message || "いちが わかりませんでした");
+      msg.className = "pl-search-msg warn";
+    }
+  }
+
+  // 🔎 ばしょを さがす
+  async function searchPlace() {
+    const q = $("#pl-search").value.trim();
+    const msg = $("#pl-search-msg");
+    const box = $("#pl-results");
+    if (!q) { msg.textContent = "さがす ことばを いれてね"; msg.className = "pl-search-msg warn"; return; }
+    msg.textContent = "さがしているよ…"; msg.className = "pl-search-msg"; box.innerHTML = "";
+    try {
+      const rows = await Geo.search(q);
+      if (!rows.length) { msg.textContent = "みつかりませんでした"; msg.className = "pl-search-msg warn"; return; }
+      msg.textContent = "タップして えらんでね";
+      for (const r of rows) {
+        const b = document.createElement("button");
+        b.type = "button"; b.className = "pl-result";
+        b.innerHTML = `<b>${escapeHtml(r.name)}</b><span>${escapeHtml(r.address)}</span>`;
+        b.addEventListener("click", () => {
+          placeCoord = { lat: r.lat, lng: r.lng };
+          placeAddress = r.address;
+          $("#pl-name").value = r.name.slice(0, 20);
+          $("#pl-address").textContent = "📍 " + r.address;
+          box.innerHTML = "";
+          msg.textContent = "✓ ばしょを えらんだよ！"; msg.className = "pl-search-msg ok";
+          updatePlaceMap();
+        });
+        box.appendChild(b);
+      }
+    } catch (err) {
+      msg.textContent = "✕ " + (err.message || "けんさく できませんでした");
+      msg.className = "pl-search-msg warn";
+    }
+  }
+
+  async function onPlacePhoto(e) {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      const blob = await resizeImage(file, 640, 0.72);
+      const reader = new FileReader();
+      reader.onload = () => setPlacePhoto(String(reader.result));
+      reader.readAsDataURL(blob);
+    } catch (err) { alert("しゃしんを よみこめなかったよ。"); }
+  }
+
   function savePlace() {
     const name = $("#pl-name").value.trim();
     if (!name) { alert("ばしょの なまえを いれてね"); $("#pl-name").focus(); return; }
@@ -195,11 +331,20 @@
     const now = Date.now();
     if (placeEditingId) {
       const p = all.find((x) => x.id === placeEditingId);
-      if (p) { p.name = name; p.note = note; p.emoji = placeEmoji; }
+      if (p) {
+        p.name = name; p.note = note; p.emoji = placeEmoji; p.photo = placePhoto || null;
+        if (placeCoord) { p.lat = placeCoord.lat; p.lng = placeCoord.lng; }
+        if (placeAddress) p.address = placeAddress;
+      }
     } else {
-      all.push({ id: "p" + now, name, note, emoji: placeEmoji, first: now, last: now, visits: 1 });
+      all.push({
+        id: "p" + now, name, note, emoji: placeEmoji,
+        lat: placeCoord ? placeCoord.lat : null, lng: placeCoord ? placeCoord.lng : null,
+        address: placeAddress || "", photo: placePhoto || null,
+        first: now, last: now, visits: 1,
+      });
     }
-    Places.all = all;
+    try { Places.all = all; } catch (e) { return; }
     $("#place-modal").close();
     renderPlaces();
     if (!placeEditingId) { sound.blip(); confetti(1); }
@@ -211,7 +356,7 @@
     if (!p) return;
     p.visits = (p.visits || 1) + 1;
     p.last = Date.now();
-    Places.all = all;
+    try { Places.all = all; } catch (e) { return; }
     $("#place-modal").close();
     renderPlaces();
     sound.blip(); confetti(1);
@@ -224,6 +369,38 @@
     Places.all = Places.all.filter((x) => x.id !== placeEditingId);
     $("#place-modal").close();
     renderPlaces();
+  }
+
+  // むしを とうろく する ときの「ばしょ」えらび
+  function fillPlaceSelect(preferId) {
+    const sel = $("#r-place");
+    const all = Places.all.sort((a, b) => b.last - a.last);
+    sel.innerHTML = `<option value="">（えらばない）</option>`;
+    for (const p of all) {
+      const o = document.createElement("option");
+      o.value = p.id;
+      o.textContent = `${p.emoji || "🌳"} ${p.name}`;
+      sel.appendChild(o);
+    }
+    if (preferId) sel.value = preferId;
+    sel.parentElement && (sel.previousElementSibling.hidden = all.length === 0);
+    sel.hidden = all.length === 0;
+  }
+
+  // GPSで いちばん ちかい ばしょを さがす（あれば じどう せんたく）
+  async function guessPlaceId() {
+    const all = Places.all.filter((p) => p.lat != null);
+    if (!all.length) return "";
+    try {
+      const fix = await Geo.current(7000);
+      lastFix = fix;
+      let best = null, bestD = Infinity;
+      for (const p of all) {
+        const d = Geo.distance(fix, p);
+        if (d < bestD) { bestD = d; best = p; }
+      }
+      return best && bestD <= NEAR_M ? best.id : "";
+    } catch (e) { return ""; }
   }
 
   // ---- カードの おおきさ（1れつの まいすう）----
@@ -405,6 +582,15 @@
     mt.textContent = `みつけた かず：${g.count}かい ・ はじめて：${fmtDate(g.firstDate)}`;
     page.appendChild(mt);
 
+    // みつけた ばしょ
+    const spots = [...new Set(g.list.filter((c) => c.placeName).map((c) => c.placeName))];
+    if (spots.length) {
+      const sp = document.createElement("p");
+      sp.className = "page-place";
+      sp.textContent = "🗺️ " + spots.join(" ・ ");
+      page.appendChild(sp);
+    }
+
     const gtitle = document.createElement("p");
     gtitle.className = "page-gallery-title"; gtitle.textContent = "📸 とった しゃしん";
     page.appendChild(gtitle);
@@ -573,6 +759,9 @@
       color: ill.color, knownId: ill.knownId,
       category: (g && g.category) || categorize(name),
       aiName: null, confidence: null,
+      placeId: (g && g.latest && g.latest.placeId) || null,
+      placeName: (g && g.latest && g.latest.placeName) || "",
+      placeEmoji: (g && g.latest && g.latest.placeEmoji) || "",
     };
   }
 
@@ -620,8 +809,11 @@
       const pct = r.confidence != null ? Math.round(r.confidence * 100) : null;
       note.innerHTML = `🤖 AIの すいそく：<b>${escapeHtml(r.name)}</b>` + (pct != null ? `（じしん ${pct}%）` : "") + "<br><span class='r-note-sub'>ちがったら なまえを なおしてね</span>";
     }
+    fillPlaceSelect("");
     $("#result").showModal();
     setTimeout(() => { if (!r.name) $("#r-name-input").focus(); }, 200);
+    // GPSで ちかくの ばしょを じどう せんたく
+    guessPlaceId().then((id) => { if (id && !$("#r-place").value) $("#r-place").value = id; });
   }
 
   function updateResultIllust(name) {
@@ -657,6 +849,13 @@
       confidence: r.confidence != null ? r.confidence : null,
       blob: pendingBlob, date: Date.now(),
     };
+    const selPlace = $("#r-place").value;
+    if (selPlace) {
+      const pl = Places.all.find((x) => x.id === selPlace);
+      rec.placeId = selPlace;
+      rec.placeName = pl ? pl.name : "";
+      rec.placeEmoji = pl ? (pl.emoji || "🌳") : "";
+    }
     const isNew = !groups.has(name);
     const lvBefore = levelOf(groups.size);
     $("#result").close();
@@ -670,7 +869,7 @@
       $("#result").showModal(); // やりなおせる ように もどす
       return;
     }
-    try { await reload(); renderProgress(); renderGrid(); } catch (e) { console.error("render after save:", e); }
+    try { await reload(); renderProgress(); renderGrid(); renderPlaces(); } catch (e) { console.error("render after save:", e); }
     $("#loading").hidden = true;
     const leveledUp = levelOf(groups.size) > lvBefore;
     if (isNew) celebrate(rec, leveledUp); else miniCheer(rec);
@@ -846,6 +1045,12 @@
     $("#place-add").addEventListener("click", () => openPlaceModal(null));
     $("#pl-close").addEventListener("click", () => $("#place-modal").close());
     $("#pl-save").addEventListener("click", savePlace);
+    $("#pl-here").addEventListener("click", useCurrentPlace);
+    $("#pl-search-btn").addEventListener("click", searchPlace);
+    $("#pl-search").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); searchPlace(); } });
+    $("#pl-photo-btn").addEventListener("click", () => $("#pl-photo-input").click());
+    $("#pl-photo-input").addEventListener("change", onPlacePhoto);
+    $("#pl-photo-del").addEventListener("click", () => setPlacePhoto(null));
     $("#pl-visit").addEventListener("click", visitAgain);
     $("#pl-delete").addEventListener("click", deletePlace);
 
