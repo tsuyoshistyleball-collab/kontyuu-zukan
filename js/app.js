@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v20";
+  const APP_VERSION = "v21";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -56,7 +56,8 @@
       g.rarity = clampR(rep.rarity || (k ? k.stars : 1));
       g.kana = rep.kana || (k ? k.kana : "");
       g.fact = rep.fact || (k ? k.fact : "");
-      g.category = rep.category || categorize(g.name);
+      // なかまわけは そのつど けいさん（ルールを なおしたら むかしの ぶんも なおる）
+      g.category = categorize(g.name, rep.aiCategory || rep.category);
     }
   }
 
@@ -847,6 +848,7 @@
       rarity: clampR(ill.knownId ? ill.rarity : (r.rarity || 1)),
       color: ill.color, knownId: ill.knownId,
       category: categorize(name, r.category),
+      aiCategory: r.category || "",
       aiName: r.aiName || null,
       confidence: r.confidence != null ? r.confidence : null,
       blob: pendingBlob, date: Date.now(),

@@ -253,8 +253,8 @@ function matchKnown(name) {
     for (const c of cands) {
       if (!c) continue;
       if (q === c) return ins;
-      // どちらかが もう ほうを ふくむ（2もじ いじょう）
-      if (c.length >= 2 && (q.includes(c) || c.includes(q))) return ins;
+      // どちらかが もう ほうを ふくむ（りょうほう 2もじ いじょうの ときだけ）
+      if (q.length >= 2 && c.length >= 2 && (q.includes(c) || c.includes(q))) return ins;
     }
   }
   return null;
@@ -271,6 +271,7 @@ const CATEGORIES = [
   { id: "spider",    label: "くも",             emoji: "🕷️" },
   { id: "snail",     label: "かたつむり",       emoji: "🐌" },
   { id: "water",     label: "みずの むし",       emoji: "💧" },
+  { id: "amphibian", label: "かえる・いきもの",   emoji: "🐸" },
   { id: "other",     label: "そのほか",         emoji: "🐛" },
 ];
 const CATEGORY_ORDER = CATEGORIES.map((c) => c.id);
@@ -289,26 +290,38 @@ const _KNOWN_CATEGORY = {
 
 const _CAT_KEYWORDS = [
   ["beetle",    ["こうちゅう", "甲虫", "かぶと", "くわがた", "てんとう", "かなぶん", "こがね", "beetle", "ladybug", "weevil"]],
-  ["butterfly", ["ちょう", "蝶", "ちょうちょ", "が", "蛾", "あげは", "もんしろ", "butterfly", "moth"]],
+  ["butterfly", ["ちょう", "蝶", "ちょうちょ", "蛾", "あげは", "もんしろ", "しじみちょう", "butterfly", "moth"]],
   ["dragonfly", ["とんぼ", "蜻蛉", "やんま", "dragonfly", "damselfly"]],
   ["cicada",    ["せみ", "蝉", "cicada"]],
   ["hopper",    ["ばった", "こおろぎ", "きりぎりす", "かまきり", "いなご", "すずむし", "grasshopper", "cricket", "mantis", "locust", "katydid"]],
   ["beeant",    ["はち", "蜂", "あり", "蟻", "bee", "ant", "wasp", "hornet"]],
   ["spider",    ["くも", "蜘蛛", "spider"]],
   ["snail",     ["かたつむり", "でんでん", "まいまい", "snail", "slug", "なめくじ"]],
-  ["water",     ["あめんぼ", "みずすまし", "げんごろう", "たがめ", "water", "みず"]],
+  ["water",     ["あめんぼ", "みずすまし", "げんごろう", "たがめ", "water"]],
+  ["amphibian", ["かえる", "がえる", "蛙", "おたまじゃくし", "とかげ", "やもり", "いもり", "かなへび",
+                 "へび", "とんぼの やご", "やご", "frog", "toad", "lizard", "newt", "gecko"]],
 ];
 
 /* なまえ / AIの カテゴリー もじれつ から カテゴリーidを きめる */
-function categorize(name, aiCategory) {
-  const known = matchKnown(name);
-  if (known && _KNOWN_CATEGORY[known.id]) return _KNOWN_CATEGORY[known.id];
-  const hay = _norm((aiCategory || "") + " " + (name || ""));
+function _matchCat(hay) {
+  if (!hay) return null;
   for (const [id, kws] of _CAT_KEYWORDS) {
     for (const kw of kws) {
       const k = _norm(kw);
-      if (k && hay.includes(k)) return id;
+      // 1もじの ことばは あいまいなので つかわない（「が」が「あまがえる」に あたる など）
+      if (k.length >= 2 && hay.includes(k)) return id;
     }
   }
+  return null;
+}
+function categorize(name, aiCategory) {
+  const known = matchKnown(name);
+  if (known && _KNOWN_CATEGORY[known.id]) return _KNOWN_CATEGORY[known.id];
+  const nm = _norm(name);
+  // まず なまえで、つぎに AIの なかまわけで はんてい
+  const hit = _matchCat(nm) || _matchCat(_norm(aiCategory));
+  if (hit) return hit;
+  // 「〜が」で おわる なまえは たいてい 蛾（あまがえる などは のぞく）
+  if (nm.length >= 3 && nm.endsWith("が")) return "butterfly";
   return "other";
 }
