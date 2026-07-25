@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v9";
+  const APP_VERSION = "v10";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -138,6 +138,11 @@
     card.className = "card found r" + g.rarity;
     card.style.setProperty("--c", ill.color);
     card.setAttribute("aria-label", g.name);
+    // ★3は カードごとに にじの いろを ずらす
+    if (g.rarity === 3) {
+      let h = 0; for (let i = 0; i < g.name.length; i++) h += g.name.charCodeAt(i);
+      card.style.animationDelay = "-" + ((h % 32) / 10).toFixed(2) + "s";
+    }
 
     const media = document.createElement("div");
     media.className = "card-media";

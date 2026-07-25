@@ -389,12 +389,21 @@ main { max-width: 760px; margin: 0 auto; }
   box-shadow: 0 5px 0 var(--frame-d), 0 0 14px 2px rgba(255,196,60,.45), 0 10px 18px var(--shadow);
 }
 .card.r3 {
-  border-color: #ffd873;
-  animation: glow3 1.9s ease-in-out infinite;
+  border-color: #ff8a8a;
+  animation: rainbow3 3.2s linear infinite;
 }
-@keyframes glow3 {
-  0%,100% { box-shadow: 0 5px 0 var(--frame-d), 0 0 0 3px #ffe28c, 0 0 16px 3px rgba(255,190,50,.6), 0 10px 18px var(--shadow); }
-  50%     { box-shadow: 0 5px 0 var(--frame-d), 0 0 0 3px #fff0b0, 0 0 30px 9px rgba(255,190,50,.95), 0 10px 18px var(--shadow); }
+@keyframes rainbow3 {
+  0%   { border-color:#ff6b6b; box-shadow: 0 5px 0 var(--frame-d), 0 0 0 3px #ff6b6b, 0 0 24px 6px rgba(255,107,107,.85), 0 10px 18px var(--shadow); }
+  17%  { border-color:#ffa94d; box-shadow: 0 5px 0 var(--frame-d), 0 0 0 3px #ffa94d, 0 0 24px 6px rgba(255,169,77,.85), 0 10px 18px var(--shadow); }
+  33%  { border-color:#ffe14d; box-shadow: 0 5px 0 var(--frame-d), 0 0 0 3px #ffe14d, 0 0 24px 6px rgba(255,225,77,.85), 0 10px 18px var(--shadow); }
+  50%  { border-color:#5fd97a; box-shadow: 0 5px 0 var(--frame-d), 0 0 0 3px #5fd97a, 0 0 24px 6px rgba(95,217,122,.85), 0 10px 18px var(--shadow); }
+  67%  { border-color:#4dc4ff; box-shadow: 0 5px 0 var(--frame-d), 0 0 0 3px #4dc4ff, 0 0 24px 6px rgba(77,196,255,.85), 0 10px 18px var(--shadow); }
+  83%  { border-color:#b47cff; box-shadow: 0 5px 0 var(--frame-d), 0 0 0 3px #b47cff, 0 0 24px 6px rgba(180,124,255,.85), 0 10px 18px var(--shadow); }
+  100% { border-color:#ff6b6b; box-shadow: 0 5px 0 var(--frame-d), 0 0 0 3px #ff6b6b, 0 0 24px 6px rgba(255,107,107,.85), 0 10px 18px var(--shadow); }
+}
+/* うごきを へらす せっていでも にじいろが みえるように（しずかに） */
+@media (prefers-reduced-motion: reduce) {
+  .card.r3 { animation: rainbow3 6s linear infinite !important; }
 }
 .card.r3::before {
   content: "✨"; position: absolute; top: -8px; right: -6px; font-size: 20px; z-index: 3;
