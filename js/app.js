@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v12";
+  const APP_VERSION = "v13";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -75,19 +75,28 @@
     return out;
   }
 
+  // つぎの もくひょう しゅるいすう（じょうげんは なし・どこまでも のびる）
+  function nextGoal(n) {
+    const goals = [5, 10, 20, 30, 50, 75, 100, 150, 200, 300, 500, 750, 1000];
+    for (const g of goals) if (n < g) return g;
+    return Math.ceil((n + 1) / 500) * 500;
+  }
+
   // ---- ヘッダー ----
   function renderProgress() {
     const n = groups.size;
     const total = captures.length;
     $("#count").textContent = n;
     $("#total").textContent = n === 0 ? "" : "しゅるい";
-    const pct = Math.min(100, n * 8);
+    // つぎの もくひょう（かぎりなく つづく）
+    const goal = nextGoal(n);
+    const pct = Math.round((n / goal) * 100);
     $("#bar-fill").style.width = pct + "%";
     $("#bar-bug").style.left = `calc(${pct}% - 14px)`;
     const msg = $("#progress-msg");
     if (n === 0) msg.textContent = "むしを みつけて しゃしんを とろう！";
     else if (n === 1) msg.textContent = "さいしょの むし ゲット！ つぎは なにかな？";
-    else msg.textContent = `${n}しゅるい・ぜんぶで ${total}まい あつめたよ！`;
+    else msg.textContent = `しゃしん ${total}まい ・ つぎは ${goal}しゅるい めざそう！`;
     $("#api-hint").hidden = !!Settings.key;
     $("#book-open").hidden = n === 0;
   }
