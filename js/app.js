@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v18";
+  const APP_VERSION = "v19";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -97,21 +97,23 @@
     const total = captures.length;
     $("#count").textContent = n;
     $("#total").textContent = n === 0 ? "" : "しゅるい";
+    $("#photo-count").textContent = total ? `📷${total}` : "";
 
     const lv = levelOf(n);
     const inLv = n % PER_LEVEL;
     const pct = (inLv / PER_LEVEL) * 100;
     $("#bar-fill").style.width = pct + "%";
-    $("#bar-bug").style.left = `calc(${pct}% - 14px)`;
+    $("#bar-bug").style.left = `calc(${pct}% - 13px)`;
     $("#level-badge").textContent = "Lv." + lv;
     $("#level-badge").className = "level-badge lv" + Math.min(lv, 7);
     $("#level-title").textContent = levelTitle(lv);
-    $("#level-next").textContent = `つぎの レベルまで あと ${PER_LEVEL - inLv}しゅるい！`;
+    $("#level-next").textContent = `あと${PER_LEVEL - inLv}`;
 
+    // はげましの ことばは さいしょだけ（ばしょを ひろく つかう）
     const msg = $("#progress-msg");
-    if (n === 0) msg.textContent = "むしを みつけて しゃしんを とろう！";
-    else if (n === 1) msg.textContent = "さいしょの むし ゲット！ つぎは なにかな？";
-    else msg.textContent = `しゃしん ${total}まい あつめたよ！`;
+    if (n === 0) { msg.textContent = "むしを みつけて しゃしんを とろう！"; msg.hidden = false; }
+    else if (n === 1) { msg.textContent = "さいしょの むし ゲット！ つぎは なにかな？"; msg.hidden = false; }
+    else msg.hidden = true;
     $("#api-hint").hidden = !!Settings.key;
     $("#book-open").hidden = n === 0;
   }

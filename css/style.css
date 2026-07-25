@@ -48,7 +48,7 @@ button { font-family: inherit; cursor: pointer; border: none; color: inherit; }
 /* ---------- ヘッダー（みどりの おかの バナー）---------- */
 .topbar {
   position: sticky; top: 0; z-index: 20;
-  padding: calc(var(--safe-top) + 12px) 16px 14px;
+  padding: calc(var(--safe-top) + 10px) 16px 11px;
   background:
     radial-gradient(120% 60% at 50% 120%, #85c063 0%, transparent 60%),
     linear-gradient(180deg, #7cb85e 0%, #5b9440 100%);
@@ -147,29 +147,27 @@ button { font-family: inherit; cursor: pointer; border: none; color: inherit; }
 }
 /* ひろい がめんでは タイトルを まんなかに、ボタンは かどに */
 @media (min-width: 620px) {
-  .topbar-row { position: relative; justify-content: center; }
+  /* ボタンの ぶんだけ りょうがわを あけて、タイトルが かぶらないように */
+  .topbar-row { position: relative; justify-content: center; padding: 0 186px; }
   .topbar-btns { position: absolute; right: 0; top: 50%; transform: translateY(-50%); }
-  .title-plate { margin: 4px auto; }
-  .logo { font-size: 30px; }
-  .plate-leaf { font-size: 18px; }
+  .title-plate { margin: 4px auto; max-width: 430px; }
+  .logo { font-size: 28px; }
+  .plate-leaf { font-size: 17px; }
 }
-.progress-msg { margin: 9px auto 10px; font-size: 15px; font-weight: 800; opacity: .98; text-shadow: 0 1px 0 rgba(70,110,40,.3); }
+.progress-msg { margin: 8px auto 8px; font-size: 14px; font-weight: 800; opacity: .98; text-shadow: 0 1px 0 rgba(70,110,40,.3); }
 
-.progress { background: rgba(255,255,255,.2); border-radius: 18px; padding: 10px 12px; box-shadow: inset 0 0 0 2px rgba(255,255,255,.18); }
-.progress-num { font-size: 20px; font-weight: 900; margin-bottom: 6px; }
-.progress-num small { font-size: 14px; opacity: .9; font-weight: 800; }
-.progress-label { font-size: 13px; font-weight: 800; opacity: .95; }
-.bar { position: relative; height: 15px; background: rgba(70,110,40,.35); border-radius: 999px; overflow: visible; }
+.progress { background: rgba(255,255,255,.2); border-radius: 16px; padding: 7px 11px 8px; margin-top: 8px; box-shadow: inset 0 0 0 2px rgba(255,255,255,.18); }
+.bar { position: relative; flex: 1; height: 13px; background: rgba(70,110,40,.35); border-radius: 999px; overflow: visible; }
 .bar-fill {
   height: 100%; width: 0%;
   background: linear-gradient(90deg, var(--honey), #ffc24d);
   border-radius: 999px; transition: width .6s cubic-bezier(.2,.8,.2,1);
   box-shadow: 0 0 0 2px rgba(255,255,255,.3) inset;
 }
-.bar-bug { position: absolute; top: -7px; left: -14px; font-size: 20px; transition: left .6s cubic-bezier(.2,.8,.2,1); }
+.bar-bug { position: absolute; top: -6px; left: -13px; font-size: 18px; transition: left .6s cubic-bezier(.2,.8,.2,1); }
 
 .api-hint {
-  margin-top: 11px; width: 100%; background: rgba(255,255,255,.94); color: var(--green-d);
+  margin-top: 9px; width: 100%; background: rgba(255,255,255,.94); color: var(--green-d);
   font-weight: 800; padding: 11px; border-radius: 16px; font-size: 13px; line-height: 1.4;
   box-shadow: 0 3px 0 #cda86a;
 }
@@ -177,14 +175,14 @@ button { font-family: inherit; cursor: pointer; border: none; color: inherit; }
 
 /* ---------- カテゴリー みだし ---------- */
 main { max-width: 760px; margin: 0 auto; }
-#sections { padding-top: 8px; }
-.cat-head { display: flex; align-items: center; gap: 10px; margin: 22px 18px 10px; }
+#sections { padding-top: 2px; }
+.cat-head { display: flex; align-items: center; gap: 9px; margin: 14px 18px 8px; }
 .cat-emoji {
-  font-size: 20px; width: 40px; height: 40px; display: grid; place-items: center;
+  font-size: 17px; width: 33px; height: 33px; display: grid; place-items: center;
   background: var(--card); border-radius: 50%; box-shadow: 0 3px 0 var(--frame-d), 0 5px 10px var(--shadow);
 }
 .cat-label {
-  font-weight: 900; font-size: 19px; color: var(--green-d);
+  font-weight: 900; font-size: 17px; color: var(--green-d);
   padding-bottom: 2px; border-bottom: 3px dotted var(--frame-d);
 }
 .cat-count { margin-left: auto; background: var(--green); color: #fff; font-weight: 800; font-size: 13px; padding: 3px 12px; border-radius: 999px; box-shadow: 0 2px 0 var(--green-d); }
@@ -673,9 +671,14 @@ main { max-width: 760px; margin: 0 auto; }
 }
 
 /* ---------- レベル（10しゅるいごとに アップ）---------- */
-.progress-top { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+.progress-top { display: flex; align-items: center; gap: 7px; margin-bottom: 6px; }
+.count-summary { margin-left: auto; display: flex; align-items: baseline; gap: 3px;
+  font-weight: 900; font-size: 17px; white-space: nowrap; text-shadow: 0 1px 0 rgba(70,110,40,.3); }
+.count-summary small { font-size: 11px; font-weight: 800; opacity: .92; }
+.photo-count { font-size: 11.5px; font-weight: 800; opacity: .9; margin-left: 5px; }
+.bar-row { display: flex; align-items: center; gap: 9px; }
 .level-badge {
-  flex-shrink: 0; font-size: 14px; font-weight: 900; color: #6a4b00;
+  flex-shrink: 0; font-size: 13px; font-weight: 900; color: #6a4b00;
   background: linear-gradient(180deg, #ffe28c, var(--honey));
   padding: 3px 12px; border-radius: 999px; border: 2px solid #fff;
   box-shadow: 0 2px 0 var(--honey-d), 0 0 10px rgba(255,210,110,.6);
@@ -686,9 +689,9 @@ main { max-width: 760px; margin: 0 auto; }
 .level-badge.lv7 { background: linear-gradient(90deg,#ff6b6b,#ffa94d,#ffe14d,#5fd97a,#4dc4ff,#b47cff); background-size: 300% 100%;
   color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.35); box-shadow: 0 2px 0 #a05ad0, 0 0 16px rgba(255,200,120,.9);
   animation: holoSweep 4s linear infinite; }
-.level-title { font-size: 13px; font-weight: 800; opacity: .97; text-shadow: 0 1px 0 rgba(70,110,40,.35);
+.level-title { font-size: 12.5px; font-weight: 800; opacity: .97; text-shadow: 0 1px 0 rgba(70,110,40,.35);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.level-next { margin: 7px 0 0; font-size: 11.5px; font-weight: 800; opacity: .95; text-align: right; }
+.level-next { flex-shrink: 0; font-size: 11.5px; font-weight: 900; opacity: .95; min-width: 34px; text-align: right; }
 
 /* おいわいの レベルアップ おび */
 .cel-level {
@@ -705,13 +708,13 @@ main { max-width: 760px; margin: 0 auto; }
    ============================================================ */
 .places { margin-bottom: 4px; }
 .places-list {
-  display: flex; gap: 10px; overflow-x: auto; padding: 2px 14px 8px;
+  display: flex; gap: 9px; overflow-x: auto; padding: 2px 14px 6px;
   scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 }
 .places-list::-webkit-scrollbar { display: none; }
 .place-card {
-  flex: 0 0 auto; width: 106px; scroll-snap-align: start;
+  flex: 0 0 auto; width: 96px; scroll-snap-align: start;
   background: var(--card); border: 3px solid #fff; border-radius: 18px;
   padding: 10px 8px 9px; display: flex; flex-direction: column; align-items: center; gap: 3px;
   box-shadow: 0 4px 0 var(--frame-d), 0 7px 14px var(--shadow);
@@ -806,7 +809,7 @@ main { max-width: 760px; margin: 0 auto; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 
 /* ばしょカードの しゃしん / ちず */
-.place-pic { position: relative; width: 100%; height: 54px; display: grid; place-items: center; }
+.place-pic { position: relative; width: 100%; height: 46px; display: grid; place-items: center; }
 .place-thumb { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
   border-radius: 12px; box-shadow: inset 0 0 0 2px #fff; }
 .place-pic .place-emoji { position: relative; z-index: 1; font-size: 26px;
