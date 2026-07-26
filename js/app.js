@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v55";
+  const APP_VERSION = "v56";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -903,7 +903,8 @@
   // まんなかに おおきい もじを だす
   function arCenter(text, cls) {
     const el = $("#ar-center");
-    el.className = "ar-center" + (cls ? " " + cls : "");
+    // ながい ことばは ちいさめに
+    el.className = "ar-center" + (cls ? " " + cls : "") + (String(text).length >= 5 ? " sm" : "");
     el.hidden = false;
     const b = el.querySelector("b");
     b.textContent = text;
@@ -1012,6 +1013,8 @@
     $("#ar-msg").textContent = "じゃんけんを えらんでね！";
     arHideCenter();
     arItemPaint();
+    arSwapPaint();
+    $("#ar-swap-sheet").hidden = true;
     $$("#ar-hands .ar-hand").forEach((b) => b.classList.toggle("fav", b.dataset.hand === arMe.hand));
     arPaintFighters();
     arPaintBars();
@@ -1034,6 +1037,7 @@
     $("#ar-msg").textContent = "しょうぶ！";
     arCenter("ジャン"); sound.blip(); await arSleep(600);
     arCenter("ケン"); sound.blip(); await arSleep(600);
+    for (const id of ["#ar-me-hand", "#ar-foe-hand"]) $(id).classList.remove("win", "lose", "tie");
     arShowHand("#ar-me-hand", "じぶん", myHand);
     arShowHand("#ar-foe-hand", "あいて", foeHand);
     arCenter("ポン！"); sound.blip(); await arSleep(1000);
@@ -1046,6 +1050,8 @@
     await arSleep(1100);
 
     if (r === 0) {
+      $("#ar-me-hand").classList.add("tie");
+      $("#ar-foe-hand").classList.add("tie");
       arCenter("あいこ！");
       $("#ar-msg").textContent = "おなじ だった！ もう一度(いちど)！";
       await arSleep(1100);
@@ -1053,14 +1059,17 @@
       arBusy = false;
       return;
     }
-    // じゃんけんの かちまけを はっきり つたえる
-    arCenter(r === 1 ? "かち！" : "まけ…", r === 1 ? "" : "bad");
-    $("#ar-msg").textContent = r === 1
-      ? `${myHand} は ${foeHand} に かち！`
-      : `${myHand} は ${foeHand} に まけ…`;
-    await arSleep(1000);
-    arHideCenter();
+    // じゃんけんの かちまけを はっきり つたえる（かった ての ふだが ひかる）
     const iWin = r === 1;
+    $(iWin ? "#ar-me-hand" : "#ar-foe-hand").classList.add("win");
+    $(iWin ? "#ar-foe-hand" : "#ar-me-hand").classList.add("lose");
+    arCenter(iWin ? "じぶんの かち！" : "あいての かち！", iWin ? "" : "bad");
+    $("#ar-msg").textContent = iWin
+      ? `${HAND_EMOJI[myHand]}${myHand}の かち！ ${arMe.name}の こうげき！`
+      : `あいての ${HAND_EMOJI[foeHand]}${foeHand}の かち。${arFoe.name}の こうげき！`;
+    sound.blip();
+    await arSleep(1400);
+    arHideCenter();
     const att = iWin ? arMe : arFoe;
     const def = iWin ? arFoe : arMe;
     const attEl = iWin ? $("#ar-me") : $("#ar-foe");
@@ -1105,14 +1114,18 @@
     await arSleep(1200);
     arHideCenter();
 
-    let idx = (meDown ? arMyIdx : arFoeIdx) + 1;
-    while (idx < team.length && team[idx].hp <= 0) idx++;
-    if (idx >= team.length) { arFinish(!meDown); return; }
+    const rest = team.map((f, i) => i).filter((i) => team[i].hp > 0);
+    if (!rest.length) { arFinish(!meDown); return; }
 
-    if (meDown) { arMyIdx = idx; arMe = arMyTeam[idx]; }
-    else { arFoeIdx = idx; arFoe = arFoeTeam[idx]; }
+    let idx = rest[0];
+    if (meDown) {
+      // じぶんの なかまは、だれを だすか えらべる
+      if (rest.length > 1) { const c = await arOpenSwap(true); if (c >= 0) idx = c; }
+      arMyIdx = idx; arMe = arMyTeam[idx];
+    } else { arFoeIdx = idx; arFoe = arFoeTeam[idx]; }
     arPaintFighters();
     arPaintBars();
+    arSwapPaint();
     $$("#ar-hands .ar-hand").forEach((b) => b.classList.toggle("fav", b.dataset.hand === arMe.hand));
     const el = meDown ? $("#ar-me") : $("#ar-foe");
     el.classList.remove("enter"); void el.offsetWidth; el.classList.add("enter");
@@ -1123,6 +1136,66 @@
     arHideCenter();
     el.classList.remove("enter");
     $("#ar-msg").textContent = "じゃんけんを えらんでね！";
+    arBusy = false;
+  }
+
+  /* なかまの こうたい */
+  let arSwapDone = null;
+  const arAlive = () => arMyTeam.map((f, i) => i).filter((i) => arMyTeam[i].hp > 0 && i !== arMyIdx);
+  function arSwapPaint() {
+    const b = $("#ar-swap");
+    b.disabled = arAlive().length === 0 || arOver;
+  }
+  // つよそうな なかまを えらぶ シート。forced=true なら やめられない
+  function arOpenSwap(forced) {
+    const list = $("#ar-swap-list");
+    list.innerHTML = "";
+    for (const i of arAlive()) {
+      const f = arMyTeam[i];
+      const pct = Math.max(0, (f.hp / f.maxHp) * 100);
+      const btn = document.createElement("button");
+      btn.className = "ar-swap-item";
+      btn.innerHTML =
+        (f.photo ? `<img src="${f.photo}" alt="">` : `<span class="sw-svg">${f.svg}</span>`) +
+        `<span class="sw-info"><b class="sw-name">${escapeHtml(f.name)}</b>` +
+        `<span class="battle"><span class="bt-hand h-${f.hand === "グー" ? "g" : f.hand === "チョキ" ? "c" : "p"}">` +
+        `${HAND_EMOJI[f.hand] || "✊"}</span><span class="bt-atk">⚔️<b>${f.attack}</b></span>` +
+        `<span class="bt-def">🛡️<b>${f.defense}</b></span></span>` +
+        `<span class="sw-bar"><i style="width:${pct}%"></i></span>` +
+        `<small class="sw-hp">${f.hp} / ${f.maxHp}</small></span>`;
+      btn.addEventListener("click", () => arCloseSwap(i));
+      list.appendChild(btn);
+    }
+    $("#ar-swap-title").textContent = forced ? "つぎは だれで いく？" : "だれと こうたい する？";
+    $("#ar-swap-cancel").hidden = !!forced;
+    $("#ar-swap-sheet").hidden = false;
+    rubyifyDOM($("#ar-swap-sheet"));
+    return new Promise((res) => { arSwapDone = res; });
+  }
+  function arCloseSwap(idx) {
+    $("#ar-swap-sheet").hidden = true;
+    const done = arSwapDone; arSwapDone = null;
+    if (done) done(idx);
+  }
+  async function arSwapTo(idx, quiet) {
+    arMyIdx = idx; arMe = arMyTeam[idx];
+    arPaintFighters(); arPaintBars(); arSwapPaint();
+    $$("#ar-hands .ar-hand").forEach((b) => b.classList.toggle("fav", b.dataset.hand === arMe.hand));
+    const el = $("#ar-me");
+    el.classList.remove("enter"); void el.offsetWidth; el.classList.add("enter");
+    arCenter("こうたい！");
+    $("#ar-msg").textContent = `いけっ！ ${arMe.name}！`;
+    sound.blip();
+    await arSleep(1200);
+    arHideCenter();
+    el.classList.remove("enter");
+    if (!quiet) $("#ar-msg").textContent = "じゃんけんを えらんでね！";
+  }
+  async function arSwapBtn() {
+    if (arBusy || arOver || !arAlive().length) return;
+    arBusy = true;
+    const idx = await arOpenSwap(false);
+    if (idx >= 0) await arSwapTo(idx);
     arBusy = false;
   }
 
@@ -1164,6 +1237,7 @@
     arSave(rec);
     $("#ar-hands").hidden = true;
     $("#ar-item-row").hidden = true;
+    $("#ar-swap-sheet").hidden = true;
     $("#ar-end").hidden = false;
     const alive = arMyTeam.filter((f) => f.hp > 0);
     $("#ar-end-msg").textContent = iWin
@@ -2704,6 +2778,8 @@
     $("#ar-again").addEventListener("click", () =>
       arStart(arMyTeam.length ? arMyTeam.map((f) => f.name) : arSel.slice()));
     $("#ar-item").addEventListener("click", arUseItem);
+    $("#ar-swap").addEventListener("click", arSwapBtn);
+    $("#ar-swap-cancel").addEventListener("click", () => arCloseSwap(-1));
     $$("#ar-hands .ar-hand").forEach((b) => b.addEventListener("click", () => arPlay(b.dataset.hand)));
     $("#book-open").addEventListener("click", () => openBook(flatOrder[0]));
     $("#book-close").addEventListener("click", closeBook);

@@ -403,7 +403,18 @@
         <button class="ar-hand c" data-hand="チョキ"><span class="ah-face">✌️</span><span class="ah-label">チョキ</span></button>
         <button class="ar-hand p" data-hand="パー"><span class="ah-face">🖐️</span><span class="ah-label">パー</span></button>
       </div>
-      <div id="ar-item-row" class="ar-item-row"><button id="ar-item" class="ar-item"></button></div>
+      <div id="ar-item-row" class="ar-item-row">
+        <button id="ar-swap" class="ar-item swap">🔄 こうたい</button>
+        <button id="ar-item" class="ar-item"></button>
+      </div>
+      <div id="ar-swap-sheet" class="ar-swap-sheet" hidden>
+        <div class="ar-swap-card">
+          <p id="ar-swap-title" class="ar-swap-title">だれと こうたい する？</p>
+          <div id="ar-swap-list" class="ar-swap-list"></div>
+          <button id="ar-swap-cancel" class="ar-swap-cancel">やめる</button>
+        </div>
+      </div>
+
       <div id="ar-end" class="ar-end" hidden>
         <p id="ar-end-msg" class="ar-end-msg"></p>
         <div class="ar-end-btns">

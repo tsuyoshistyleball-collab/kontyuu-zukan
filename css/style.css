@@ -1523,6 +1523,19 @@ rt {
   border-radius: 999px; padding: 0 7px; justify-self: start; }
 .ar-shown.me .ah-who { background: #2a6fd8; }
 .ah-nm { font-size: 15px; font-weight: 900; color: var(--ink); line-height: 1.2; }
+.ar-shown.win {
+  border-color: #ffce2e; background: #fffbe8; transform: scale(1.08);
+  box-shadow: 0 4px 0 rgba(0,0,0,.4), 0 0 16px 4px rgba(255,206,46,.85);
+}
+.ar-shown.lose { filter: grayscale(.85); opacity: .55; transform: scale(.9); }
+.ar-shown.win::after, .ar-shown.lose::after, .ar-shown.tie::after {
+  position: absolute; bottom: -13px; left: 50%; transform: translateX(-50%);
+  font-size: 12px; font-weight: 900; color: #fff; padding: 2px 10px; border-radius: 999px;
+  border: 2px solid #fff; white-space: nowrap;
+}
+.ar-shown.win::after { content: "かち！"; background: #f2820f; }
+.ar-shown.lose::after { content: "まけ"; background: #6b6b6b; }
+.ar-shown.tie::after { content: "あいこ"; background: #3f7fbf; }
 @keyframes arHandIn {
   0% { transform: scale(.4) translateY(-10px); opacity: 0; }
   70% { transform: scale(1.12); opacity: 1; }
@@ -1539,6 +1552,7 @@ rt {
   animation: arPop .42s cubic-bezier(.2,1.7,.4,1) both;
 }
 .ar-center.dmg b { color: #ffe14d; }
+.ar-center.sm b { font-size: clamp(26px, 8.5vw, 52px); }
 .ar-center.bad b { color: #ff8b6f; }
 .ar-center.heal b { color: #7df3b0; }
 .ar-burst {
@@ -1583,7 +1597,7 @@ rt {
   border: 2px solid #fff; white-space: nowrap;
 }
 
-.ar-item-row { display: flex; justify-content: center; margin-top: 2px; }
+.ar-item-row { display: flex; justify-content: center; gap: 10px; margin-top: 2px; flex-wrap: wrap; }
 .ar-item {
   padding: 9px 18px; border-radius: 999px; font-size: 14px; font-weight: 900; font-family: inherit;
   border: 3px solid #fff; background: linear-gradient(180deg,#ffe6a1,#f4b73d); color: #5a3c07;
@@ -1592,6 +1606,28 @@ rt {
 .ar-item:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,.4); }
 .ar-item:disabled { opacity: .45; box-shadow: 0 4px 0 rgba(0,0,0,.3); }
 .ai-dots { letter-spacing: .12em; color: #d8412f; font-size: 13px; }
+.ar-item.swap { background: linear-gradient(180deg,#cfe9ff,#7fb2ef); color: #17385f; }
+
+.ar-swap-sheet { position: fixed; inset: 0; z-index: 48; display: grid; place-items: center;
+  background: rgba(8,20,6,.72); padding: 18px; }
+.ar-swap-card { width: 100%; max-width: 420px; background: var(--card); border-radius: 20px;
+  border: 3px solid #fff; box-shadow: 0 6px 0 var(--frame-d); padding: 14px 13px 13px; }
+.ar-swap-title { margin: 0 0 10px; text-align: center; font-size: 16px; font-weight: 900; color: var(--ink); }
+.ar-swap-list { display: flex; flex-direction: column; gap: 9px; max-height: 54vh; overflow-y: auto; }
+.ar-swap-item { display: flex; align-items: center; gap: 10px; text-align: left; font-family: inherit;
+  background: var(--paper2); border: 2px solid #fff; border-radius: 15px; padding: 8px; box-shadow: 0 3px 0 var(--frame-d); }
+.ar-swap-item:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--frame-d); }
+.ar-swap-item img, .ar-swap-item .sw-svg { width: 56px; height: 56px; flex: none; border-radius: 12px;
+  object-fit: cover; background: #fff; display: grid; place-items: center; }
+.ar-swap-item .sw-svg svg { width: 88%; height: 88%; }
+.sw-info { flex: 1 1 auto; min-width: 0; }
+.sw-name { display: block; font-size: 14px; font-weight: 900; color: var(--ink); }
+.sw-info .battle { justify-content: flex-start; margin-top: 3px; }
+.sw-bar { display: block; height: 9px; border-radius: 999px; background: rgba(90,60,30,.2); overflow: hidden; margin-top: 5px; }
+.sw-bar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg,#7fe08a,#35b04f); }
+.sw-hp { display: block; text-align: right; font-size: 10.5px; font-weight: 900; color: var(--ink-sub); margin-top: 2px; }
+.ar-swap-cancel { width: 100%; margin-top: 11px; padding: 11px; border-radius: 15px; font-size: 15px;
+  font-weight: 900; font-family: inherit; background: rgba(255,250,240,.95); color: var(--ink); box-shadow: 0 3px 0 rgba(0,0,0,.25); }
 
 .ar-end { margin-top: 6px; text-align: center; }
 .ar-end-msg { font-size: 19px; font-weight: 900; color: #ffe9a3; margin: 0 0 10px; line-height: 1.6; }
