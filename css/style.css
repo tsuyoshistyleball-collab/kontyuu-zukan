@@ -1614,15 +1614,15 @@ rt {
 @keyframes arWhite { 0% { filter: brightness(2.6) saturate(.2); } 50% { filter: none; } }
 
 /* はしっこの もちふだ（のこりの なかま）*/
+.ar-arena-row { display: flex; align-items: center; gap: 5px; }
+.ar-arena-row .ar-stage { flex: 1 1 auto; min-width: 0; }
 .ar-side-team {
-  position: absolute; top: 50%; transform: translateY(-50%); z-index: 3;
-  display: flex; flex-direction: column; gap: 6px; padding: 5px 4px; border-radius: 12px;
-  background: rgba(8,20,6,.5); backdrop-filter: blur(2px);
+  flex: none; display: flex; flex-direction: column; gap: 7px;
+  padding: 6px 4px; border-radius: 13px; background: rgba(8,20,6,.55);
+  border: 2px solid rgba(255,255,255,.16);
 }
-.ar-side-team.foe { left: 3px; }
-.ar-side-team.me { right: 3px; }
 .ar-side-team .stm {
-  position: relative; width: 34px; height: 34px; border-radius: 9px; overflow: hidden;
+  position: relative; width: 38px; height: 38px; border-radius: 9px; overflow: hidden;
   border: 2px solid rgba(255,255,255,.75); background: var(--paper2);
   display: grid; place-items: center;
 }
@@ -1639,6 +1639,10 @@ rt {
 .ar-side-team .stm.dead::after {
   content: "✕"; position: absolute; inset: 0; display: grid; place-items: center;
   color: #ff8b6f; font-size: 20px; font-weight: 900; text-shadow: 0 1px 2px #000;
+}
+@media (max-width: 430px) {
+  .ar-side-team { gap: 5px; padding: 5px 3px; }
+  .ar-side-team .stm { width: 32px; height: 32px; }
 }
 @media (prefers-reduced-motion: reduce) { .ar-side-team .stm.now { animation: none; } }
 
