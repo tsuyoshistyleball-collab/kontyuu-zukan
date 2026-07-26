@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v45";
+  const APP_VERSION = "v46";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -50,8 +50,9 @@
   };
 
   const urlFor = (blob) => { if (!urlCache.has(blob)) urlCache.set(blob, URL.createObjectURL(blob)); return urlCache.get(blob); };
-  const clampR = (n) => Math.min(3, Math.max(1, parseInt(n, 10) || 1));
-  const stars = (n) => "★".repeat(clampR(n)) + "☆".repeat(3 - clampR(n));
+  const MAX_R = 5;                                  // レアどは ★1〜★5
+  const clampR = (n) => Math.min(MAX_R, Math.max(1, parseInt(n, 10) || 1));
+  const stars = (n) => "★".repeat(clampR(n)) + "☆".repeat(MAX_R - clampR(n));
   const fmtDate = (ms) => { const d = new Date(ms); return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`; };
   const toDateInput = (ms) => {
     const d = new Date(ms || Date.now()); const p2 = (n) => String(n).padStart(2, "0");
@@ -162,6 +163,30 @@
           family: k.family || "", trivia: k.trivia || [], habitat: k.habitat || "", season: k.season || "", food: k.food || "", care: k.care || "" }
       : { svg: gen.svg, color: gen.color, knownId: null, kana: "", fact: "", where: "", rarity: 1,
           family: "", trivia: [], habitat: "", season: "", food: "", care: "" };
+  }
+
+  /* ★3までだった ころの データを ★5の めもりに あわせる（1かいだけ）。
+     3→5、2→3、1→1。じゅんばんは そのまま で、いちばん レアな ものが ★5に なる。*/
+  async function migrateRarity5() {
+    const KEY = "mz-r5-done";
+    try { if (localStorage.getItem(KEY) === "1") return; } catch (e) { return; }
+    try {
+      const rows = await DB.getAllRaw();
+      const map = { 1: 1, 2: 3, 3: 5 };
+      const names = new Map();
+      for (const r of rows) {
+        const old = parseInt(r.rarity, 10) || 1;
+        if (old <= 3) names.set(`${r.col || "mushi"}|${r.name}`, map[old] || old);
+      }
+      const before = DB.setCollection;
+      for (const [key, val] of names) {
+        const [col, name] = key.split("|");
+        DB.setCollection(col);
+        await DB.patchByName(name, { rarity: val });
+      }
+      DB.setCollection(Zukan.id);
+      localStorage.setItem(KEY, "1");
+    } catch (e) { console.warn("rarity migrate:", e); }
   }
 
   // ---- データ ----
@@ -638,7 +663,7 @@
     el.innerHTML = "";
     el.className = (el.dataset.base || el.className.split(" ")[0]) + " star-pick s" + r;
     el.dataset.base = el.className.split(" ")[0];
-    for (let i = 1; i <= 3; i++) {
+    for (let i = 1; i <= MAX_R; i++) {
       const b = document.createElement("button");
       b.type = "button";
       b.className = "star" + (i <= r ? " on" : "");
@@ -700,8 +725,8 @@
     card.className = "card found r" + g.rarity;
     card.style.setProperty("--c", ill.color);
     card.setAttribute("aria-label", g.name);
-    // ★3は カードごとに にじの いろを ずらす
-    if (g.rarity === 3) {
+    // ★5は カードごとに にじの いろを ずらす
+    if (g.rarity >= 5) {
       let h = 0; for (let i = 0; i < g.name.length; i++) h += g.name.charCodeAt(i);
       card.style.animationDelay = "-" + ((h % 32) / 10).toFixed(2) + "s";
     }
@@ -1009,9 +1034,9 @@
     page.dataset.name = g.name;
     page.style.setProperty("--c", ill.color);
 
-    // ★3は ページぜんたいを キラキラ（ホロ）に
+    // ★5は ページぜんたいを キラキラ（ホロ）に
     // ホロと キラキラは スクロールしない「かみ」の うえに おく（とちゅうで きれない ように）
-    if (g.rarity === 3) {
+    if (g.rarity >= 5) {
       const holo = document.createElement("div");
       holo.className = "page-holo";
       holo.setAttribute("aria-hidden", "true");
@@ -1155,7 +1180,7 @@
     page.appendChild(del);
 
     page = _pg;   // かみ（そと）に もどす
-    if (g.rarity === 3) {
+    if (g.rarity >= 4) {
       const sp = document.createElement("div");
       sp.className = "page-sparkles";
       sp.setAttribute("aria-hidden", "true");
@@ -1681,7 +1706,7 @@
     return {
       get on() { return on; },
       toggle() { on = !on; localStorage.setItem("mz-sound", on ? "on" : "off"); if (on) this.blip(); return on; },
-      fanfare(p) { if (!on) return; try { [523, 659, 784, 1047].forEach((f, i) => note(f, i * 0.12, 0.5, "triangle", 0.16)); if (clampR(p) >= 3) note(1319, 0.5, 0.7, "triangle", 0.16); } catch (e) {} },
+      fanfare(p) { if (!on) return; try { [523, 659, 784, 1047].forEach((f, i) => note(f, i * 0.12, 0.5, "triangle", 0.16)); if (clampR(p) >= 4) note(1319, 0.5, 0.7, "triangle", 0.16); if (clampR(p) >= 5) note(1568, 0.62, 0.8, "triangle", 0.16); } catch (e) {} },
       blip() { if (!on) return; try { note(880, 0, 0.16, "triangle", 0.12); note(1175, 0.08, 0.16, "triangle", 0.12); } catch (e) {} },
       // かみを めくる おと（ノイズを フィルターで うごかして「シャラッ」）
       page() {
@@ -1823,7 +1848,7 @@
   // ---- じどう バックアップ ----
   const AUTO_KEY = "mz-auto-backup";   // "0" なら オフ（きほんは オン）
   const SIG_KEY = "mz-backup-sig";     // さいごに ほぞんした データの しるし
-  const AUTO_EVERY = 6 * 60 * 60 * 1000;
+  const AUTO_EVERY = 60 * 60 * 1000;   // 1じかんに 1かいまで
   const autoBackupOn = () => { try { return localStorage.getItem(AUTO_KEY) !== "0"; } catch (e) { return true; } };
   function markBackedUp(sig) {
     try {
@@ -2315,6 +2340,7 @@
 
     renderPlaces();
     try {
+      await migrateRarity5();
       await reload();
       renderProgress();
       renderGrid();

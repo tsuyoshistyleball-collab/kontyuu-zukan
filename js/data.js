@@ -11,7 +11,7 @@
 
 const INSECTS = [
   {
-    id: "kabutomushi", name: "かぶとむし", kana: "カブトムシ", stars: 3, color: "#7c5230",
+    id: "kabutomushi", name: "かぶとむし", kana: "カブトムシ", stars: 5, color: "#7c5230",
     where: "くぬぎの 木(き)の 幹(みき)", fact: "角(つの)で 戦(たたか)う 虫(むし)の 王様(おうさま)！",
     svg: `<svg viewBox="0 0 120 120"><g stroke="#2e1c0c" stroke-width="6" stroke-linecap="round">
     <path d="M44 60 L18 46"/><path d="M44 76 L14 76"/><path d="M46 90 L20 104"/>
@@ -22,7 +22,7 @@ const INSECTS = [
     <ellipse cx="50" cy="60" rx="5" ry="10" fill="#a06a3a" opacity=".7"/></svg>`
   },
   {
-    id: "kuwagata", name: "くわがた", kana: "クワガタ", stars: 3, color: "#3a3a3a",
+    id: "kuwagata", name: "くわがた", kana: "クワガタ", stars: 5, color: "#3a3a3a",
     where: "木(き)の 蜜(みつ)が 出(で)る ところ", fact: "大(おお)きな あごが とっても かっこいい！",
     svg: `<svg viewBox="0 0 120 120"><g stroke="#1c1c1c" stroke-width="6" stroke-linecap="round">
     <path d="M44 62 L18 50"/><path d="M44 78 L14 80"/><path d="M46 92 L22 104"/>
@@ -58,7 +58,7 @@ const INSECTS = [
     <circle cx="38" cy="50" r="4" fill="#3a3a3a"/><circle cx="82" cy="50" r="4" fill="#3a3a3a"/></svg>`
   },
   {
-    id: "agehachou", name: "あげはちょう", kana: "アゲハチョウ", stars: 2, color: "#f7c948",
+    id: "agehachou", name: "あげはちょう", kana: "アゲハチョウ", stars: 3, color: "#f7c948",
     where: "お花(はな)や みかんの 木(き)", fact: "黄色(きいろ)と 黒(くろ)の 大(おお)きな 羽(はね)が きれい。",
     svg: `<svg viewBox="0 0 120 120"><ellipse cx="60" cy="62" rx="4" ry="28" fill="#2b2b2b"/>
     <path d="M60 30 Q56 12 62 8 M60 30 Q64 12 58 8" stroke="#2b2b2b" stroke-width="3" fill="none" stroke-linecap="round"/>
@@ -149,7 +149,7 @@ const INSECTS = [
     <path d="M54 30 Q50 20 52 16 M66 30 Q70 20 68 16" stroke="#2b2b2b" stroke-width="3" fill="none" stroke-linecap="round"/></svg>`
   },
   {
-    id: "katatsumuri", name: "かたつむり", kana: "カタツムリ", stars: 1, color: "#b7d98a",
+    id: "katatsumuri", name: "かたつむり", kana: "カタツムリ", stars: 2, color: "#b7d98a",
     where: "雨(あめ)の 日(ひ)の 葉(は)っぱ", fact: "背中(せなか)に おうちを のせて いるよ。",
     svg: `<svg viewBox="0 0 120 120"><path d="M18 88 Q18 74 40 74 L84 74 Q98 74 98 86 Q98 92 90 92 L26 92 Q18 92 18 88 Z" fill="#c9a24a"/>
     <circle cx="90" cy="60" r="8" fill="#b7d98a"/>
@@ -169,7 +169,7 @@ const INSECTS = [
     <path d="M52 74 q8 6 16 0" stroke="#2f2b36" stroke-width="3" fill="none"/></svg>`
   },
   {
-    id: "koganemushi", name: "こがねむし", kana: "コガネムシ", stars: 2, color: "#3fae7a",
+    id: "koganemushi", name: "こがねむし", kana: "コガネムシ", stars: 3, color: "#3fae7a",
     where: "葉(は)っぱの 上(うえ)", fact: "背中(せなか)が きらきら 光(ひか)る 宝物(たからもの)。",
     svg: `<svg viewBox="0 0 120 120"><g stroke="#1f6b48" stroke-width="5" stroke-linecap="round">
     <path d="M44 60 L22 50"/><path d="M44 74 L20 76"/><path d="M46 86 L24 98"/>
@@ -179,7 +179,7 @@ const INSECTS = [
     <ellipse cx="49" cy="58" rx="6" ry="12" fill="#b6f5d6" opacity=".7"/><ellipse cx="70" cy="86" rx="4" ry="7" fill="#b6f5d6" opacity=".5"/></svg>`
   },
   {
-    id: "amenbo", name: "あめんぼ", kana: "アメンボ", stars: 2, color: "#5a6b7a",
+    id: "amenbo", name: "あめんぼ", kana: "アメンボ", stars: 3, color: "#5a6b7a",
     where: "池(いけ)や 水(みず)たまりの 上(うえ)", fact: "水(みず)の 上(うえ)を すいすい すべるよ。",
     svg: `<svg viewBox="0 0 120 120"><ellipse cx="60" cy="120" rx="120" ry="30" fill="#bfe6f0" opacity=".3"/>
     <g stroke="#3a4a56" stroke-width="3.5" stroke-linecap="round" fill="none">
@@ -189,7 +189,7 @@ const INSECTS = [
     <circle cx="56" cy="41" r="2.5" fill="#111"/><circle cx="64" cy="41" r="2.5" fill="#111"/></svg>`
   },
   {
-    id: "suzumushi", name: "すずむし", kana: "スズムシ", stars: 3, color: "#2b2b2b",
+    id: "suzumushi", name: "すずむし", kana: "スズムシ", stars: 4, color: "#2b2b2b",
     where: "草(くさ)むらの 奥(おく)の ほう", fact: "りーんりーんと 鈴(すず)みたいに 鳴(な)くよ。",
     svg: `<svg viewBox="0 0 120 120"><ellipse cx="52" cy="66" rx="20" ry="12" fill="#2b2b2b" transform="rotate(-4 52 66)"/>
     <ellipse cx="66" cy="60" rx="20" ry="15" fill="#1f1f1f" transform="rotate(-6 66 60)"/>
@@ -474,7 +474,7 @@ const FLOWERS = [
     <circle cx="60" cy="52" r="19" fill="#ffd23f"/><circle cx="60" cy="52" r="11" fill="#f0a93c"/></svg>`
   },
   {
-    id: "sakura", name: "さくら", kana: "サクラ", stars: 2, color: "#ffb7c5", cat: "f_tree",
+    id: "sakura", name: "さくら", kana: "サクラ", stars: 3, color: "#ffb7c5", cat: "f_tree",
     where: "春(はる)の 公園(こうえん)や 川(かわ)ぞい", fact: "春(はる)に いっせいに 咲(さ)いて、ひらひら 散(ち)るよ。",
     svg: `<svg viewBox="0 0 120 120"><g fill="#ffc2d1" stroke="#ff9fb5" stroke-width="2">
     <path d="M60 20 q13 14 8 26 q-8 6 -16 0 q-5 -12 8 -26Z"/>
@@ -487,7 +487,7 @@ const FLOWERS = [
     <g fill="#ffd23f"><circle cx="60" cy="45" r="2.6"/><circle cx="71" cy="52" r="2.6"/><circle cx="49" cy="52" r="2.6"/><circle cx="67" cy="67" r="2.6"/><circle cx="53" cy="67" r="2.6"/></g></svg>`
   },
   {
-    id: "tulip", name: "ちゅーりっぷ", kana: "チューリップ", stars: 1, color: "#e8556d", cat: "f_garden",
+    id: "tulip", name: "ちゅーりっぷ", kana: "チューリップ", stars: 2, color: "#e8556d", cat: "f_garden",
     where: "春(はる)の 花壇(かだん)", fact: "赤(あか)・黄色(きいろ)・白(しろ)…いろんな 色(いろ)が あるよ。",
     svg: `<svg viewBox="0 0 120 120"><path d="M60 62 V112" stroke="#4c8033" stroke-width="7" stroke-linecap="round"/>
     <path d="M60 78 q-26 4 -26 30 q24 -2 26 -30Z" fill="#5da03d"/><path d="M60 88 q26 4 26 26 q-24 -2 -26 -26Z" fill="#3f7a2b"/>
@@ -496,7 +496,7 @@ const FLOWERS = [
     <path d="M42 40 q2 16 8 24" stroke="#f47c8e" stroke-width="2.5" fill="none"/></svg>`
   },
   {
-    id: "himawari", name: "ひまわり", kana: "ヒマワリ", stars: 2, color: "#ffb703", cat: "f_garden",
+    id: "himawari", name: "ひまわり", kana: "ヒマワリ", stars: 3, color: "#ffb703", cat: "f_garden",
     where: "夏(なつ)の 畑(はたけ)・花壇(かだん)", fact: "お日(ひ)さまの ほうを 向(む)いて 咲(さ)くよ。",
     svg: `<svg viewBox="0 0 120 120"><path d="M60 66 V112" stroke="#4c8033" stroke-width="7" stroke-linecap="round"/>
     <path d="M60 86 q-24 -4 -28 14 q22 6 28 -14Z" fill="#5da03d"/>
@@ -509,7 +509,7 @@ const FLOWERS = [
     <g fill="#4d3018"><circle cx="54" cy="49" r="2"/><circle cx="63" cy="48" r="2"/><circle cx="58" cy="56" r="2"/><circle cx="66" cy="57" r="2"/><circle cx="52" cy="59" r="2"/></g></svg>`
   },
   {
-    id: "asagao", name: "あさがお", kana: "アサガオ", stars: 1, color: "#7b6cd9", cat: "f_garden",
+    id: "asagao", name: "あさがお", kana: "アサガオ", stars: 2, color: "#7b6cd9", cat: "f_garden",
     where: "夏(なつ)の 朝(あさ)、つるの 先(さき)", fact: "朝(あさ) 咲(さ)いて、昼(ひる)には しぼんじゃう。",
     svg: `<svg viewBox="0 0 120 120"><path d="M74 70 q-14 20 -6 42" stroke="#4c8033" stroke-width="6" fill="none" stroke-linecap="round"/>
     <path d="M70 86 q-22 -6 -26 12 q20 8 26 -12Z" fill="#5da03d"/>
@@ -530,7 +530,7 @@ const FLOWERS = [
     <circle cx="60" cy="58" r="5" fill="#3f7a2b"/></svg>`
   },
   {
-    id: "kinoko", name: "きのこ", kana: "キノコ", stars: 2, color: "#e05a47", cat: "f_mush",
+    id: "kinoko", name: "きのこ", kana: "キノコ", stars: 4, color: "#e05a47", cat: "f_mush",
     where: "しめった 林(はやし)の 地面(じめん)", fact: "食(た)べられない ものも あるよ。さわったら 手(て)を 洗(あら)おう。",
     svg: `<svg viewBox="0 0 120 120"><path d="M46 62 q-4 34 4 44 q10 4 20 0 q8 -10 4 -44Z" fill="#fdf0dc" stroke="#e0cba6" stroke-width="3"/>
     <path d="M18 64 q0 -42 42 -42 q42 0 42 42 q-42 10 -84 0Z" fill="#e05a47"/>
@@ -538,7 +538,7 @@ const FLOWERS = [
     <path d="M18 64 q42 12 84 0" stroke="#b8402f" stroke-width="3" fill="none"/></svg>`
   },
   {
-    id: "donguri", name: "どんぐり", kana: "ドングリ", stars: 1, color: "#a8763e", cat: "f_fruit",
+    id: "donguri", name: "どんぐり", kana: "ドングリ", stars: 2, color: "#a8763e", cat: "f_fruit",
     where: "秋(あき)の 公園(こうえん)、木(き)の 下(した)", fact: "春(はる)に なると 芽(め)が 出(で)て 木(き)に なるよ。",
     svg: `<svg viewBox="0 0 120 120"><path d="M60 26 v-12" stroke="#6b4423" stroke-width="6" stroke-linecap="round"/>
     <path d="M32 44 q0 -20 28 -20 q28 0 28 20 q-28 8 -56 0Z" fill="#8a5a2b"/>
@@ -548,7 +548,7 @@ const FLOWERS = [
     <ellipse cx="46" cy="62" rx="6" ry="12" fill="#d9a56a" opacity=".7"/></svg>`
   },
   {
-    id: "momiji", name: "もみじ", kana: "モミジ", stars: 1, color: "#e0523a", cat: "f_leaf",
+    id: "momiji", name: "もみじ", kana: "モミジ", stars: 2, color: "#e0523a", cat: "f_leaf",
     where: "秋(あき)の 山(やま)・公園(こうえん)", fact: "寒(さむ)く なると 赤(あか)や 黄色(きいろ)に 変(か)わるよ。",
     svg: `<svg viewBox="0 0 120 120"><path d="M60 74 q2 20 0 34" stroke="#8a5a2b" stroke-width="5" stroke-linecap="round" fill="none"/>
     <path d="M60 14 l10 22 l20 -8 l-10 20 l22 4 l-20 12 l12 18 l-22 -8 l-2 22 l-10 -22 l-10 22 l-2 -22 l-22 8 l12 -18 l-20 -12 l22 -4 l-10 -20 l20 8Z" fill="#e0523a"/>
