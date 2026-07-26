@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v52";
+  const APP_VERSION = "v53";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -417,6 +417,7 @@
     else msg.hidden = true;
     $("#api-hint").hidden = !!Settings.key;
     $("#book-open").hidden = n === 0;
+    $("#arena-open").hidden = n === 0;
     updateBackupHint();
   }
 
@@ -822,6 +823,184 @@
     return card;
   }
 
+
+  /* ============================================================
+     とうぎじょう（カードで たたかう）
+     ・じゃんけんで かった ほうが こうげき
+     ・じぶんの カードの とくいわざ（グー/チョキ/パー）を えらぶと つよい
+     ・たいりょくは しゅび力から きめる
+     ============================================================ */
+  const AR_KEY = "mz-arena";
+  const arRecord = () => { try { return JSON.parse(localStorage.getItem(AR_KEY) || "{}"); } catch (e) { return {}; } };
+  function arSave(rec) { try { localStorage.setItem(AR_KEY, JSON.stringify(rec)); } catch (e) {} }
+  const arSleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  const arHp = (f) => Math.round((f.defense * 3 + 300) / 10) * 10;
+  function arDamage(att, def, boosted) {
+    let d = att.attack - Math.round(def.defense / 3);
+    if (boosted) d = Math.round(d * 1.6);
+    return Math.round(Math.max(60, d) / 10) * 10;
+  }
+  // じゃんけん： 1=かち 0=あいこ -1=まけ
+  function arJudge(a, b) {
+    if (a === b) return 0;
+    if ((a === "グー" && b === "チョキ") || (a === "チョキ" && b === "パー") || (a === "パー" && b === "グー")) return 1;
+    return -1;
+  }
+
+  let arMe = null, arFoe = null, arBusy = false, arOver = false;
+
+  function arFighterFromGroup(g) {
+    return {
+      name: g.name, hand: g.hand, attack: g.attack, defense: g.defense,
+      rarity: g.rarity, photo: g.cover && g.cover.blob ? urlFor(g.cover.blob) : "",
+      svg: illustFor(g.name).svg, wild: false,
+    };
+  }
+  // ずかんに 1しゅるいしか いない ときの「やせいの むし」
+  function arWildFighter(exclude) {
+    const list = (Zukan.id === "hana" ? FLOWERS : INSECTS).filter((k) => k.name !== exclude);
+    const k = list[Math.floor(Math.random() * list.length)] || (Zukan.id === "hana" ? FLOWERS[0] : INSECTS[0]);
+    const st = statsFor(k.name, k.stars, k);
+    return { name: k.name, hand: st.hand, attack: st.attack, defense: st.defense,
+             rarity: clampR(k.stars), photo: "", svg: k.svg, wild: true };
+  }
+
+  function arCardHTML(f, side) {
+    const pic = f.photo
+      ? `<img class="arf-pic" src="${f.photo}" alt="">`
+      : `<span class="arf-pic svg">${f.svg}</span>`;
+    return (
+      `<div class="arf-top">${pic}` +
+      `<div class="arf-info">` +
+        `<p class="arf-name">${escapeHtml(f.name)}${f.wild ? '<small>やせい</small>' : ""}</p>` +
+        `<div class="battle"><span class="bt-hand h-${f.hand === "グー" ? "g" : f.hand === "チョキ" ? "c" : "p"}">` +
+          `${HAND_EMOJI[f.hand] || "✊"}<b>${escapeHtml(f.hand)}</b></span>` +
+          `<span class="bt-atk">⚔️<b>${f.attack}</b></span><span class="bt-def">🛡️<b>${f.defense}</b></span></div>` +
+        `<div class="arf-bar"><i style="width:${Math.max(0, (f.hp / f.maxHp) * 100)}%"></i></div>` +
+        `<p class="arf-hp">${f.hp} / ${f.maxHp}</p>` +
+      `</div></div>`
+    );
+  }
+  function arPaint() {
+    $("#ar-foe").innerHTML = arCardHTML(arFoe, "foe");
+    $("#ar-me").innerHTML = arCardHTML(arMe, "me");
+    rubyifyDOM($("#arena"));
+  }
+
+  function openArena() {
+    if (groups.size === 0) return;
+    document.body.classList.add("noscroll");
+    $("#arena").hidden = false;
+    $("#ar-fight").hidden = true;
+    $("#ar-pick").hidden = false;
+    const rec = arRecord();
+    $("#ar-record").textContent = rec.win
+      ? `🏆 ${rec.win}かい かった（${rec.play || 0}かい たたかった）`
+      : "はじめての たたかい！";
+    const list = $("#ar-list");
+    list.innerHTML = "";
+    for (const nm of flatOrder) {
+      const g = groups.get(nm);
+      if (!g) continue;
+      const b = document.createElement("button");
+      b.className = "ar-pickcard r" + g.rarity;
+      b.innerHTML =
+        `<img src="${urlFor(g.cover.blob)}" alt="">` +
+        `<span class="apc-name">${escapeHtml(g.name)}</span>` +
+        `<span class="battle"><span class="bt-hand h-${g.hand === "グー" ? "g" : g.hand === "チョキ" ? "c" : "p"}">` +
+        `${HAND_EMOJI[g.hand] || "✊"}</span><span class="bt-atk">⚔️<b>${g.attack}</b></span>` +
+        `<span class="bt-def">🛡️<b>${g.defense}</b></span></span>`;
+      b.addEventListener("click", () => arStart(nm));
+      list.appendChild(b);
+    }
+    rubyifyDOM($("#arena"));
+  }
+  function closeArena() {
+    $("#arena").hidden = true;
+    document.body.classList.remove("noscroll");
+  }
+
+  function arStart(myName) {
+    const g = groups.get(myName);
+    if (!g) return;
+    arMe = arFighterFromGroup(g);
+    const others = flatOrder.filter((n) => n !== myName);
+    arFoe = others.length
+      ? arFighterFromGroup(groups.get(others[Math.floor(Math.random() * others.length)]))
+      : arWildFighter(myName);
+    for (const f of [arMe, arFoe]) { f.maxHp = arHp(f); f.hp = f.maxHp; }
+    arOver = false; arBusy = false;
+    $("#ar-pick").hidden = true;
+    $("#ar-fight").hidden = false;
+    $("#ar-end").hidden = true;
+    $("#ar-hands").hidden = false;
+    $("#ar-foe-hand").textContent = "";
+    $("#ar-me-hand").textContent = "";
+    $("#ar-msg").textContent = "じゃんけんを えらんでね！";
+    arPaint();
+    rubyifyDOM($("#arena"));
+  }
+
+  async function arPlay(myHand) {
+    if (arBusy || arOver) return;
+    arBusy = true;
+    const foeHand = HANDS[Math.floor(Math.random() * 3)];
+    $("#ar-me-hand").textContent = HAND_EMOJI[myHand];
+    $("#ar-foe-hand").textContent = "❓";
+    $("#ar-msg").textContent = "さいしょは グー…！";
+    sound.blip();
+    await arSleep(450);
+    $("#ar-foe-hand").textContent = HAND_EMOJI[foeHand];
+
+    const r = arJudge(myHand, foeHand);
+    if (r === 0) {
+      $("#ar-msg").textContent = "あいこ！ もう一度(いちど)！";
+      await arSleep(500);
+      arBusy = false;
+      return;
+    }
+    const iWin = r === 1;
+    const att = iWin ? arMe : arFoe;
+    const def = iWin ? arFoe : arMe;
+    const boosted = iWin ? myHand === arMe.hand : foeHand === arFoe.hand;
+    const dmg = arDamage(att, def, boosted);
+    def.hp = Math.max(0, def.hp - dmg);
+
+    $("#ar-msg").textContent =
+      (iWin ? "かった！ " : "やられた… ") +
+      (boosted ? "とくいわざ で " : "") + `${dmg} の ダメージ！`;
+    (iWin ? $("#ar-foe") : $("#ar-me")).classList.add("hit");
+    sound.blip();
+    if (navigator.vibrate) navigator.vibrate(iWin ? [0, 40, 30, 40] : [0, 90]);
+    arPaint();
+    await arSleep(120);
+    $$("#arena .ar-fighter").forEach((el) => el.classList.remove("hit"));
+    await arSleep(500);
+
+    if (def.hp <= 0) { arFinish(iWin); return; }
+    $("#ar-msg").textContent = "じゃんけんを えらんでね！";
+    arBusy = false;
+  }
+
+  function arFinish(iWin) {
+    arOver = true; arBusy = false;
+    const rec = arRecord();
+    rec.play = (rec.play || 0) + 1;
+    if (iWin) rec.win = (rec.win || 0) + 1;
+    rec.byName = rec.byName || {};
+    if (iWin) rec.byName[arMe.name] = (rec.byName[arMe.name] || 0) + 1;
+    arSave(rec);
+    $("#ar-hands").hidden = true;
+    $("#ar-end").hidden = false;
+    $("#ar-end-msg").textContent = iWin
+      ? `🏆 ${arMe.name}の かち！ つよいね！`
+      : `${arFoe.name}の かち。つぎは がんばろう！`;
+    $("#ar-msg").textContent = iWin ? "やったー！" : "うーん、おしい！";
+    if (iWin) { sound.fanfare(arMe.rarity); confetti(clampR(arMe.rarity)); }
+    rubyifyDOM($("#arena"));
+  }
+
   // ---- ブック（よこに めくる ずかん）----
   function openBook(name) {
     if (groups.size === 0) return;
@@ -1200,7 +1379,9 @@
 
     const mt = document.createElement("p");
     mt.className = "page-meta";
-    mt.textContent = `みつけた 回数(かいすう)：${g.count}回(かい) ・ はじめて：${fmtDate(g.firstDate)}`;
+    const wins = (arRecord().byName || {})[g.name] || 0;
+    mt.textContent = `みつけた 回数(かいすう)：${g.count}回(かい) ・ はじめて：${fmtDate(g.firstDate)}` +
+      (wins ? ` ・ 🏆 ${wins}勝(しょう)` : "");
     page.appendChild(mt);
 
     // みつけた ばしょ
@@ -2342,6 +2523,11 @@
     $("#file-camera").addEventListener("change", onFile);
     $("#file-gallery").addEventListener("change", onFile);
 
+    $("#arena-open").addEventListener("click", openArena);
+    $("#ar-close").addEventListener("click", closeArena);
+    $("#ar-back").addEventListener("click", openArena);
+    $("#ar-again").addEventListener("click", () => arStart(arMe ? arMe.name : flatOrder[0]));
+    $$("#ar-hands .ar-hand").forEach((b) => b.addEventListener("click", () => arPlay(b.dataset.hand)));
     $("#book-open").addEventListener("click", () => openBook(flatOrder[0]));
     $("#book-close").addEventListener("click", closeBook);
     $("#book-prev").addEventListener("click", () => bookNav(-1));

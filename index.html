@@ -39,6 +39,7 @@
       <div class="topbar-btns">
         <button id="place-add" class="icon-btn" aria-label="行った場所を登録">🗺️</button>
         <button id="book-open" class="icon-btn" aria-label="図鑑をめくる" hidden>📖</button>
+        <button id="arena-open" class="icon-btn" aria-label="闘技場" hidden>⚔️</button>
         <button id="sound-btn" class="icon-btn" aria-label="音のオンオフ">🔊</button>
         <button id="settings-btn" class="icon-btn" aria-label="設定">⚙️</button>
       </div>
@@ -361,6 +362,41 @@
   <div id="toast" class="toast" hidden>
     <img id="toast-photo" class="toast-photo" alt="" />
     <span id="toast-text" class="toast-text"></span>
+  </div>
+
+  <!-- とうぎじょう（カードで たたかう）-->
+  <div id="arena" class="arena" hidden>
+    <button id="ar-close" class="ar-close" aria-label="閉じる">✕</button>
+
+    <div id="ar-pick" class="ar-pick">
+      <h2 class="ar-title">⚔️ とうぎじょう</h2>
+      <p class="ar-sub">たたかう なかまを えらんでね</p>
+      <p id="ar-record" class="ar-record"></p>
+      <div id="ar-list" class="ar-list"></div>
+    </div>
+
+    <div id="ar-fight" class="ar-fight" hidden>
+      <div id="ar-foe" class="ar-fighter foe"></div>
+      <div id="ar-mid" class="ar-mid">
+        <span id="ar-foe-hand" class="ar-shown"></span>
+        <span id="ar-vs" class="ar-vs">VS</span>
+        <span id="ar-me-hand" class="ar-shown"></span>
+      </div>
+      <p id="ar-msg" class="ar-msg">じゃんけんを えらんでね！</p>
+      <div id="ar-me" class="ar-fighter me"></div>
+      <div id="ar-hands" class="ar-hands">
+        <button class="ar-hand" data-hand="グー">✊<span>グー</span></button>
+        <button class="ar-hand" data-hand="チョキ">✌️<span>チョキ</span></button>
+        <button class="ar-hand" data-hand="パー">🖐️<span>パー</span></button>
+      </div>
+      <div id="ar-end" class="ar-end" hidden>
+        <p id="ar-end-msg" class="ar-end-msg"></p>
+        <div class="ar-end-btns">
+          <button id="ar-again" class="ar-again">⚔️ もう一度(いちど)</button>
+          <button id="ar-back" class="ar-back">なかまを かえる</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- ずかんの きりかえ -->
