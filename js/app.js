@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v63";
+  const APP_VERSION = "v64";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -1128,7 +1128,7 @@
     arSlash(iWin ? "foe" : "me");
     arCenter(boosted ? "とくいわざ！" : arPick(AR_BAM));
     defEl.classList.add("hit");
-    sound.blip();
+    sound.hit(boosted);
     if (navigator.vibrate) navigator.vibrate(iWin ? [0, 40, 30, 40] : [0, 90]);
     await arSleep(360);
     attEl.classList.remove("lunge");
@@ -1157,7 +1157,7 @@
     arQuake();
     arCenter("たおれた…", "bad");
     $("#ar-msg").textContent = `${cur.name}は たおれた！`;
-    sound.blip();
+    sound.down();
     if (navigator.vibrate) navigator.vibrate([0, 130, 70, 200]);
     await arSleep(1600);
     arHideCenter();
@@ -1267,7 +1267,7 @@
     arPaintBars();
     arCenter("+" + heal, "heal");
     $("#ar-msg").textContent = `${arMe.name}は げんきに なった！`;
-    sound.blip();
+    sound.heal();
     if (navigator.vibrate) navigator.vibrate(30);
     await arSleep(1100);
     arHideCenter();
@@ -2338,6 +2338,80 @@
           o.connect(og); og.connect(c.destination);
           o.start(t + 0.3); o.stop(t + 0.5);
         } catch (e) {}
+      },
+      // ノイズを 1つ つくる（ぶつかる・たおれる おとの もと）
+      noise(dur, env) {
+        const c = ac();
+        const buf = c.createBuffer(1, Math.ceil(c.sampleRate * dur), c.sampleRate);
+        const d = buf.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * env(i / d.length);
+        const src = c.createBufferSource(); src.buffer = buf;
+        return src;
+      },
+      /* こうげきが あたった おと。
+         シュッ（ざんげき）＋ ドンッ（ぶつかる）＋ パキッ（しん）*/
+      hit(strong) {
+        if (!on) return;
+        try {
+          const c = ac(), t = c.currentTime;
+          // シュッ：たかい ノイズが すーっと さがる
+          const dur = 0.24;
+          const src = this.noise(dur, (x) => Math.pow(1 - x, 1.5));
+          const bp = c.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 1.1;
+          bp.frequency.setValueAtTime(strong ? 6000 : 4800, t);
+          bp.frequency.exponentialRampToValueAtTime(800, t + dur);
+          const sg = c.createGain();
+          sg.gain.setValueAtTime(strong ? 0.24 : 0.17, t);
+          sg.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+          src.connect(bp); bp.connect(sg); sg.connect(c.destination);
+          src.start(t); src.stop(t + dur + 0.02);
+          // ドンッ：ひくい おとが ずんと おちる
+          const o = c.createOscillator(), og = c.createGain();
+          o.type = "triangle";
+          o.frequency.setValueAtTime(strong ? 220 : 175, t + 0.02);
+          o.frequency.exponentialRampToValueAtTime(48, t + 0.28);
+          og.gain.setValueAtTime(0.0001, t + 0.02);
+          og.gain.linearRampToValueAtTime(strong ? 0.3 : 0.22, t + 0.05);
+          og.gain.exponentialRampToValueAtTime(0.0001, t + 0.36);
+          o.connect(og); og.connect(c.destination);
+          o.start(t + 0.02); o.stop(t + 0.42);
+          // パキッ：あたった しゅんかん
+          note(strong ? 1500 : 1150, 0, 0.07, "square", strong ? 0.1 : 0.07);
+          if (strong) note(1900, 0.06, 0.09, "square", 0.07);
+        } catch (e) {}
+      },
+      // たおれた おと（よろよろ さがって、ドサッ）
+      down() {
+        if (!on) return;
+        try {
+          const c = ac(), t = c.currentTime;
+          const o = c.createOscillator(), g = c.createGain();
+          o.type = "sawtooth";
+          o.frequency.setValueAtTime(430, t);
+          o.frequency.exponentialRampToValueAtTime(70, t + 0.7);
+          const lp = c.createBiquadFilter(); lp.type = "lowpass";
+          lp.frequency.setValueAtTime(2400, t);
+          lp.frequency.exponentialRampToValueAtTime(420, t + 0.7);
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.linearRampToValueAtTime(0.15, t + 0.06);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + 0.8);
+          o.connect(lp); lp.connect(g); g.connect(c.destination);
+          o.start(t); o.stop(t + 0.85);
+          // ドサッ：つちに たおれる
+          const dur = 0.45;
+          const src = this.noise(dur, (x) => Math.pow(1 - x, 2.2) * Math.min(1, x * 22));
+          const lp2 = c.createBiquadFilter(); lp2.type = "lowpass"; lp2.frequency.value = 520;
+          const ng = c.createGain();
+          ng.gain.setValueAtTime(0.24, t + 0.55);
+          ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.55 + dur);
+          src.connect(lp2); lp2.connect(ng); ng.connect(c.destination);
+          src.start(t + 0.55); src.stop(t + 0.55 + dur + 0.02);
+        } catch (e) {}
+      },
+      // かいふくの おと（きらきら あがる）
+      heal() {
+        if (!on) return;
+        try { [523, 659, 880, 1047].forEach((f, i) => note(f, i * 0.07, 0.3, "sine", 0.12)); } catch (e) {}
       },
     };
   })();
