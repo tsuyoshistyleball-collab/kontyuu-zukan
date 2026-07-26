@@ -289,38 +289,100 @@ main { max-width: 760px; margin: 0 auto; }
 .sheet-btn.file { background: linear-gradient(180deg,#84c266,#4c8033); color: #fff; box-shadow: 0 4px 0 #3a6427; }
 .sheet-btn.cancel { background: var(--paper2); color: var(--ink-sub); box-shadow: none; border-color: transparent; }
 
-/* ---------- ブック（よこに めくる 絵本）---------- */
-.book { position: fixed; inset: 0; z-index: 45; display: flex; flex-direction: column;
+/* ---------- ブック（ほんとうに めくれる 絵本）---------- */
+.book {
+  position: fixed; inset: 0; z-index: 45; display: flex;
+  align-items: center; justify-content: center;
+  padding: calc(var(--safe-top) + 40px) 10px calc(var(--safe-bot) + 40px);
   background:
-    radial-gradient(120% 70% at 50% 0%, #e7cfa0 0%, transparent 55%),
-    linear-gradient(180deg, #d9bd8f 0%, #b58f5f 100%); }
+    radial-gradient(120% 80% at 50% 0%, #7b5c37 0%, transparent 60%),
+    linear-gradient(180deg, #5f462a 0%, #3d2c18 100%);
+}
 .book-close {
-  position: absolute; top: calc(var(--safe-top) + 10px); right: 14px; z-index: 4;
+  position: absolute; top: calc(var(--safe-top) + 10px); right: 14px; z-index: 8;
   width: 42px; height: 42px; border-radius: 50%; background: var(--card); color: var(--ink);
   font-size: 18px; font-weight: 800; box-shadow: 0 3px 0 var(--frame-d);
 }
-.book-counter { position: absolute; top: calc(var(--safe-top) + 18px); left: 0; right: 0; text-align: center;
-  color: #6b4f2e; font-weight: 900; font-size: 16px; z-index: 2; letter-spacing: 1px; text-shadow: 0 1px 0 rgba(255,255,255,.5); }
-.book-track { flex: 1; display: flex; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-.book-track::-webkit-scrollbar { display: none; }
-.book-nav { position: absolute; top: 50%; transform: translateY(-50%); z-index: 3;
-  width: 46px; height: 46px; border-radius: 50%; background: rgba(255,250,240,.92); color: var(--green-d);
-  font-size: 30px; font-weight: 900; line-height: 1; box-shadow: 0 3px 0 var(--frame-d); }
-.book-nav.prev { left: 8px; } .book-nav.next { right: 8px; }
-.book-hint { position: absolute; bottom: calc(var(--safe-bot) + 8px); left: 0; right: 0; text-align: center;
-  color: rgba(90,70,40,.7); font-size: 12px; font-weight: 800; z-index: 2; pointer-events: none; }
 
-/* ページ＝クリームの かみ の 1まい */
-.page { flex: 0 0 100%; width: 100%; scroll-snap-align: center; overflow-y: auto;
-  padding: calc(var(--safe-top) + 46px) 16px calc(var(--safe-bot) + 86px);
-  display: flex; flex-direction: column; align-items: center; }
-.page::before { /* かみの パネル */
-  content: ""; position: absolute; z-index: -1; inset: calc(var(--safe-top) + 30px) 12px calc(var(--safe-bot) + 20px);
-  background: var(--card); border-radius: 24px;
-  box-shadow: 0 10px 26px rgba(70,50,30,.35), inset 0 0 0 3px #fff, inset 0 0 0 5px var(--frame);
+/* ほんの おもて（ぼーど）*/
+.book-board {
+  position: relative; width: 100%; height: 100%; max-width: 560px;
+  border-radius: 10px 20px 20px 10px;
+  background: linear-gradient(135deg, #8a6134 0%, #6f4c28 45%, #5b3d1f 100%);
+  box-shadow: 0 22px 50px rgba(0,0,0,.55), inset 0 0 0 2px rgba(255,225,180,.18);
+  padding: 12px 16px 12px 26px;
+  overflow: hidden;            /* めくった かみが 本(ほん)の そとに はみ出(だ)さない */
 }
-.page { position: relative; }
+/* かわの きんの わく */
+.book-board::before {
+  content: ""; position: absolute; inset: 6px 8px 6px 18px; border-radius: 6px 14px 14px 6px;
+  border: 2px solid rgba(255,220,150,.32); pointer-events: none; z-index: 6;
+}
+/* せぼね */
+.book-spine {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 26px; z-index: 5;
+  border-radius: 10px 0 0 10px;
+  background: linear-gradient(90deg, #3b2712 0%, #6a4726 40%, #4a3218 75%, rgba(0,0,0,.42) 100%);
+  box-shadow: inset -3px 0 8px rgba(0,0,0,.5);
+  display: flex; flex-direction: column; justify-content: space-evenly; align-items: center;
+}
+.spine-st { width: 8px; height: 2px; border-radius: 2px; background: rgba(255,222,170,.45); }
+/* みぎの こぐち（ページの たば）*/
+.book-edges {
+  position: absolute; right: 6px; top: 16px; bottom: 16px; width: 11px; z-index: 1;
+  border-radius: 0 7px 7px 0;
+  background: repeating-linear-gradient(90deg, #fdf7e8 0 2px, #e6d7b6 2px 3px);
+  box-shadow: 2px 0 6px rgba(0,0,0,.35);
+}
+
+/* ページが めくれる ぶたい */
+.book-stage {
+  position: absolute; inset: 12px 17px 12px 26px; z-index: 3;
+  perspective: 1700px; perspective-origin: 0% 50%;
+}
+.book-track { position: absolute; inset: 0; transform-style: preserve-3d; }
+
+.book-counter {
+  position: absolute; left: 0; right: 0; bottom: 14px; z-index: 7; margin: 0 auto;
+  width: max-content; padding: 3px 14px; border-radius: 999px;
+  background: rgba(255,250,238,.94); box-shadow: 0 2px 6px rgba(0,0,0,.25);
+  color: #8a7048; font-weight: 900; font-size: 13px; letter-spacing: 1px; pointer-events: none;
+}
+.book-nav { position: absolute; top: 50%; transform: translateY(-50%); z-index: 9;
+  width: 44px; height: 44px; border-radius: 50%; background: rgba(255,250,240,.94); color: var(--green-d);
+  font-size: 28px; font-weight: 900; line-height: 1; box-shadow: 0 3px 0 rgba(0,0,0,.35); }
+.book-nav.prev { left: 6px; } .book-nav.next { right: 6px; }
+.book-hint { position: absolute; bottom: calc(var(--safe-bot) + 8px); left: 0; right: 0; text-align: center;
+  color: rgba(255,240,215,.75); font-size: 12px; font-weight: 800; z-index: 7; pointer-events: none; }
+
+/* ページ＝クリームの かみ の 1まい（めくれる）*/
+.page {
+  position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden;
+  padding: 26px 16px 46px;
+  display: flex; flex-direction: column; align-items: center;
+  background:
+    radial-gradient(120% 60% at 0% 50%, rgba(150,110,60,.10) 0%, transparent 22%),
+    linear-gradient(180deg, #fffdf6 0%, var(--card) 100%);
+  border-radius: 2px 12px 12px 2px;
+  box-shadow: 0 8px 22px rgba(0,0,0,.35), inset 7px 0 12px -6px rgba(120,90,50,.35);
+  transform-origin: left center;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  transform: rotateY(0deg);
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  display: none;
+}
+.page.is-show { display: flex; }
+.page.is-under { z-index: 1; }
+.page.is-top   { z-index: 3; }
+.page.is-anim  { transition: transform .55s cubic-bezier(.36,.05,.3,1); }
+/* ページの こぐち（めくる とき ぶあつく みえる）*/
+.page::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+  background: linear-gradient(90deg, rgba(120,90,50,.22) 0%, rgba(120,90,50,0) 9%, rgba(0,0,0,0) 88%, rgba(120,90,50,.10) 100%);
+}
+.book-track.flipping .page { overflow: hidden; }
+
 .page-cat { background: var(--paper2); color: var(--green-d); font-weight: 800; font-size: 14px;
   padding: 5px 16px; border-radius: 999px; margin-bottom: 12px; box-shadow: 0 2px 0 var(--frame-d); }
 .page-photo-wrap { position: relative; width: min(74vw, 300px); aspect-ratio: 1/1; }
@@ -626,23 +688,23 @@ main { max-width: 760px; margin: 0 auto; }
    ============================================================ */
 /* にじいろに ひかる わく */
 .page.r3::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 5;
   animation: pageHoloFrame 4.5s linear infinite;
 }
 @keyframes pageHoloFrame {
-  0%   { box-shadow: 0 10px 26px rgba(70,50,30,.35), inset 0 0 0 3px #fff, inset 0 0 0 6px #ff6b6b, 0 0 30px 6px rgba(255,107,107,.55); }
-  17%  { box-shadow: 0 10px 26px rgba(70,50,30,.35), inset 0 0 0 3px #fff, inset 0 0 0 6px #ffa94d, 0 0 30px 6px rgba(255,169,77,.55); }
-  33%  { box-shadow: 0 10px 26px rgba(70,50,30,.35), inset 0 0 0 3px #fff, inset 0 0 0 6px #ffe14d, 0 0 30px 6px rgba(255,225,77,.55); }
-  50%  { box-shadow: 0 10px 26px rgba(70,50,30,.35), inset 0 0 0 3px #fff, inset 0 0 0 6px #5fd97a, 0 0 30px 6px rgba(95,217,122,.55); }
-  67%  { box-shadow: 0 10px 26px rgba(70,50,30,.35), inset 0 0 0 3px #fff, inset 0 0 0 6px #4dc4ff, 0 0 30px 6px rgba(77,196,255,.55); }
-  83%  { box-shadow: 0 10px 26px rgba(70,50,30,.35), inset 0 0 0 3px #fff, inset 0 0 0 6px #b47cff, 0 0 30px 6px rgba(180,124,255,.55); }
-  100% { box-shadow: 0 10px 26px rgba(70,50,30,.35), inset 0 0 0 3px #fff, inset 0 0 0 6px #ff6b6b, 0 0 30px 6px rgba(255,107,107,.55); }
+  0%   { box-shadow: inset 0 0 0 4px #ff6b6b, inset 0 0 26px 3px rgba(255,107,107,.45); }
+  17%  { box-shadow: inset 0 0 0 4px #ffa94d, inset 0 0 26px 3px rgba(255,169,77,.45); }
+  33%  { box-shadow: inset 0 0 0 4px #ffe14d, inset 0 0 26px 3px rgba(255,225,77,.45); }
+  50%  { box-shadow: inset 0 0 0 4px #5fd97a, inset 0 0 26px 3px rgba(95,217,122,.45); }
+  67%  { box-shadow: inset 0 0 0 4px #4dc4ff, inset 0 0 26px 3px rgba(77,196,255,.45); }
+  83%  { box-shadow: inset 0 0 0 4px #b47cff, inset 0 0 26px 3px rgba(180,124,255,.45); }
+  100% { box-shadow: inset 0 0 0 4px #ff6b6b, inset 0 0 26px 3px rgba(255,107,107,.45); }
 }
 
 /* ホロの そう（かみの うえ・もじの した）*/
 .page-holo {
   position: absolute; z-index: -1; pointer-events: none;
-  inset: calc(var(--safe-top) + 30px) 12px calc(var(--safe-bot) + 20px);
-  border-radius: 24px; overflow: hidden;
+  inset: 0; border-radius: inherit; overflow: hidden;
 }
 /* にじいろの こうたく が ゆっくり ゆれる
    no-repeat + alternate なので、たてせんが よこぎる つなぎめが できない */
@@ -679,8 +741,7 @@ main { max-width: 760px; margin: 0 auto; }
 /* もじの うえの こまかい ラメ（いろは かえない）*/
 .page-sparkles::before {
   content: ""; position: absolute;
-  inset: calc(var(--safe-top) + 30px) 12px calc(var(--safe-bot) + 20px);
-  border-radius: 24px; overflow: hidden; pointer-events: none;
+  inset: 0; border-radius: inherit; overflow: hidden; pointer-events: none;
   background-image:
     radial-gradient(circle, rgba(255,255,255,.9) 1px, transparent 1.6px),
     radial-gradient(circle, rgba(255,240,170,.75) 1px, transparent 1.6px);
@@ -1052,3 +1113,6 @@ rt {
 /* 科(か)の みだしの したに、おおきな なかまわけを ちいさく */
 .cat-sub { display: block; font-size: 10.5px; font-weight: 700; color: var(--ink-sub); margin-top: -2px; }
 .cat-label { line-height: 1.35; }
+@media (prefers-reduced-motion: reduce) {
+  .page.is-anim { transition-duration: .25s; }
+}

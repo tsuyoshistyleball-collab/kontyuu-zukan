@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v37";
+  const APP_VERSION = "v38";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -745,16 +745,155 @@
     document.body.classList.remove("noscroll");
   }
 
+  /* ---- ページを めくる（3Dの ぺージターン）----
+     ページは かさねて おき、いま みている 1まいだけ ひょうじ する。
+     つぎへ：いまの ページを 左(ひだり)の せぼねを じくに −180° まわす。
+     まえへ：まえの ページを −180° から 0° に もどす。*/
+  let bookIdx = 0;
+  let flipping = false;
+
+  function pageEls() { return $$("#book-track > .page"); }
+
+  function showBookPage(i, opts) {
+    const els = pageEls();
+    if (!els.length) return;
+    bookIdx = Math.max(0, Math.min(els.length - 1, i));
+    els.forEach((el, k) => {
+      el.classList.remove("is-show", "is-top", "is-under", "is-anim");
+      el.style.transform = "";
+      el.style.boxShadow = "";
+      if (k === bookIdx) {
+        el.classList.add("is-show", "is-top");
+        if (!opts || !opts.keepScroll) el.scrollTop = 0;
+      }
+    });
+    updateBookCounter();
+  }
+
   function rebuildBook(focusName) {
     _rubyLater($("#book-track"));
     const track = $("#book-track");
     track.innerHTML = "";
     flatOrder.forEach((nm) => track.appendChild(buildPage(groups.get(nm))));
-    let idx = Math.max(0, flatOrder.indexOf(focusName));
-    requestAnimationFrame(() => {
-      track.scrollLeft = idx * track.clientWidth;
-      updateBookCounter();
+    const idx = Math.max(0, flatOrder.indexOf(focusName));
+    requestAnimationFrame(() => showBookPage(idx));
+  }
+
+  // めくる ときの かげ（じくの ちかくを こく）
+  function flipShadow(deg) {
+    const t = Math.min(1, Math.abs(deg) / 180);
+    return `0 8px 22px rgba(0,0,0,${0.35 + 0.25 * t}), inset ${7 + 26 * t}px 0 ${12 + 30 * t}px -6px rgba(90,65,35,${0.35 + 0.35 * t})`;
+  }
+
+  function bookNav(dir) {
+    if (flipping) return;
+    const els = pageEls();
+    const to = bookIdx + dir;
+    if (to < 0 || to >= els.length) { bounceBook(dir); return; }
+    flipping = true;
+    const cur = els[bookIdx], nxt = els[to];
+    const turning = dir > 0 ? cur : nxt;      // まわる のは どちらの かみか
+    const under   = dir > 0 ? nxt : cur;
+
+    under.classList.add("is-show", "is-under");
+    turning.classList.add("is-show", "is-top");
+    turning.style.transition = "none";
+    turning.style.transform = `rotateY(${dir > 0 ? 0 : -180}deg)`;
+    turning.style.boxShadow = flipShadow(dir > 0 ? 0 : 180);
+    if (dir > 0) nxt.scrollTop = 0; else cur.scrollTop = 0;
+    void turning.offsetWidth;                  // レイアウトを かくてい させる
+
+    sound.page();
+    turning.classList.add("is-anim");
+    turning.style.transition = "";
+    turning.style.transform = `rotateY(${dir > 0 ? -180 : 0}deg)`;
+    turning.style.boxShadow = flipShadow(dir > 0 ? 180 : 0);
+
+    const done = () => {
+      turning.removeEventListener("transitionend", done);
+      clearTimeout(tmo);
+      flipping = false;
+      showBookPage(to, { keepScroll: true });
+    };
+    turning.addEventListener("transitionend", done);
+    const tmo = setTimeout(done, 800);         // ねんの ため
+  }
+
+  // はじ の ページで めくろうと した ときの ちいさな はねかえり
+  function bounceBook(dir) {
+    const el = pageEls()[bookIdx];
+    if (!el) return;
+    el.classList.add("is-anim");
+    el.style.transform = `rotateY(${dir > 0 ? -7 : 7}deg)`;
+    setTimeout(() => { el.style.transform = "rotateY(0deg)"; }, 150);
+  }
+
+  /* ---- ゆびで ドラッグして めくる ---- */
+  function wireBookDrag() {
+    const stage = $("#book-stage");
+    let sx = 0, sy = 0, active = false, decided = false, dir = 0, turning = null, under = null, w = 1;
+
+    const reset = () => { active = false; decided = false; dir = 0; turning = null; under = null; };
+
+    stage.addEventListener("pointerdown", (e) => {
+      if (flipping || e.pointerType === "mouse" && e.button !== 0) return;
+      if (e.target.closest("button, input, select, .page-gallery")) return;
+      sx = e.clientX; sy = e.clientY; active = true; decided = false;
+      w = stage.clientWidth || 1;
     });
+
+    stage.addEventListener("pointermove", (e) => {
+      if (!active || flipping) return;
+      const dx = e.clientX - sx, dy = e.clientY - sy;
+      if (!decided) {
+        if (Math.abs(dx) < 14 && Math.abs(dy) < 14) return;
+        if (Math.abs(dx) < Math.abs(dy)) { reset(); return; }   // たてスクロール
+        const els = pageEls();
+        dir = dx < 0 ? 1 : -1;
+        const to = bookIdx + dir;
+        if (to < 0 || to >= els.length) { reset(); return; }
+        turning = dir > 0 ? els[bookIdx] : els[to];
+        under   = dir > 0 ? els[to] : els[bookIdx];
+        under.classList.add("is-show", "is-under");
+        turning.classList.add("is-show", "is-top");
+        turning.classList.remove("is-anim");
+        $("#book-track").classList.add("flipping");
+        decided = true;
+      }
+      const p = Math.max(0, Math.min(1, Math.abs(dx) / w));
+      const deg = dir > 0 ? -180 * p : -180 * (1 - p);
+      turning.style.transform = `rotateY(${deg}deg)`;
+      turning.style.boxShadow = flipShadow(deg);
+      e.preventDefault();
+    });
+
+    const end = (e) => {
+      if (!active) return;
+      const dx = (e.clientX || 0) - sx;
+      if (!decided) { reset(); return; }
+      const p = Math.min(1, Math.abs(dx) / w);
+      const go = p > 0.3;
+      const el = turning, d = dir, to = bookIdx + dir;
+      el.classList.add("is-anim");
+      const endDeg = d > 0 ? (go ? -180 : 0) : (go ? 0 : -180);
+      el.style.transform = `rotateY(${endDeg}deg)`;
+      el.style.boxShadow = flipShadow(endDeg);
+      flipping = true;
+      if (go) sound.page();
+      const fin = () => {
+        el.removeEventListener("transitionend", fin);
+        clearTimeout(tmo);
+        $("#book-track").classList.remove("flipping");
+        flipping = false;
+        showBookPage(go ? to : bookIdx, { keepScroll: true });
+      };
+      el.addEventListener("transitionend", fin);
+      const tmo = setTimeout(fin, 800);
+      reset();
+    };
+    stage.addEventListener("pointerup", end);
+    stage.addEventListener("pointercancel", end);
+    stage.addEventListener("pointerleave", end);
   }
 
   function buildPage(g) {
@@ -1028,19 +1167,11 @@
   }
 
   function currentPageName() {
-    const track = $("#book-track");
-    const idx = Math.round(track.scrollLeft / Math.max(1, track.clientWidth));
-    return flatOrder[Math.min(flatOrder.length - 1, Math.max(0, idx))];
+    return flatOrder[Math.min(flatOrder.length - 1, Math.max(0, bookIdx))];
   }
   function updateBookCounter() {
-    const track = $("#book-track");
-    const idx = Math.round(track.scrollLeft / Math.max(1, track.clientWidth));
     const total = flatOrder.length;
-    $("#book-counter").textContent = total ? `${Math.min(total, idx + 1)} / ${total}` : "";
-  }
-  function bookNav(dir) {
-    const track = $("#book-track");
-    track.scrollBy({ left: dir * track.clientWidth, behavior: "smooth" });
+    $("#book-counter").textContent = total ? `${Math.min(total, bookIdx + 1)} / ${total}` : "";
   }
 
   function confirmDelete(id, name) {
@@ -1421,6 +1552,20 @@
       toggle() { on = !on; localStorage.setItem("mz-sound", on ? "on" : "off"); if (on) this.blip(); return on; },
       fanfare(p) { if (!on) return; try { [523, 659, 784, 1047].forEach((f, i) => note(f, i * 0.12, 0.5, "triangle", 0.16)); if (clampR(p) >= 3) note(1319, 0.5, 0.7, "triangle", 0.16); } catch (e) {} },
       blip() { if (!on) return; try { note(880, 0, 0.16, "triangle", 0.12); note(1175, 0.08, 0.16, "triangle", 0.12); } catch (e) {} },
+      // かみを めくる「シャッ」という おと（ホワイトノイズ）
+      page() {
+        if (!on) return;
+        try {
+          const c = ac(), dur = 0.3, buf = c.createBuffer(1, c.sampleRate * dur, c.sampleRate);
+          const d = buf.getChannelData(0);
+          for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2.2);
+          const src = c.createBufferSource(); src.buffer = buf;
+          const bp = c.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 2600; bp.Q.value = 0.7;
+          const g = c.createGain(); g.gain.value = 0.16;
+          src.connect(bp); bp.connect(g); g.connect(c.destination);
+          src.start();
+        } catch (e) {}
+      },
     };
   })();
 
@@ -1713,11 +1858,7 @@
     $("#book-close").addEventListener("click", closeBook);
     $("#book-prev").addEventListener("click", () => bookNav(-1));
     $("#book-next").addEventListener("click", () => bookNav(1));
-    let raf = null;
-    $("#book-track").addEventListener("scroll", () => {
-      if (raf) return;
-      raf = requestAnimationFrame(() => { raf = null; updateBookCounter(); });
-    });
+    wireBookDrag();
 
     $("#r-save").addEventListener("click", saveResult);
     $("#r-cancel").addEventListener("click", () => $("#result").close());

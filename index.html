@@ -98,8 +98,17 @@
   <!-- ブック（よこに めくる） -->
   <div id="book" class="book" hidden>
     <button id="book-close" class="book-close" aria-label="閉じる">✕</button>
-    <div id="book-counter" class="book-counter"></div>
-    <div id="book-track" class="book-track"></div>
+    <div class="book-board">
+      <div class="book-spine" aria-hidden="true">
+        <span class="spine-st"></span><span class="spine-st"></span><span class="spine-st"></span>
+        <span class="spine-st"></span><span class="spine-st"></span>
+      </div>
+      <div class="book-edges" aria-hidden="true"></div>
+      <div id="book-stage" class="book-stage">
+        <div id="book-track" class="book-track"></div>
+      </div>
+      <div id="book-counter" class="book-counter"></div>
+    </div>
     <button id="book-prev" class="book-nav prev" aria-label="前">‹</button>
     <button id="book-next" class="book-nav next" aria-label="次">›</button>
     <div class="book-hint">← 横(よこ)に めくってね →</div>
