@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v77";
+  const APP_VERSION = "v79";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -948,23 +948,63 @@
       `<p class="as-hp"><span>${f.hp} / ${f.maxHp}</span></p>`
     );
   }
+  /* たいりょくバーは じわじわ へる（すうじも いっしょに うごく）*/
   function arPaintBars() {
-    $("#ar-foe-bar").innerHTML = arSideHTML(arFoe, arFoeTeam, arFoeIdx);
-    $("#ar-me-bar").innerHTML = arSideHTML(arMe, arMyTeam, arMyIdx);
+    arPaintSide($("#ar-foe-bar"), arFoe, arFoeTeam, arFoeIdx);
+    arPaintSide($("#ar-me-bar"), arMe, arMyTeam, arMyIdx);
     arSyncSideTeams();
-    rubyifyDOM($("#ar-foe-bar")); rubyifyDOM($("#ar-me-bar"));
+  }
+  function arPaintSide(box, f, team, idx) {
+    // たたかう 子が かわった ときだけ 作りなおす
+    if (box.dataset.name !== f.name || !box.firstElementChild) {
+      box.innerHTML = arSideHTML(f, team, idx);
+      box.dataset.name = f.name;
+      box.dataset.hp = String(f.hp);
+      rubyifyDOM(box);
+      return;
+    }
+    const from = parseInt(box.dataset.hp, 10);
+    box.dataset.hp = String(f.hp);
+    if (!isFinite(from) || from === f.hp) return;
+    arAnimHp(box, f, from, f.hp);
+  }
+  // すうじと バーを ゆっくり うごかす
+  function arAnimHp(box, f, from, to) {
+    const bar = box.querySelector(".as-bar");
+    const fill = box.querySelector(".as-bar i");
+    const num = box.querySelector(".as-hp span");
+    if (!bar || !fill || !num) return;
+    const dur = Math.min(900, Math.max(360, Math.abs(to - from) * 1.4));
+    if (to < from) {
+      bar.classList.remove("hurt"); void bar.offsetWidth; bar.classList.add("hurt");
+      setTimeout(() => bar.classList.remove("hurt"), 430);
+    }
+    cancelAnimationFrame(box._hpRaf || 0);
+    const t0 = performance.now();
+    const step = (t) => {
+      const p = Math.min(1, (t - t0) / dur);
+      const e = 1 - Math.pow(1 - p, 3);
+      const v = Math.round(from + (to - from) * e);
+      const pct = Math.max(0, Math.min(100, (v / f.maxHp) * 100));
+      fill.style.width = pct + "%";
+      num.textContent = `${v} / ${f.maxHp}`;
+      bar.classList.toggle("low", pct <= 45 && pct > 20);
+      bar.classList.toggle("crit", pct <= 20);
+      if (p < 1) box._hpRaf = requestAnimationFrame(step);
+    };
+    box._hpRaf = requestAnimationFrame(step);
   }
   // はしっこの もちふだ（チームの のこり）
   function arSideTeamHTML(team, idx, mine) {
     return team.map((f, i) => {
       const cls = `stm${i === idx ? " now" : ""}${f.hp <= 0 ? " dead" : ""}`;
-      const pic = (f.photo ? `<img src="${f.photo}" alt="">` : f.svg) +
-                  (mine && i !== idx && f.hp > 0 ? `<i class="stm-swap">🔄</i>` : "");
-      // じぶんの なかまは タップで こうたい できる
+      const inner = `<span class="stm-in">${f.photo ? `<img src="${f.photo}" alt="">` : f.svg}</span>` +
+                    (mine ? `<i class="stm-swap"${i === idx || f.hp <= 0 ? " hidden" : ""}>🔄</i>` : "");
+      // じぶんの なかまは タップで こうたい できる（ゆびで おしやすい ように おおきめ）
       return mine
         ? `<button type="button" class="${cls}" data-i="${i}" title="${escapeHtml(f.name)}"` +
-          `${i === idx || f.hp <= 0 ? " disabled" : ""}>${pic}</button>`
-        : `<span class="${cls}" title="${escapeHtml(f.name)}">${pic}</span>`;
+          `${i === idx || f.hp <= 0 ? " disabled" : ""}>${inner}</button>`
+        : `<span class="${cls}" title="${escapeHtml(f.name)}">${inner}</span>`;
     }).join("");
   }
   function arBuildSideTeams() {
@@ -1195,6 +1235,7 @@
     $$("#ar-hands .ar-hand").forEach((b) => b.classList.toggle("fav", b.dataset.hand === arMe.hand));
     arPaintFighters();
     arBuildSideTeams();
+    $("#ar-foe-bar").dataset.name = ""; $("#ar-me-bar").dataset.name = "";   // さいしょは いっぱいで だす
     arPaintBars();
     rubyifyDOM($("#arena"));
   }

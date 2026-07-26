@@ -1597,7 +1597,13 @@ rt {
 .as-bar { height: 12px; border-radius: 999px; background: rgba(0,0,0,.55); overflow: hidden; margin-top: 5px;
   box-shadow: inset 0 0 0 2px rgba(255,255,255,.35); }
 .as-bar i { display: block; height: 100%; border-radius: 999px;
-  background: linear-gradient(180deg, #9dff88, #23ad36); transition: width .35s ease; }
+  background: linear-gradient(180deg, #9dff88, #23ad36); }
+/* ダメージを うけた しゅんかん、バーが しろく ひかる */
+.as-bar.hurt { animation: hpHurt .4s ease; }
+@keyframes hpHurt {
+  0% { box-shadow: inset 0 0 0 2px #fff, 0 0 14px 3px rgba(255,120,90,.95); }
+  100% { box-shadow: inset 0 0 0 2px rgba(255,255,255,.35); }
+}
 .as-bar.low i { background: linear-gradient(180deg, #ffdf7a, #e59a10); }
 .as-bar.crit i { background: linear-gradient(180deg, #ff9d8a, #d92f18); }
 .as-team { display: inline-flex; gap: 3px; margin-right: auto; }
@@ -1742,40 +1748,44 @@ rt {
 .ar-side-team { display: flex; gap: 6px; margin-top: 7px; }
 .ar-side.me .ar-side-team { justify-content: flex-end; }
 .ar-side-team .stm {
-  position: relative; width: 32px; height: 32px; flex: none; border-radius: 9px; overflow: hidden;
-  border: 2px solid rgba(255,255,255,.75); background: var(--paper2);
-  display: grid; place-items: center;
+  position: relative; flex: none; padding: 5px; background: none; border: 0;
+  border-radius: 12px; display: block; line-height: 0;
+  touch-action: manipulation; -webkit-tap-highlight-color: rgba(255,255,255,.25);
 }
-.ar-side-team.foe .stm { border-color: rgba(255,138,118,.9); }
-.ar-side-team.me .stm { border-color: rgba(134,188,255,.9); }
+.ar-side-team .stm-in {
+  position: relative; display: grid; place-items: center; overflow: hidden;
+  width: 34px; height: 34px; border-radius: 9px;
+  border: 2px solid rgba(255,255,255,.75); background: var(--paper2);
+}
+.ar-side-team.foe .stm-in { border-color: rgba(255,138,118,.9); }
+.ar-side-team.me .stm-in { border-color: rgba(134,188,255,.9); }
 .ar-side-team .stm img { width: 100%; height: 100%; object-fit: cover; }
 .ar-side-team .stm svg { width: 92%; height: 92%; }
-.ar-side-team .stm.now {
+.ar-side-team .stm.now .stm-in {
   border-color: #ffce2e; box-shadow: 0 0 8px 2px rgba(255,206,46,.85);
   animation: stmNow 1.6s ease-in-out infinite;
 }
 @keyframes stmNow { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.09); } }
-.ar-side-team .stm { padding: 0; background: var(--paper2); }
-.ar-side-team button.stm:not(:disabled) { cursor: pointer; }
-.ar-side-team button.stm:not(:disabled):active { transform: scale(.9); }
+.ar-side-team .stm.dead .stm-in { filter: grayscale(1) brightness(.5); border-color: rgba(255,255,255,.35); }
+.ar-side-team .stm.dead .stm-in::after {
+  content: "✕"; position: absolute; inset: 0; display: grid; place-items: center;
+  color: #ff8b6f; font-size: 20px; font-weight: 900; text-shadow: 0 1px 2px #000; line-height: 1;
+}
+button.stm:not(:disabled) { cursor: pointer; }
+button.stm:not(:disabled):active .stm-in { transform: scale(.9); }
 .stm-swap {
-  position: absolute; right: 0; bottom: 0; z-index: 2;
-  width: 15px; height: 15px; border-radius: 50%; background: #2a6fd8; color: #fff;
-  font-size: 9px; font-style: normal; display: grid; place-items: center;
+  position: absolute; right: 1px; bottom: 1px; z-index: 2;
+  width: 16px; height: 16px; border-radius: 50%; background: #2a6fd8; color: #fff;
+  font-size: 9px; font-style: normal; line-height: 1; display: grid; place-items: center;
   border: 2px solid #fff; box-shadow: 0 1px 2px rgba(0,0,0,.5);
 }
 .stm-swap[hidden] { display: none; }
-.ar-side-team .stm.dead .stm-swap { display: none; }
-.ar-side-team .stm.dead { filter: grayscale(1) brightness(.5); border-color: rgba(255,255,255,.35); }
-.ar-side-team .stm.dead::after {
-  content: "✕"; position: absolute; inset: 0; display: grid; place-items: center;
-  color: #ff8b6f; font-size: 20px; font-weight: 900; text-shadow: 0 1px 2px #000;
-}
+
 @media (max-width: 430px) {
-  .ar-side-team { gap: 5px; }
-  .ar-side-team .stm { width: 29px; height: 29px; }
+  .ar-side-team { gap: 2px; }
+  .ar-side-team .stm-in { width: 32px; height: 32px; }
 }
-@media (prefers-reduced-motion: reduce) { .ar-side-team .stm.now { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .ar-side-team .stm.now .stm-in { animation: none; } }
 
 /* だした て */
 .ar-shown {
