@@ -1428,6 +1428,8 @@ rt {
 .ar-pickcard .battle { width: 100%; flex-wrap: wrap; gap: 3px; font-size: 10px; min-width: 0; }
 .ar-pickcard .battle span { padding: 2px 5px; max-width: 100%; }
 .ar-pickcard .battle b { font-size: 10.5px; }
+.apc-stars { font-size: 11px; letter-spacing: -.5px; margin: -1px 0 1px; }
+.slot-stars { font-size: 10px; letter-spacing: -1px; margin-top: -1px; }
 .apc-name { font-size: 11.5px; font-weight: 900; color: var(--ink); line-height: 1.25;
   height: 2.5em; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .ar-pickcard.on { border-color: #ffce2e; box-shadow: 0 4px 0 var(--frame-d), 0 0 0 3px #ffce2e; }

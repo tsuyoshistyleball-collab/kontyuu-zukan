@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v61";
+  const APP_VERSION = "v62";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -958,6 +958,7 @@
       b.innerHTML =
         `<img src="${urlFor(g.cover.blob)}" alt="">` +
         `<span class="apc-name">${escapeHtml(g.name)}</span>` +
+        `<span class="card-stars apc-stars s${clampR(g.rarity)}">${stars(g.rarity)}</span>` +
         `<span class="battle"><span class="bt-hand h-${g.hand === "グー" ? "g" : g.hand === "チョキ" ? "c" : "p"}">` +
         `${HAND_EMOJI[g.hand] || "✊"}</span><span class="bt-atk">⚔️<b>${g.attack}</b></span>` +
         `<span class="bt-def">🛡️<b>${g.defense}</b></span></span>`;
@@ -995,7 +996,9 @@
         html += `<button class="ar-slot filled r${g ? g.rarity : 1}${i === arJustAdded ? " pop" : ""}" data-i="${i}">` +
           `<span class="slot-in"><span class="slot-no">${i + 1}</span>` +
           `<img src="${urlFor(g.cover.blob)}" alt="">` +
-          `<b class="slot-name">${escapeHtml(nm)}</b></span></button>`;
+          `<b class="slot-name">${escapeHtml(nm)}</b>` +
+          `<span class="card-stars slot-stars s${g ? clampR(g.rarity) : 1}">${stars(g ? g.rarity : 1)}</span>` +
+          `</span></button>`;
       } else {
         html += `<span class="ar-slot empty"><span class="slot-in"><span class="slot-q">？</span></span></span>`;
       }
