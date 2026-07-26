@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v75";
+  const APP_VERSION = "v76";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -1459,7 +1459,7 @@
     if (sp.fx === "kiri") arSlash("foe", true, sp.color);
     arCenter(sp.word, "super");
     $("#ar-foe").classList.add("hit");
-    sound.hit(true);
+    sound.special(sp.key);
     confetti(4);
     if (navigator.vibrate) navigator.vibrate([0, 180, 50, 140]);
     await arSleep(700);
@@ -2722,6 +2722,90 @@
           ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.55 + dur);
           src.connect(lp2); lp2.connect(ng); ng.connect(c.destination);
           src.start(t + 0.55); src.stop(t + 0.55 + dur + 0.02);
+        } catch (e) {}
+      },
+      /* とくしゅ こうげきの おと（わざごとに ぜんぜん ちがう）*/
+      special(key) {
+        if (!on) return;
+        try {
+          const c = ac(), t = c.currentTime;
+          if (key === "bomb") {
+            // ドッカーン：ひくい ばくはつ＋ゴロゴロ
+            const src = this.noise(1.1, (x) => Math.pow(1 - x, 1.7) * Math.min(1, x * 40));
+            const lp = c.createBiquadFilter(); lp.type = "lowpass";
+            lp.frequency.setValueAtTime(2600, t);
+            lp.frequency.exponentialRampToValueAtTime(160, t + 1.0);
+            const g = c.createGain();
+            g.gain.setValueAtTime(0.42, t);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + 1.1);
+            src.connect(lp); lp.connect(g); g.connect(c.destination);
+            src.start(t); src.stop(t + 1.15);
+            const o = c.createOscillator(), og = c.createGain();
+            o.type = "sine";
+            o.frequency.setValueAtTime(150, t);
+            o.frequency.exponentialRampToValueAtTime(28, t + 0.9);
+            og.gain.setValueAtTime(0.45, t);
+            og.gain.exponentialRampToValueAtTime(0.0001, t + 0.95);
+            o.connect(og); og.connect(c.destination);
+            o.start(t); o.stop(t + 1);
+            return;
+          }
+          if (key === "fire") {
+            // ゴォォ：もえあがる かぜの おと
+            const src = this.noise(1.2, (x) => Math.sin(Math.PI * Math.min(1, x * 1.15)) ** 1.2);
+            const bp = c.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 0.7;
+            bp.frequency.setValueAtTime(320, t);
+            bp.frequency.exponentialRampToValueAtTime(2600, t + 0.45);
+            bp.frequency.exponentialRampToValueAtTime(700, t + 1.15);
+            const g = c.createGain();
+            g.gain.setValueAtTime(0.0001, t);
+            g.gain.linearRampToValueAtTime(0.34, t + 0.18);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + 1.2);
+            src.connect(bp); bp.connect(g); g.connect(c.destination);
+            src.start(t); src.stop(t + 1.25);
+            // パチパチ
+            for (let i = 0; i < 7; i++) note(900 + Math.random() * 1400, 0.1 + i * 0.11, 0.05, "square", 0.05);
+            return;
+          }
+          if (key === "sword") {
+            // シャキーン：きんぞくの きりおと 3れんぱつ
+            for (let i = 0; i < 3; i++) {
+              const st = t + i * 0.16;
+              const src = this.noise(0.2, (x) => Math.pow(1 - x, 1.4));
+              const bp = c.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 1.4;
+              bp.frequency.setValueAtTime(7000, st);
+              bp.frequency.exponentialRampToValueAtTime(1200, st + 0.2);
+              const g = c.createGain();
+              g.gain.setValueAtTime(0.3, st);
+              g.gain.exponentialRampToValueAtTime(0.0001, st + 0.2);
+              src.connect(bp); bp.connect(g); g.connect(c.destination);
+              src.start(st); src.stop(st + 0.22);
+            }
+            // キーン（きんぞくの ひびき）
+            [2093, 3136, 4186].forEach((f, i) => note(f, 0.3 + i * 0.015, 0.9, "triangle", 0.09));
+            return;
+          }
+          // みず：ザブーン＋ぽこぽこ
+          const src = this.noise(0.9, (x) => Math.pow(1 - x, 1.3) * Math.min(1, x * 12));
+          const lp = c.createBiquadFilter(); lp.type = "lowpass";
+          lp.frequency.setValueAtTime(3800, t);
+          lp.frequency.exponentialRampToValueAtTime(500, t + 0.85);
+          const g = c.createGain();
+          g.gain.setValueAtTime(0.32, t);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
+          src.connect(lp); lp.connect(g); g.connect(c.destination);
+          src.start(t); src.stop(t + 0.95);
+          for (let i = 0; i < 6; i++) {
+            const o = c.createOscillator(), og = c.createGain();
+            const st = t + 0.12 + i * 0.09;
+            o.type = "sine";
+            o.frequency.setValueAtTime(280 + Math.random() * 500, st);
+            o.frequency.exponentialRampToValueAtTime(90 + Math.random() * 90, st + 0.12);
+            og.gain.setValueAtTime(0.12, st);
+            og.gain.exponentialRampToValueAtTime(0.0001, st + 0.14);
+            o.connect(og); og.connect(c.destination);
+            o.start(st); o.stop(st + 0.16);
+          }
         } catch (e) {}
       },
       // かいふくの おと（きらきら あがる）
