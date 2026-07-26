@@ -1362,7 +1362,7 @@ rt {
 .ar-record { text-align: center; font-size: 13px; font-weight: 800; margin: 0 0 12px; color: #ffd36b; }
 
 /* なかまを えらぶ */
-.ar-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
+.ar-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; padding-bottom: 4px; }
 .ar-pickcard {
   background: var(--card); border-radius: 16px; border: 3px solid #fff; padding: 6px 5px 7px;
   box-shadow: 0 4px 0 var(--frame-d); display: flex; flex-direction: column; align-items: center; gap: 4px;
@@ -1370,8 +1370,24 @@ rt {
 }
 .ar-pickcard:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--frame-d); }
 .ar-pickcard img { width: 100%; aspect-ratio: 1/1; object-fit: cover; border-radius: 11px; }
+.ar-pickcard { position: relative; }
+.ar-pickcard .battle { width: 100%; flex-wrap: wrap; gap: 3px; font-size: 10px; min-width: 0; }
+.ar-pickcard .battle span { padding: 2px 5px; max-width: 100%; }
+.ar-pickcard .battle b { font-size: 10.5px; }
 .apc-name { font-size: 11.5px; font-weight: 900; color: var(--ink); line-height: 1.25;
   height: 2.5em; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.ar-pickcard.on { border-color: #ffce2e; box-shadow: 0 4px 0 var(--frame-d), 0 0 0 3px #ffce2e; }
+.apc-no {
+  position: absolute; top: -9px; left: -6px; z-index: 2; width: 26px; height: 26px; border-radius: 50%;
+  display: grid; place-items: center; background: #f2820f; color: #fff; border: 3px solid #fff;
+  font-size: 13px; font-weight: 900; box-shadow: 0 2px 0 rgba(0,0,0,.3);
+}
+.ar-gorow { position: sticky; bottom: -4px; padding: 12px 0 4px; margin-top: 10px;
+  background: linear-gradient(180deg, rgba(16,35,12,0), rgba(16,35,12,.92) 40%); }
+.ar-go { width: 100%; padding: 15px; border-radius: 18px; font-size: 18px; font-weight: 900;
+  border: 3px solid #fff; background: linear-gradient(180deg,#ffb64d,#f2820f); color: #fff;
+  box-shadow: 0 5px 0 var(--terra-d); font-family: inherit; }
+.ar-go:active { transform: translateY(2px); box-shadow: 0 3px 0 var(--terra-d); }
 .ar-pickcard.r4 { box-shadow: 0 4px 0 var(--frame-d), 0 0 12px 2px rgba(180,124,255,.7); border-color: #cbb4f5; }
 .ar-pickcard.r5 { box-shadow: 0 4px 0 var(--frame-d), 0 0 14px 3px rgba(255,150,90,.8); border-color: #ffb37c; }
 
@@ -1401,7 +1417,11 @@ rt {
   background: linear-gradient(180deg, #9dff88, #23ad36); transition: width .35s ease; }
 .as-bar.low i { background: linear-gradient(180deg, #ffdf7a, #e59a10); }
 .as-bar.crit i { background: linear-gradient(180deg, #ff9d8a, #d92f18); }
-.as-hp { margin: 2px 0 0; font-size: 10.5px; font-weight: 900; color: #cfe8bd; text-align: right; }
+.as-team { display: inline-flex; gap: 3px; margin-right: auto; }
+.as-team i { width: 8px; height: 8px; border-radius: 50%; background: #9dff88; display: block; }
+.as-team i.dead { background: #6a6a6a; }
+.as-team i.now { box-shadow: 0 0 0 2px #fff; }
+.as-hp { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin: 4px 0 0; font-size: 10.5px; font-weight: 900; color: #cfe8bd; text-align: right; }
 
 /* しぜんの ステージ */
 .ar-stage {
@@ -1472,6 +1492,10 @@ rt {
 .ar-ch.me img, .ar-ch.me .svgbox { transform: scaleX(-1); }
 .ar-ch.lunge.foe { transform: translateX(16%) scale(1.07); }
 .ar-ch.lunge.me { transform: translateX(-16%) scale(1.07); }
+.ar-ch.enter.foe { animation: arEnterL .5s ease-out; }
+.ar-ch.enter.me { animation: arEnterR .5s ease-out; }
+@keyframes arEnterL { 0% { transform: translateX(-70%); opacity: 0; } 100% { transform: none; opacity: 1; } }
+@keyframes arEnterR { 0% { transform: translateX(70%); opacity: 0; } 100% { transform: none; opacity: 1; } }
 .ar-ch.hit { animation: arShake .34s ease; }
 @keyframes arShake {
   0% { transform: translateX(0); }
@@ -1485,13 +1509,25 @@ rt {
 
 /* だした て */
 .ar-shown {
-  position: absolute; top: 7%; z-index: 3; width: 46px; height: 46px; border-radius: 50%;
-  display: grid; place-items: center; font-size: 26px; line-height: 1;
-  background: rgba(255,255,255,.94); box-shadow: 0 3px 0 rgba(0,0,0,.4); border: 2px solid #fff;
+  position: absolute; top: 5%; z-index: 3; width: 40%; max-width: 150px;
+  display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 7px;
+  align-items: center; padding: 5px 9px 6px; border-radius: 14px;
+  background: rgba(255,255,255,.95); box-shadow: 0 4px 0 rgba(0,0,0,.4); border: 3px solid #ff8a76;
+  animation: arHandIn .34s cubic-bezier(.2,1.6,.4,1);
 }
 .ar-shown:empty { display: none; }
-.ar-shown.foe { left: 7%; border-color: #ff8a76; }
-.ar-shown.me { right: 7%; border-color: #86bcff; }
+.ar-shown.foe { left: 4%; }
+.ar-shown.me { right: 4%; border-color: #86bcff; }
+.ah-emo { grid-row: 1 / span 2; font-size: 34px; line-height: 1; }
+.ah-who { font-size: 10.5px; font-weight: 900; color: #fff; background: #d8412f;
+  border-radius: 999px; padding: 0 7px; justify-self: start; }
+.ar-shown.me .ah-who { background: #2a6fd8; }
+.ah-nm { font-size: 15px; font-weight: 900; color: var(--ink); line-height: 1.2; }
+@keyframes arHandIn {
+  0% { transform: scale(.4) translateY(-10px); opacity: 0; }
+  70% { transform: scale(1.12); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
 
 /* まんなかの おおきい もじ */
 .ar-center { position: absolute; inset: 0; z-index: 4; display: grid; place-items: center; pointer-events: none; }
@@ -1504,6 +1540,7 @@ rt {
 }
 .ar-center.dmg b { color: #ffe14d; }
 .ar-center.bad b { color: #ff8b6f; }
+.ar-center.heal b { color: #7df3b0; }
 .ar-burst {
   grid-area: 1/1; width: min(72%, 260px); aspect-ratio: 1/1; opacity: 0;
   background: repeating-conic-gradient(from 0deg, rgba(255,238,140,.85) 0deg 7deg, rgba(255,238,140,0) 7deg 22deg);
@@ -1545,6 +1582,16 @@ rt {
   background: #ffce2e; color: #5a3c07; font-size: 10px; font-weight: 900; padding: 1px 7px; border-radius: 999px;
   border: 2px solid #fff; white-space: nowrap;
 }
+
+.ar-item-row { display: flex; justify-content: center; margin-top: 2px; }
+.ar-item {
+  padding: 9px 18px; border-radius: 999px; font-size: 14px; font-weight: 900; font-family: inherit;
+  border: 3px solid #fff; background: linear-gradient(180deg,#ffe6a1,#f4b73d); color: #5a3c07;
+  box-shadow: 0 4px 0 rgba(0,0,0,.4); display: inline-flex; align-items: center; gap: 7px;
+}
+.ar-item:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,.4); }
+.ar-item:disabled { opacity: .45; box-shadow: 0 4px 0 rgba(0,0,0,.3); }
+.ai-dots { letter-spacing: .12em; color: #d8412f; font-size: 13px; }
 
 .ar-end { margin-top: 6px; text-align: center; }
 .ar-end-msg { font-size: 19px; font-weight: 900; color: #ffe9a3; margin: 0 0 10px; line-height: 1.6; }

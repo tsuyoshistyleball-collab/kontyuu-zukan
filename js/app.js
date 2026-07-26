@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v54";
+  const APP_VERSION = "v55";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -835,7 +835,7 @@
   function arSave(rec) { try { localStorage.setItem(AR_KEY, JSON.stringify(rec)); } catch (e) {} }
   const arSleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-  const arHp = (f) => Math.round((f.defense * 3 + 300) / 10) * 10;
+  const arHp = (f) => Math.round((f.defense * 2 + 200) / 10) * 10;
   function arDamage(att, def, boosted) {
     let d = att.attack - Math.round(def.defense / 3);
     if (boosted) d = Math.round(d * 1.6);
@@ -848,7 +848,12 @@
     return -1;
   }
 
+  const AR_TEAM = 3;          // 3たい3
+  const AR_HEAL_MAX = 2;      // かいふくは じぶんだけ 2かいまで
+  let arMyTeam = [], arFoeTeam = [], arMyIdx = 0, arFoeIdx = 0;
   let arMe = null, arFoe = null, arBusy = false, arOver = false;
+  let arHeal = AR_HEAL_MAX;
+  let arSel = [];             // えらんだ なかま
 
   function arFighterFromGroup(g) {
     return {
@@ -870,20 +875,25 @@
   function arChHTML(f) {
     return f.photo ? `<img src="${f.photo}" alt="">` : `<span class="svgbox">${f.svg}</span>`;
   }
+  function arTeamDots(team, idx) {
+    return `<span class="as-team">` +
+      team.map((f, i) => `<i class="${f.hp <= 0 ? "dead" : i === idx ? "now" : ""}"></i>`).join("") +
+      `</span>`;
+  }
   // うえの たいりょく バー
-  function arSideHTML(f) {
+  function arSideHTML(f, team, idx) {
     const pct = Math.max(0, Math.min(100, (f.hp / f.maxHp) * 100));
     const cls = pct <= 20 ? " crit" : pct <= 45 ? " low" : "";
     return (
       `<div class="as-top"><span class="as-name">${escapeHtml(f.name)}${f.wild ? "（やせい）" : ""}</span>` +
         `<span class="as-atk">${HAND_EMOJI[f.hand] || "✊"} ${f.attack}</span></div>` +
       `<div class="as-bar${cls}"><i style="width:${pct}%"></i></div>` +
-      `<p class="as-hp">${f.hp} / ${f.maxHp}</p>`
+      `<p class="as-hp">${arTeamDots(team, idx)}<span>${f.hp} / ${f.maxHp}</span></p>`
     );
   }
   function arPaintBars() {
-    $("#ar-foe-bar").innerHTML = arSideHTML(arFoe);
-    $("#ar-me-bar").innerHTML = arSideHTML(arMe);
+    $("#ar-foe-bar").innerHTML = arSideHTML(arFoe, arFoeTeam, arFoeIdx);
+    $("#ar-me-bar").innerHTML = arSideHTML(arMe, arMyTeam, arMyIdx);
     rubyifyDOM($("#ar-foe-bar")); rubyifyDOM($("#ar-me-bar"));
   }
   function arPaintFighters() {
@@ -902,6 +912,14 @@
     for (const n of [b, burst]) { n.style.animation = "none"; void n.offsetWidth; n.style.animation = ""; }
   }
   const arHideCenter = () => { $("#ar-center").hidden = true; };
+  // だれが なにを だしたかの ふだ
+  function arShowHand(sel, who, hand) {
+    const el = $(sel);
+    el.innerHTML =
+      `<span class="ah-emo">${HAND_EMOJI[hand] || "✊"}</span>` +
+      `<b class="ah-who">${who}</b><b class="ah-nm">${escapeHtml(hand)}</b>`;
+    el.style.animation = "none"; void el.offsetWidth; el.style.animation = "";
+  }
   function arFlash() {
     const el = $("#ar-flash");
     el.classList.remove("on"); void el.offsetWidth; el.classList.add("on");
@@ -930,34 +948,70 @@
         `<span class="battle"><span class="bt-hand h-${g.hand === "グー" ? "g" : g.hand === "チョキ" ? "c" : "p"}">` +
         `${HAND_EMOJI[g.hand] || "✊"}</span><span class="bt-atk">⚔️<b>${g.attack}</b></span>` +
         `<span class="bt-def">🛡️<b>${g.defense}</b></span></span>`;
-      b.addEventListener("click", () => arStart(nm));
+      b.dataset.name = nm;
+      b.insertAdjacentHTML("afterbegin", `<span class="apc-no" hidden></span>`);
+      b.addEventListener("click", () => arToggleSel(nm));
       list.appendChild(b);
     }
+    arSel = arSel.filter((n) => groups.has(n));
+    arSelPaint();
     rubyifyDOM($("#arena"));
+  }
+  // なかまを えらぶ／やめる
+  function arToggleSel(nm) {
+    const i = arSel.indexOf(nm);
+    if (i >= 0) arSel.splice(i, 1);
+    else if (arSel.length < AR_TEAM) arSel.push(nm);
+    else { arSel.shift(); arSel.push(nm); }
+    sound.blip();
+    arSelPaint();
+  }
+  function arSelPaint() {
+    for (const b of $$("#ar-list .ar-pickcard")) {
+      const i = arSel.indexOf(b.dataset.name);
+      b.classList.toggle("on", i >= 0);
+      const no = b.querySelector(".apc-no");
+      no.textContent = i >= 0 ? String(i + 1) : "";
+      no.hidden = i < 0;
+    }
+    const go = $("#ar-go");
+    go.hidden = arSel.length === 0;
+    go.textContent = `⚔️ この ${arSel.length}ひきで たたかう！`;
+    const left = Math.min(AR_TEAM, groups.size) - arSel.length;
+    $(".ar-sub").textContent = arSel.length === 0
+      ? "3(さん)びき えらんで チームを つくろう！"
+      : left > 0 ? `あと ${left}ひき えらべるよ` : "チーム かんせい！ たたかおう！";
+    rubyifyDOM($("#ar-pick"));
   }
   function closeArena() {
     $("#arena").hidden = true;
     document.body.classList.remove("noscroll");
   }
 
-  function arStart(myName) {
-    const g = groups.get(myName);
-    if (!g) return;
-    arMe = arFighterFromGroup(g);
-    const others = flatOrder.filter((n) => n !== myName);
-    arFoe = others.length
-      ? arFighterFromGroup(groups.get(others[Math.floor(Math.random() * others.length)]))
-      : arWildFighter(myName);
-    for (const f of [arMe, arFoe]) { f.maxHp = arHp(f); f.hp = f.maxHp; }
+  function arStart(names) {
+    const picked = (Array.isArray(names) ? names : [names]).filter((n) => groups.has(n)).slice(0, AR_TEAM);
+    if (!picked.length) return;
+    arMyTeam = picked.map((n) => arFighterFromGroup(groups.get(n)));
+
+    // あいての チーム（おなじ かず）。たりない ぶんは やせいの むし
+    const pool = flatOrder.filter((n) => groups.has(n)).sort(() => Math.random() - 0.5);
+    arFoeTeam = pool.slice(0, picked.length).map((n) => arFighterFromGroup(groups.get(n)));
+    while (arFoeTeam.length < picked.length) arFoeTeam.push(arWildFighter(""));
+
+    for (const f of arMyTeam.concat(arFoeTeam)) { f.maxHp = arHp(f); f.hp = f.maxHp; }
+    arMyIdx = 0; arFoeIdx = 0; arHeal = AR_HEAL_MAX;
+    arMe = arMyTeam[0]; arFoe = arFoeTeam[0];
     arOver = false; arBusy = false;
     $("#ar-pick").hidden = true;
     $("#ar-fight").hidden = false;
     $("#ar-end").hidden = true;
     $("#ar-hands").hidden = false;
-    $("#ar-foe-hand").textContent = "";
-    $("#ar-me-hand").textContent = "";
+    $("#ar-item-row").hidden = false;
+    $("#ar-foe-hand").innerHTML = "";
+    $("#ar-me-hand").innerHTML = "";
     $("#ar-msg").textContent = "じゃんけんを えらんでね！";
     arHideCenter();
+    arItemPaint();
     $$("#ar-hands .ar-hand").forEach((b) => b.classList.toggle("fav", b.dataset.hand === arMe.hand));
     arPaintFighters();
     arPaintBars();
@@ -973,27 +1027,39 @@
     if (arBusy || arOver) return;
     arBusy = true;
     const foeHand = HANDS[Math.floor(Math.random() * 3)];
-    $("#ar-me-hand").textContent = "";
-    $("#ar-foe-hand").textContent = "";
+    $("#ar-me-hand").innerHTML = "";
+    $("#ar-foe-hand").innerHTML = "";
 
     // じゃん…けん…ぽん！
     $("#ar-msg").textContent = "しょうぶ！";
-    arCenter("ジャン"); sound.blip(); await arSleep(320);
-    arCenter("ケン"); await arSleep(320);
-    $("#ar-me-hand").textContent = HAND_EMOJI[myHand];
-    $("#ar-foe-hand").textContent = HAND_EMOJI[foeHand];
-    arCenter("ポン！"); sound.blip(); await arSleep(430);
+    arCenter("ジャン"); sound.blip(); await arSleep(600);
+    arCenter("ケン"); sound.blip(); await arSleep(600);
+    arShowHand("#ar-me-hand", "じぶん", myHand);
+    arShowHand("#ar-foe-hand", "あいて", foeHand);
+    arCenter("ポン！"); sound.blip(); await arSleep(1000);
     arHideCenter();
 
+    // どっちが なにを だしたか、ゆっくり みせる
     const r = arJudge(myHand, foeHand);
+    $("#ar-msg").textContent =
+      `じぶん ${HAND_EMOJI[myHand]}${myHand}　あいて ${HAND_EMOJI[foeHand]}${foeHand}`;
+    await arSleep(1100);
+
     if (r === 0) {
       arCenter("あいこ！");
-      $("#ar-msg").textContent = "あいこ！ もう一度(いちど)！";
-      await arSleep(650);
+      $("#ar-msg").textContent = "おなじ だった！ もう一度(いちど)！";
+      await arSleep(1100);
       arHideCenter();
       arBusy = false;
       return;
     }
+    // じゃんけんの かちまけを はっきり つたえる
+    arCenter(r === 1 ? "かち！" : "まけ…", r === 1 ? "" : "bad");
+    $("#ar-msg").textContent = r === 1
+      ? `${myHand} は ${foeHand} に かち！`
+      : `${myHand} は ${foeHand} に まけ…`;
+    await arSleep(1000);
+    arHideCenter();
     const iWin = r === 1;
     const att = iWin ? arMe : arFoe;
     const def = iWin ? arFoe : arMe;
@@ -1006,7 +1072,7 @@
     // つっこむ → ぶつかる
     $("#ar-msg").textContent = iWin ? arPick(AR_CRY) : arPick(AR_OW);
     attEl.classList.add("lunge");
-    await arSleep(190);
+    await arSleep(220);
     arFlash();
     arCenter(boosted ? "とくいわざ！" : arPick(AR_BAM));
     defEl.classList.add("hit");
@@ -1021,10 +1087,68 @@
     arPaintBars();
     $("#ar-msg").textContent =
       (iWin ? "かった！ " : "やられた… ") + (boosted ? "とくいわざ で " : "") + `${dmg} の ダメージ！`;
-    await arSleep(700);
+    await arSleep(950);
     arHideCenter();
 
-    if (def.hp <= 0) { arFinish(iWin); return; }
+    if (def.hp <= 0) { await arDown(!iWin); return; }
+    $("#ar-msg").textContent = "じゃんけんを えらんでね！";
+    arBusy = false;
+  }
+
+  /* たおれた ときの こうたい。meDown=true なら じぶんの なかまが たおれた */
+  async function arDown(meDown) {
+    const team = meDown ? arMyTeam : arFoeTeam;
+    const cur = meDown ? arMe : arFoe;
+    arCenter("たおれた…", "bad");
+    $("#ar-msg").textContent = `${cur.name}は たおれた！`;
+    sound.blip();
+    await arSleep(1200);
+    arHideCenter();
+
+    let idx = (meDown ? arMyIdx : arFoeIdx) + 1;
+    while (idx < team.length && team[idx].hp <= 0) idx++;
+    if (idx >= team.length) { arFinish(!meDown); return; }
+
+    if (meDown) { arMyIdx = idx; arMe = arMyTeam[idx]; }
+    else { arFoeIdx = idx; arFoe = arFoeTeam[idx]; }
+    arPaintFighters();
+    arPaintBars();
+    $$("#ar-hands .ar-hand").forEach((b) => b.classList.toggle("fav", b.dataset.hand === arMe.hand));
+    const el = meDown ? $("#ar-me") : $("#ar-foe");
+    el.classList.remove("enter"); void el.offsetWidth; el.classList.add("enter");
+    const next = meDown ? arMe : arFoe;
+    arCenter("つぎは…");
+    $("#ar-msg").textContent = `つぎは ${next.name}！ いけー！`;
+    await arSleep(1300);
+    arHideCenter();
+    el.classList.remove("enter");
+    $("#ar-msg").textContent = "じゃんけんを えらんでね！";
+    arBusy = false;
+  }
+
+  /* かいふく（じぶんだけ・1しあい 2かいまで）*/
+  function arItemPaint() {
+    const b = $("#ar-item");
+    b.disabled = arHeal <= 0 || arOver;
+    b.innerHTML = `🍯 かいふく <span class="ai-dots">` +
+      "●".repeat(arHeal) + "○".repeat(AR_HEAL_MAX - arHeal) + `</span>`;
+    rubyifyDOM(b);
+  }
+  async function arUseItem() {
+    if (arBusy || arOver || arHeal <= 0) return;
+    if (arMe.hp >= arMe.maxHp) { $("#ar-msg").textContent = "げんき いっぱい だよ！"; return; }
+    arBusy = true;
+    arHeal--;
+    const heal = Math.min(arMe.maxHp - arMe.hp, Math.round((arMe.maxHp * 0.4) / 10) * 10);
+    arMe.hp += heal;
+    arItemPaint();
+    arPaintBars();
+    arCenter("+" + heal, "heal");
+    $("#ar-msg").textContent = `${arMe.name}は げんきに なった！`;
+    sound.blip();
+    if (navigator.vibrate) navigator.vibrate(30);
+    await arSleep(1100);
+    arHideCenter();
     $("#ar-msg").textContent = "じゃんけんを えらんでね！";
     arBusy = false;
   }
@@ -1035,14 +1159,18 @@
     rec.play = (rec.play || 0) + 1;
     if (iWin) rec.win = (rec.win || 0) + 1;
     rec.byName = rec.byName || {};
-    if (iWin) rec.byName[arMe.name] = (rec.byName[arMe.name] || 0) + 1;
+    // かった ときは、さいごまで のこった なかま みんなに 1しょう
+    if (iWin) for (const f of arMyTeam) { if (f.hp > 0) rec.byName[f.name] = (rec.byName[f.name] || 0) + 1; }
     arSave(rec);
     $("#ar-hands").hidden = true;
+    $("#ar-item-row").hidden = true;
     $("#ar-end").hidden = false;
+    const alive = arMyTeam.filter((f) => f.hp > 0);
     $("#ar-end-msg").textContent = iWin
-      ? `🏆 ${arMe.name}の かち！ つよいね！`
-      : `${arFoe.name}の かち。つぎは がんばろう！`;
+      ? `🏆 ${arMe.name}たちの かち！ のこり ${alive.length}ひき！`
+      : `${arFoe.name}たちの かち。つぎは がんばろう！`;
     $("#ar-msg").textContent = iWin ? "やったー！" : "うーん、おしい！";
+    arCenter(iWin ? "しょうり！" : "まけ…", iWin ? "" : "bad");
     if (iWin) { sound.fanfare(arMe.rarity); confetti(clampR(arMe.rarity)); }
     rubyifyDOM($("#arena"));
   }
@@ -2572,7 +2700,10 @@
     $("#arena-open").addEventListener("click", openArena);
     $("#ar-close").addEventListener("click", closeArena);
     $("#ar-back").addEventListener("click", openArena);
-    $("#ar-again").addEventListener("click", () => arStart(arMe ? arMe.name : flatOrder[0]));
+    $("#ar-go").addEventListener("click", () => arStart(arSel.slice()));
+    $("#ar-again").addEventListener("click", () =>
+      arStart(arMyTeam.length ? arMyTeam.map((f) => f.name) : arSel.slice()));
+    $("#ar-item").addEventListener("click", arUseItem);
     $$("#ar-hands .ar-hand").forEach((b) => b.addEventListener("click", () => arPlay(b.dataset.hand)));
     $("#book-open").addEventListener("click", () => openBook(flatOrder[0]));
     $("#book-close").addEventListener("click", closeBook);
