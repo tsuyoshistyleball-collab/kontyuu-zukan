@@ -3,7 +3,9 @@
  * ブラウザから ちょくせつ よぶ（API キーは この たんまつだけに ほぞん）。
  */
 const Gemini = (() => {
-  const DEFAULT_MODEL = "gemini-3-flash-preview";
+  const DEFAULT_MODEL = "gemini-3.1-flash-lite";
+  // ふるい たんまつに のこっている モデルめいは あたらしい ものに いれかえる
+  const OUTDATED_MODELS = ["gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.5-flash-lite"];
 
   function endpoint(model, key) {
     return `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
@@ -219,5 +221,5 @@ const Gemini = (() => {
     return out;
   }
 
-  return { identify, test, classifyNames, DEFAULT_MODEL };
+  return { identify, test, classifyNames, DEFAULT_MODEL, OUTDATED_MODELS };
 })();

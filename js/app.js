@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v31";
+  const APP_VERSION = "v32";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -22,7 +22,15 @@
   const Settings = {
     get key() { return localStorage.getItem("mz-gemini-key") || ""; },
     set key(v) { v ? localStorage.setItem("mz-gemini-key", v) : localStorage.removeItem("mz-gemini-key"); },
-    get model() { return localStorage.getItem("mz-gemini-model") || Gemini.DEFAULT_MODEL; },
+    get model() {
+      const m = localStorage.getItem("mz-gemini-model");
+      // まえの バージョンの モデルめいが のこっていたら あたらしい ものに いれかえる
+      if (!m || Gemini.OUTDATED_MODELS.indexOf(m) >= 0) {
+        try { localStorage.setItem("mz-gemini-model", Gemini.DEFAULT_MODEL); } catch (e) {}
+        return Gemini.DEFAULT_MODEL;
+      }
+      return m;
+    },
     set model(v) { localStorage.setItem("mz-gemini-model", v || Gemini.DEFAULT_MODEL); },
   };
 
