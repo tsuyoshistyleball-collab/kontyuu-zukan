@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v35";
+  const APP_VERSION = "v36";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -169,6 +169,14 @@
     const le = $("#logo-emoji"); if (le) le.textContent = z.emoji;
     const lt = $("#logo-text"); if (lt) lt.textContent = z.title;
     const ps = $("#plate-sub"); if (ps) ps.textContent = z.sub;
+    // 「タップで ○○に きりかえ」— つぎに きりかわる ずかんの なまえを だす
+    const sw = $("#plate-switch");
+    if (sw) {
+      const others = ZUKANS.filter((x) => x.id !== z.id);
+      sw.textContent = others.length === 1
+        ? `🔄 タップで ${others[0].title}に きりかえ`
+        : "🔄 タップで ずかんを きりかえ";
+    }
     const fb = $("#fab-text"); if (fb) fb.textContent = z.fab;
     const bb = $("#bar-bug"); if (bb) bb.textContent = z.emoji;
     document.title = z.title;
