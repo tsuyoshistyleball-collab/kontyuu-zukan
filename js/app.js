@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v72";
+  const APP_VERSION = "v73";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -1942,6 +1942,7 @@
       btn.textContent = before;
       const m = String(err.message || err);
       if (m.startsWith("QUOTA_DAY")) say("今日(きょう)の AIの 分(ぶん)は 使(つか)いきったみたい。明日(あした)まで 待(ま)ってね。");
+      else if (m.startsWith("BUSY")) say("いま AIが とても 混(こ)んで います。\n少(すこ)し 待(ま)ってから もう一度(いちど) 押(お)してね。\n（アプリの 制限(せいげん)では ないよ）");
       else if (m.startsWith("QUOTA")) say("AIが 混(こ)んで いるみたい。少(すこ)し 待(ま)ってから もう一度(いちど) 押(お)してね。");
       else if (m.startsWith("BAD_KEY")) say("APIキーが 違(ちが)うかも。⚙️設定(せってい)を 確(たし)かめてね。");
       else say("調(しら)べられませんでした 😢\n〔" + m.slice(0, 120) + "〕");
@@ -2183,6 +2184,9 @@
       note.innerHTML = "AIキーが まだ ないよ。名前(なまえ)を 手(て)で 入(い)れてね。<br><span class='r-note-sub'>⚙️設定(せってい)で キーを 入(い)れると 自動(じどう)で 名前(なまえ)が 出(で)ます</span>";
     } else if (err && err.startsWith("BAD_KEY")) {
       note.classList.add("warn"); note.innerHTML = "APIキーが 違(ちが)うかも。⚙️設定(せってい)を 確(たし)かめてね。<br>名前(なまえ)は 手(て)で 入(い)れられます。" + detail(err);
+    } else if (err && err.startsWith("BUSY")) {
+      note.classList.add("warn");
+      note.innerHTML = "いま AIが とても 混(こ)んで いるみたい。少(すこ)し 待(ま)ってから もう一度(いちど) 押(お)してね。<br><span class='r-note-sub'>Google 側(がわ)が 混雑(こんざつ)して います（アプリの 制限(せいげん)では ありません）。名前(なまえ)は 手(て)で 入(い)れられます</span>" + detail(err);
     } else if (err && err.startsWith("QUOTA_DAY")) {
       note.classList.add("warn");
       note.innerHTML = "今日(きょう)の AIの 分(ぶん)は 使(つか)いきったみたい。明日(あした)まで 待(ま)ってね。<br><span class='r-note-sub'>Google 側(がわ)の 1日(にち)の 上限(じょうげん)（無料枠(むりょうわく)）です。名前(なまえ)は 手(て)で 入(い)れられます</span>" + detail(err);

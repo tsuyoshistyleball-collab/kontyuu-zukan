@@ -243,23 +243,10 @@ const Gemini = (() => {
     if (!key) throw new Error("NO_KEY");
     if (!name) throw new Error("NO_NAME");
     const make = DETAIL_PROMPT[kind === "hana" ? "hana" : "mushi"];
-    const resp = await fetch(endpoint(model || DEFAULT_MODEL, key), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: make(name) }] }],
-        generationConfig: { responseMimeType: "application/json", responseSchema: DETAIL_SCHEMA, temperature: 0.3 },
-      }),
+    const resp = await callGemini(model, key, {
+      contents: [{ parts: [{ text: make(name) }] }],
+      generationConfig: { responseMimeType: "application/json", responseSchema: DETAIL_SCHEMA, temperature: 0.3 },
     });
-    if (!resp.ok) {
-      let j = null;
-      try { j = await resp.json(); } catch (e) {}
-      const info = parseApiError(j);
-      const msg = info.message || "API " + resp.status;
-      if (resp.status === 400 || resp.status === 403) throw new Error("BAD_KEY:" + msg);
-      if (resp.status === 429) throw new Error((info.daily ? "QUOTA_DAY:" : "QUOTA:") + msg);
-      throw new Error("API:" + msg);
-    }
     const data = await resp.json();
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
     try { return JSON.parse(text); } catch (e) { return {}; }
@@ -286,6 +273,53 @@ const Gemini = (() => {
     return out;
   }
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  // サーバーが こんで いる（503 / overloaded / high demand）？
+  const isBusy = (status, msg) =>
+    status === 503 || status === 502 ||
+    /overload|high demand|unavailable|try again later/i.test(String(msg || ""));
+
+  /* Gemini を よぶ。こんで いる ときは すこし まって もういちど。
+     429（つかいすぎ）と 503（こんで いる）を どちらも あつかう。*/
+  async function callGemini(model, key, body, onWait) {
+    for (let attempt = 0; ; attempt++) {
+      let resp = null;
+      try {
+        resp = await fetch(endpoint(model || DEFAULT_MODEL, key), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+      } catch (e) { throw new Error("NETWORK"); }
+      if (resp.ok) return resp;
+
+      let j = null;
+      try { j = await resp.json(); } catch (e) {}
+      const info = parseApiError(j);
+      const msg = info.message || "API " + resp.status;
+
+      if (resp.status === 400 || resp.status === 403) throw new Error("BAD_KEY:" + msg);
+      if (resp.status === 429) {
+        const wait = Math.min(Math.max(info.retry || 6, 3), MAX_WAIT_S);
+        if (!info.daily && attempt < MAX_RETRY) {
+          if (typeof onWait === "function") onWait(Math.ceil(wait), attempt + 1);
+          await sleep(wait * 1000);
+          continue;
+        }
+        throw new Error((info.daily ? "QUOTA_DAY:" : "QUOTA:") + (info.quotaId ? info.quotaId + " / " : "") + msg);
+      }
+      if (isBusy(resp.status, msg)) {
+        if (attempt < MAX_RETRY) {
+          const wait = 3 + attempt * 4;                 // 3びょう → 7びょう
+          if (typeof onWait === "function") onWait(wait, attempt + 1);
+          await sleep(wait * 1000);
+          continue;
+        }
+        throw new Error("BUSY:" + msg);
+      }
+      if (resp.status >= 500 && attempt < MAX_RETRY) { await sleep(2000 * (attempt + 1)); continue; }
+      throw new Error("API:" + msg);
+    }
+  }
 
   // ぶんあたりの せいげんは まてば なおるので、じどうで リトライする
   const MAX_RETRY = 2;
@@ -310,39 +344,7 @@ const Gemini = (() => {
       },
     };
 
-    let resp = null;
-    for (let attempt = 0; ; attempt++) {
-      try {
-        resp = await fetch(endpoint(model || DEFAULT_MODEL, key), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-      } catch (e) {
-        throw new Error("NETWORK");
-      }
-      if (resp.ok) break;
-
-      let j = null;
-      try { j = await resp.json(); } catch (e) {}
-      const info = parseApiError(j);
-      const msg = info.message || "API " + resp.status;
-
-      if (resp.status === 400 || resp.status === 403) throw new Error("BAD_KEY:" + msg);
-      if (resp.status === 429) {
-        const wait = Math.min(Math.max(info.retry || 6, 3), MAX_WAIT_S);
-        if (!info.daily && attempt < MAX_RETRY) {
-          if (typeof onWait === "function") onWait(Math.ceil(wait), attempt + 1);
-          await sleep(wait * 1000);
-          continue; // まってから もういちど
-        }
-        const tag = info.daily ? "QUOTA_DAY:" : "QUOTA:";
-        throw new Error(tag + (info.quotaId ? info.quotaId + " / " : "") + msg);
-      }
-      if (resp.status >= 500 && attempt < MAX_RETRY) { await sleep(2000 * (attempt + 1)); continue; }
-      throw new Error("API:" + msg);
-    }
-
+    const resp = await callGemini(model, key, body, onWait);
     const data = await resp.json();
     const text =
       data &&
@@ -415,23 +417,14 @@ const Gemini = (() => {
       (isHana ? "（れい: キク科 / バラ科 / ユリ科 / マメ科 / ブナ科）。" : "（れい: クワガタムシ科 / コガネムシ科 / アゲハチョウ科 / トンボ科 / アリ科）。") +
       "わからない ときは からっぽに して ください。\n" +
       "なまえ：\n" + names.map((n) => "- " + n).join("\n");
-    const resp = await fetch(endpoint(model || DEFAULT_MODEL, key), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: CLASSIFY_SCHEMA,
-          temperature: 0,
-        },
-      }),
+    const resp = await callGemini(model, key, {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: CLASSIFY_SCHEMA,
+        temperature: 0,
+      },
     });
-    if (!resp.ok) {
-      let msg = "API " + resp.status;
-      try { const j = await resp.json(); if (j.error && j.error.message) msg = j.error.message; } catch (e) {}
-      throw new Error(msg);
-    }
     const data = await resp.json();
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
     let obj = {};
