@@ -897,9 +897,13 @@ main { max-width: 760px; margin: 0 auto; }
 }
 .places-list::-webkit-scrollbar { display: none; }
 .place-card {
+  /* なまえが 2ぎょうに なっても、ほかの カードと ぎょうが そろう ように
+     たかさを きめた 4だんの グリッドに する */
   flex: 0 0 auto; width: 96px; scroll-snap-align: start;
   background: var(--card); border: 3px solid #fff; border-radius: 18px;
-  padding: 10px 8px 9px; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 10px 8px 9px;
+  display: grid; grid-template-rows: 46px 34px 20px 14px; row-gap: 3px;
+  justify-items: center; align-items: center;
   box-shadow: 0 4px 0 var(--frame-d), 0 7px 14px var(--shadow);
   position: relative; text-align: center; transition: transform .12s ease;
 }
@@ -909,17 +913,22 @@ main { max-width: 760px; margin: 0 auto; }
 }
 .place-card:active { transform: scale(.94) rotate(-1deg); }
 .place-emoji { font-size: 30px; line-height: 1.1; }
-.place-name { font-size: 13px; font-weight: 900; color: var(--ink); line-height: 1.2; }
+.place-name {
+  font-size: 13px; font-weight: 900; color: var(--ink); line-height: 1.28;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  overflow: hidden; word-break: break-word; align-self: center;
+}
 .place-visits {
   font-size: 11px; font-weight: 800; color: #fff; background: var(--green);
   padding: 1px 9px; border-radius: 999px; box-shadow: 0 2px 0 var(--green-d);
 }
 .place-date { font-size: 10px; font-weight: 700; color: var(--ink-sub); }
 .place-add-card {
+  grid-template-rows: 46px 1fr;
   background: repeating-linear-gradient(45deg, #fdf3e0, #fdf3e0 8px, #f7e9cf 8px, #f7e9cf 16px);
   border-style: dashed; border-color: var(--frame-d);
 }
-.place-add-card .place-name { color: var(--green-d); font-size: 12px; }
+.place-add-card .place-name { color: var(--green-d); font-size: 12px; -webkit-line-clamp: 3; align-self: start; }
 
 /* ばしょの とうろく ダイアログ */
 .place-modal .s-title { margin-bottom: 4px; }
@@ -997,7 +1006,7 @@ main { max-width: 760px; margin: 0 auto; }
   border-radius: 12px; box-shadow: inset 0 0 0 2px #fff; }
 .place-pic .place-emoji { position: relative; z-index: 1; font-size: 26px;
   filter: drop-shadow(0 1px 3px rgba(255,255,255,.95)); }
-.place-tags { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; }
+.place-tags { display: flex; gap: 4px; justify-content: center; align-items: center; min-height: 20px; }
 .place-bugs { font-size: 10px; font-weight: 800; color: #fff; background: var(--terra);
   padding: 1px 7px; border-radius: 999px; box-shadow: 0 2px 0 var(--terra-d); }
 .place-emoji.big { font-size: 30px; }
