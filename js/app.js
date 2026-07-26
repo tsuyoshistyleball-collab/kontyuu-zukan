@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v47";
+  const APP_VERSION = "v48";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -160,9 +160,9 @@
     const gen = hana ? GENERIC_FLOWER : GENERIC_BUG;
     return k
       ? { svg: k.svg, color: k.color, knownId: k.id, kana: k.kana, fact: k.fact, where: k.where, rarity: k.stars,
-          family: k.family || "", trivia: k.trivia || [], habitat: k.habitat || "", season: k.season || "", food: k.food || "", care: k.care || "" }
+          family: k.family || "", trivia: k.trivia || [], habitat: k.habitat || "", season: k.season || "", food: k.food || "", size: k.size || "", care: k.care || "" }
       : { svg: gen.svg, color: gen.color, knownId: null, kana: "", fact: "", where: "", rarity: 1,
-          family: "", trivia: [], habitat: "", season: "", food: "", care: "" };
+          family: "", trivia: [], habitat: "", season: "", food: "", size: "", care: "" };
   }
 
   /* ★3までだった ころの データを ★5の めもりに あわせる（1かいだけ）。
@@ -225,6 +225,7 @@
       g.habitat = pick("habitat") || "";
       g.season = pick("season") || "";
       g.food = pick("food") || "";
+      g.size = pick("size") || "";
       g.care = pick("care") || "";
       g.where = pick("where") || "";
       g.hasDetails = !!(g.trivia.length || g.habitat || g.care);
@@ -1214,6 +1215,7 @@
     const rows = [
       [hana ? "🌱 生(は)えて いる 場所(ばしょ)" : "🏠 住(す)んで いる 場所(ばしょ)", g.habitat || g.where],
       [hana ? "🌸 咲(さ)く 季節(きせつ)" : "📅 見(み)られる 季節(きせつ)", g.season],
+      ["📏 大(おお)きさ", g.size],
       [hana ? "☀️ 好(す)きな 場所(ばしょ)" : "🍽️ 食(た)べもの", g.food],
       [hana ? "🪴 育(そだ)て方(かた)" : "🧺 飼(か)い方(かた)", g.care],
     ];
@@ -1263,6 +1265,7 @@
         habitat: d.habitat || "",
         season: d.season || "",
         food: d.food || "",
+        size: (d.size || "").trim(),
         care: d.care || "",
       };
       if (d.fact) patch.fact = d.fact;
@@ -1457,14 +1460,14 @@
   // ---- けっか（AIすいそく＋なまえ しゅうせい）----
   function openResult(blob, ai, err) {
     const r = { name: "", kana: "", fact: "", where: "", rarity: 1, category: "", aiName: null, confidence: null,
-                family: "", trivia: [], habitat: "", season: "", food: "", care: "" };
+                family: "", trivia: [], habitat: "", season: "", food: "", size: "", care: "" };
     if (ai && ai.is_creature && ai.name) {
       r.name = ai.name; r.kana = ai.kana || ""; r.fact = ai.fact || ""; r.where = ai.where || "";
       r.rarity = clampR(ai.rarity); r.category = ai.category || ""; r.aiName = ai.name;
       r.confidence = typeof ai.confidence === "number" ? ai.confidence : null;
       r.family = (ai.family || "").trim();
       r.trivia = Array.isArray(ai.trivia) ? ai.trivia.filter(Boolean) : [];
-      r.habitat = ai.habitat || ""; r.season = ai.season || ""; r.food = ai.food || ""; r.care = ai.care || "";
+      r.habitat = ai.habitat || ""; r.season = ai.season || ""; r.food = ai.food || ""; r.size = ai.size || ""; r.care = ai.care || "";
     }
     const known = (Zukan.id === "hana") ? matchKnownFlower(r.name) : matchKnown(r.name);
     if (known) {
@@ -1474,6 +1477,7 @@
       r.habitat = r.habitat || known.habitat || "";
       r.season = r.season || known.season || "";
       r.food = r.food || known.food || "";
+      r.size = r.size || known.size || "";
       r.care = r.care || known.care || "";
       if (!(ai && ai.is_creature)) r.rarity = known.stars;
     }
@@ -1553,16 +1557,16 @@
         where: known.where || "", family: known.family || "",
         trivia: (known.trivia || []).slice(0, 4),
         habitat: known.habitat || "", season: known.season || "",
-        food: known.food || "", care: known.care || "",
+        food: known.food || "", size: known.size || "", care: known.care || "",
       };
     }
     const sameAsAi = r.aiName && _norm(name) === _norm(r.aiName);
-    if (!sameAsAi) return { where: "", family: "", trivia: [], habitat: "", season: "", food: "", care: "" };
+    if (!sameAsAi) return { where: "", family: "", trivia: [], habitat: "", season: "", food: "", size: "", care: "" };
     return {
       where: r.where || "", family: r.family || "",
       trivia: Array.isArray(r.trivia) ? r.trivia.slice(0, 4) : [],
       habitat: r.habitat || "", season: r.season || "",
-      food: r.food || "", care: r.care || "",
+      food: r.food || "", size: r.size || "", care: r.care || "",
     };
   }
 
