@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v57";
+  const APP_VERSION = "v58";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -2768,7 +2768,8 @@
 
     $("#arena-open").addEventListener("click", openArena);
     $("#ar-close").addEventListener("click", closeArena);
-    $("#ar-back").addEventListener("click", openArena);
+    // 「なかまを かえる」は えらび直し（せんたくを まっさらに）
+    $("#ar-back").addEventListener("click", () => { arSel = []; openArena(); });
     $("#ar-go").addEventListener("click", () => arStart(arSel.slice()));
     $("#ar-again").addEventListener("click", () =>
       arStart(arMyTeam.length ? arMyTeam.map((f) => f.name) : arSel.slice()));
