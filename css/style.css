@@ -143,6 +143,79 @@ button { font-family: inherit; cursor: pointer; border: none; color: inherit; }
   width: 40px; height: 40px; border-radius: 50%; box-shadow: 0 3px 0 #b3843f;
 }
 .icon-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #b3843f; }
+
+/* ============================================================
+   メニュー（右から シュッと でる）
+   ============================================================ */
+.menu-btn { display: grid; place-content: center; gap: 4px; }
+.mb-bar { display: block; width: 18px; height: 2.6px; border-radius: 2px; background: var(--green-d);
+  transition: transform .25s ease, opacity .2s ease; }
+.menu-btn[aria-expanded="true"] .mb-bar:nth-child(1) { transform: translateY(6.6px) rotate(45deg); }
+.menu-btn[aria-expanded="true"] .mb-bar:nth-child(2) { opacity: 0; }
+.menu-btn[aria-expanded="true"] .mb-bar:nth-child(3) { transform: translateY(-6.6px) rotate(-45deg); }
+
+.drawer-bg {
+  position: fixed; inset: 0; z-index: 60; background: rgba(8,22,6,.5);
+  opacity: 0; transition: opacity .26s ease; backdrop-filter: blur(2px);
+}
+.drawer-bg.open { opacity: 1; }
+.drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 61;
+  width: min(330px, 86vw);
+  padding: calc(var(--safe-top) + 14px) 14px calc(var(--safe-bot) + 16px);
+  display: flex; flex-direction: column; gap: 11px;
+  color: #fff;
+  background:
+    radial-gradient(120% 60% at 100% 0%, rgba(255,255,255,.16), transparent 60%),
+    linear-gradient(180deg, #46a05a 0%, #2e7940 55%, #245f33 100%);
+  border-left: 4px solid rgba(255,255,255,.6);
+  box-shadow: -10px 0 26px rgba(0,0,0,.45);
+  transform: translateX(102%);
+  transition: transform .3s cubic-bezier(.22,.9,.3,1);
+  overflow-y: auto;
+}
+.drawer.open { transform: none; }
+.drawer-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
+.drawer-title { font-family: "MushiTitle", var(--font); font-size: 21px; color: #fff8e0;
+  text-shadow: 0 2px 0 rgba(0,0,0,.25); }
+.drawer-close {
+  width: 38px; height: 38px; border-radius: 50%; font-size: 17px; font-weight: 900;
+  background: rgba(255,255,255,.95); color: var(--green-d); box-shadow: 0 3px 0 rgba(0,0,0,.28);
+}
+.drawer-close:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0,0,0,.28); }
+
+.drawer-item {
+  display: flex; align-items: center; gap: 11px; width: 100%; text-align: left; font-family: inherit;
+  padding: 12px 12px 13px; border-radius: 18px; border: 3px solid #fff;
+  background: linear-gradient(180deg, #fffdf6, #f4ead2);
+  box-shadow: 0 5px 0 rgba(0,0,0,.28);
+}
+.drawer-item:active { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0,0,0,.28); }
+.drawer-item[hidden] { display: none; }
+.di-ico { flex: none; width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center;
+  font-size: 24px; background: var(--paper2); box-shadow: inset 0 0 0 2px rgba(255,255,255,.9); }
+.drawer-item.di-arena .di-ico { background: #ffe0d6; }
+.drawer-item.di-book .di-ico { background: #dff0d8; }
+.drawer-item.di-settings .di-ico { background: #e2eaf7; }
+.di-tx { flex: 1 1 auto; min-width: 0; display: block; }
+.di-tx b { display: block; font-size: 15.5px; font-weight: 900; color: var(--ink); line-height: 1.3; }
+.di-tx small { display: block; font-size: 11px; font-weight: 800; color: var(--ink-sub); margin-top: 2px; }
+.di-go { flex: none; font-size: 22px; font-weight: 900; color: var(--frame-d); }
+.drawer-foot { margin-top: auto; text-align: center; font-size: 11px; font-weight: 800; color: rgba(255,255,255,.75); }
+
+/* ひらいた ときに 1つずつ すべって でて くる */
+.drawer.open .drawer-item { animation: diIn .34s cubic-bezier(.2,1.3,.4,1) both; }
+.drawer.open .drawer-item:nth-of-type(1) { animation-delay: .06s; }
+.drawer.open .drawer-item:nth-of-type(2) { animation-delay: .12s; }
+.drawer.open .drawer-item:nth-of-type(3) { animation-delay: .18s; }
+@keyframes diIn {
+  0% { transform: translateX(36px); opacity: 0; }
+  100% { transform: none; opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .drawer { transition: none; }
+  .drawer.open .drawer-item { animation: none; }
+}
 /* スマホ（ヨコ はばが せまい）：はっぱは かくして タイトル ゆうせん */
 @media (max-width: 540px) {
   .plate-leaf { display: none; }
@@ -740,7 +813,7 @@ main { max-width: 760px; margin: 0 auto; }
 /* 図鑑(ずかん)を ひらいて いる あいだは、うしろの カードの
    ひかり アニメを とめる（みえないのに ぬりなおしが つづく のを ふせぐ）*/
 body.noscroll .card { animation: none !important; }
-body.noscroll .card::before { animation: none !important; }
+body.noscroll .card::before, body.noscroll .r5-aura, body.noscroll .r5-shine::after { animation: none !important; }
 
 /* ---------- レアどごとに カードの ひかりかたを かえる ----------
    ★1 ふつう      … ひからない
@@ -749,67 +822,104 @@ body.noscroll .card::before { animation: none !important; }
    ★4 とても      … むらさき〜あおの オーロラが ながれる
    ★5 でんせつ    … にじいろ ホロ＋キラキラ
    ------------------------------------------------------------- */
-.card.r2 {
+/* ずかんの カードと、とうぎじょうの えらぶ カードで おなじ ひかりかたに する。
+   --base-sh は それぞれの カードの もともとの かげ。*/
+.card { --base-sh: 0 5px 0 var(--frame-d), 0 10px 18px var(--shadow); }
+.ar-pickcard { --base-sh: 0 4px 0 var(--frame-d); }
+
+.card.r2, .ar-pickcard.r2 {
   border-color: #d9f2e6;
-  box-shadow: 0 5px 0 var(--frame-d), 0 0 12px 2px rgba(150,220,190,.55), 0 10px 18px var(--shadow);
+  box-shadow: var(--base-sh), 0 0 12px 2px rgba(150,220,190,.55);
 }
-.card.r3 {
+.card.r3, .ar-pickcard.r3 {
   border-color: #ffe0a0;
   animation: glowGold 2.8s ease-in-out infinite;
 }
 @keyframes glowGold {
-  0%,100% { box-shadow: 0 5px 0 var(--frame-d), 0 0 0 2px #ffd36b, 0 0 12px 2px rgba(255,196,60,.45), 0 10px 18px var(--shadow); }
-  50%     { box-shadow: 0 5px 0 var(--frame-d), 0 0 0 3px #ffe08a, 0 0 22px 5px rgba(255,196,60,.85), 0 10px 18px var(--shadow); }
+  0%,100% { box-shadow: var(--base-sh), 0 0 0 2px #ffd36b, 0 0 12px 2px rgba(255,196,60,.45); }
+  50%     { box-shadow: var(--base-sh), 0 0 0 3px #ffe08a, 0 0 22px 5px rgba(255,196,60,.85); }
 }
-.card.r3::before {
+.card.r3::before, .ar-pickcard.r3::before {
   content: "✨"; position: absolute; top: -8px; right: -6px; font-size: 18px; z-index: 3;
   filter: drop-shadow(0 1px 2px rgba(0,0,0,.25)); animation: twinkle 1.8s ease-in-out infinite;
 }
 
-.card.r4 {
+.card.r4, .ar-pickcard.r4 {
   border-color: #cbb4f5;
   animation: glowAurora 4.2s ease-in-out infinite;
 }
 @keyframes glowAurora {
-  0%,100% { box-shadow: 0 5px 0 var(--frame-d), 0 0 0 3px #b47cff, 0 0 20px 5px rgba(180,124,255,.75), 0 10px 18px var(--shadow); }
-  33%     { box-shadow: 0 5px 0 var(--frame-d), 0 0 0 3px #7cc4ff, 0 0 24px 6px rgba(124,196,255,.8), 0 10px 18px var(--shadow); }
-  66%     { box-shadow: 0 5px 0 var(--frame-d), 0 0 0 3px #7cf0d8, 0 0 22px 6px rgba(124,240,216,.75), 0 10px 18px var(--shadow); }
+  0%,100% { box-shadow: var(--base-sh), 0 0 0 3px #b47cff, 0 0 18px 4px rgba(180,124,255,.7); }
+  33%     { box-shadow: var(--base-sh), 0 0 0 3px #7cc4ff, 0 0 20px 5px rgba(124,196,255,.75); }
+  66%     { box-shadow: var(--base-sh), 0 0 0 3px #7cf0d8, 0 0 18px 5px rgba(124,240,216,.7); }
 }
-.card.r4::before {
+.card.r4::before, .ar-pickcard.r4::before {
   content: "💠"; position: absolute; top: -8px; right: -6px; font-size: 17px; z-index: 3;
   filter: drop-shadow(0 1px 2px rgba(0,0,0,.25)); animation: twinkle 2.2s ease-in-out infinite;
 }
 
-.card.r5 {
-  border-color: #ff8a8a;
-  animation: rainbow5 3.2s linear infinite;
+/* ★5 でんせつ … にじいろが ぐるぐる まわって、しろく ひかる */
+.card.r5, .ar-pickcard.r5 {
+  border-color: #fff;
+  animation: rainbow5 2.4s linear infinite;
 }
 @keyframes rainbow5 {
-  0%   { border-color:#ff6b6b; box-shadow: 0 5px 0 var(--frame-d), 0 0 0 3px #ff6b6b, 0 0 24px 6px rgba(255,107,107,.85), 0 10px 18px var(--shadow); }
-  17%  { border-color:#ffa94d; box-shadow: 0 5px 0 var(--frame-d), 0 0 0 3px #ffa94d, 0 0 24px 6px rgba(255,169,77,.85), 0 10px 18px var(--shadow); }
-  33%  { border-color:#ffe14d; box-shadow: 0 5px 0 var(--frame-d), 0 0 0 3px #ffe14d, 0 0 24px 6px rgba(255,225,77,.85), 0 10px 18px var(--shadow); }
-  50%  { border-color:#5fd97a; box-shadow: 0 5px 0 var(--frame-d), 0 0 0 3px #5fd97a, 0 0 24px 6px rgba(95,217,122,.85), 0 10px 18px var(--shadow); }
-  67%  { border-color:#4dc4ff; box-shadow: 0 5px 0 var(--frame-d), 0 0 0 3px #4dc4ff, 0 0 24px 6px rgba(77,196,255,.85), 0 10px 18px var(--shadow); }
-  83%  { border-color:#b47cff; box-shadow: 0 5px 0 var(--frame-d), 0 0 0 3px #b47cff, 0 0 24px 6px rgba(180,124,255,.85), 0 10px 18px var(--shadow); }
-  100% { border-color:#ff6b6b; box-shadow: 0 5px 0 var(--frame-d), 0 0 0 3px #ff6b6b, 0 0 24px 6px rgba(255,107,107,.85), 0 10px 18px var(--shadow); }
+  0%   { box-shadow: var(--base-sh), 0 0 0 4px #ff5f6d, 0 0 26px 8px rgba(255,95,109,.9), 0 0 54px 16px rgba(255,95,109,.45); }
+  17%  { box-shadow: var(--base-sh), 0 0 0 4px #ffa94d, 0 0 26px 8px rgba(255,169,77,.9), 0 0 54px 16px rgba(255,169,77,.45); }
+  33%  { box-shadow: var(--base-sh), 0 0 0 4px #ffe14d, 0 0 26px 8px rgba(255,225,77,.9), 0 0 54px 16px rgba(255,225,77,.45); }
+  50%  { box-shadow: var(--base-sh), 0 0 0 4px #5fd97a, 0 0 26px 8px rgba(95,217,122,.9), 0 0 54px 16px rgba(95,217,122,.45); }
+  67%  { box-shadow: var(--base-sh), 0 0 0 4px #4dc4ff, 0 0 26px 8px rgba(77,196,255,.9), 0 0 54px 16px rgba(77,196,255,.45); }
+  83%  { box-shadow: var(--base-sh), 0 0 0 4px #b47cff, 0 0 26px 8px rgba(180,124,255,.9), 0 0 54px 16px rgba(180,124,255,.45); }
+  100% { box-shadow: var(--base-sh), 0 0 0 4px #ff5f6d, 0 0 26px 8px rgba(255,95,109,.9), 0 0 54px 16px rgba(255,95,109,.45); }
 }
-.card.r5::before {
-  content: "👑"; position: absolute; top: -10px; right: -6px; font-size: 20px; z-index: 3;
-  filter: drop-shadow(0 1px 2px rgba(0,0,0,.3)); animation: twinkle 1.5s ease-in-out infinite;
+.card.r5::before, .ar-pickcard.r5::before {
+  content: "👑"; position: absolute; top: -12px; right: -8px; font-size: 22px; z-index: 4;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,.35)) drop-shadow(0 0 8px rgba(255,220,120,.95));
+  animation: crown5 1.4s ease-in-out infinite;
+}
+@keyframes crown5 {
+  0%,100% { transform: scale(1) rotate(-12deg); }
+  50%     { transform: scale(1.35) rotate(12deg); }
 }
 /* ★5は カードの かみ じたいが にじいろに ゆれる */
-.card.r5 {
+.card.r5, .ar-pickcard.r5 {
   background-image: linear-gradient(115deg,
-    rgba(255,150,190,.20) 0%, rgba(255,205,130,.20) 18%, rgba(252,246,165,.22) 36%,
-    rgba(150,240,195,.20) 54%, rgba(160,215,255,.20) 72%, rgba(205,175,255,.20) 100%);
+    rgba(255,150,190,.30) 0%, rgba(255,205,130,.30) 18%, rgba(252,246,165,.32) 36%,
+    rgba(150,240,195,.30) 54%, rgba(160,215,255,.30) 72%, rgba(205,175,255,.30) 100%);
   background-size: 160% 160%; background-position: 30% 30%; background-repeat: no-repeat;
+}
+/* ★5だけの にじいろ オーラ（カードの うしろで ぐるぐる まわる）*/
+.r5-aura {
+  position: absolute; inset: -9px; z-index: -1; border-radius: 26px; pointer-events: none;
+  background: conic-gradient(from 0deg, #ff5f6d, #ffb347, #ffe14d, #5fd97a, #4dc4ff, #b47cff, #ff5f6d);
+  filter: blur(9px); opacity: .95;
+  animation: r5Spin 2.6s linear infinite;
+}
+.ar-pickcard .r5-aura { inset: -7px; border-radius: 20px; filter: blur(7px); }
+@keyframes r5Spin { to { transform: rotate(1turn); } }
+/* ★5の カードを ななめに ひかりが はしる */
+.r5-shine {
+  position: absolute; inset: 0; border-radius: inherit; overflow: hidden; pointer-events: none; z-index: 2;
+}
+.r5-shine::after {
+  content: ""; position: absolute; top: -60%; left: -40%; width: 40%; height: 220%;
+  background: linear-gradient(100deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.85) 50%, rgba(255,255,255,0) 100%);
+  transform: rotate(18deg);
+  animation: r5Shine 3.4s ease-in-out infinite;
+}
+@keyframes r5Shine {
+  0%, 70%  { transform: translateX(0) rotate(18deg); opacity: 0; }
+  74%      { opacity: .95; }
+  100%     { transform: translateX(420%) rotate(18deg); opacity: 0; }
 }
 
 /* うごきを へらす せっていでも いろは みえる ように（しずかに）*/
 @media (prefers-reduced-motion: reduce) {
   .card.r3 { animation-duration: 6s !important; }
   .card.r4 { animation-duration: 9s !important; }
-  .card.r5 { animation: rainbow5 6s linear infinite !important; }
+  .card.r5, .ar-pickcard.r5 { animation-duration: 6s !important; }
+  .r5-aura { animation-duration: 12s !important; }
+  .r5-shine::after { animation: none !important; opacity: 0 !important; }
 }
 @keyframes twinkle { 0%,100% { transform: scale(1) rotate(-10deg); opacity: .85 } 50% { transform: scale(1.3) rotate(10deg); opacity: 1 } }
 
@@ -1463,8 +1573,6 @@ rt {
   border: 3px solid #fff; background: linear-gradient(180deg,#ffb64d,#f2820f); color: #fff;
   box-shadow: 0 5px 0 var(--terra-d); font-family: inherit; }
 .ar-go:active { transform: translateY(2px); box-shadow: 0 3px 0 var(--terra-d); }
-.ar-pickcard.r4 { box-shadow: 0 4px 0 var(--frame-d), 0 0 12px 2px rgba(180,124,255,.7); border-color: #cbb4f5; }
-.ar-pickcard.r5 { box-shadow: 0 4px 0 var(--frame-d), 0 0 14px 3px rgba(255,150,90,.8); border-color: #ffb37c; }
 
 /* ============ たたかい ============ */
 .ar-fight {
@@ -1784,6 +1892,68 @@ rt {
 }
 
 @media (prefers-reduced-motion: reduce) { .ar-fx i { animation: none !important; opacity: 0; } }
+
+/* たからばこ ＆ ルーレット */
+.ar-bonus { position: absolute; inset: 0; z-index: 8; display: grid; place-items: center;
+  background: rgba(6,16,4,.55); }
+.ar-chest { background: none; border: 0; padding: 0; display: grid; justify-items: center; gap: 4px;
+  font-family: inherit; animation: chestPop .5s cubic-bezier(.2,1.7,.4,1) both; }
+.chest-img { width: min(58vw, 240px); height: auto; display: block;
+  filter: drop-shadow(0 10px 12px rgba(0,0,0,.6)) drop-shadow(0 0 26px rgba(255,214,90,.85));
+  animation: chestBounce 1s ease-in-out infinite; }
+.chest-hint { font-family: "MushiTitle", var(--font); font-size: 21px; color: #fff3b0;
+  text-shadow: 2px 2px 0 #7a3b00, -2px 2px 0 #7a3b00, 0 0 14px rgba(255,190,60,.9);
+  animation: chestHint 1s ease-in-out infinite; }
+@keyframes chestPop { 0% { transform: scale(.3) rotate(-14deg); opacity: 0; } 100% { transform: none; opacity: 1; } }
+@keyframes chestBounce { 0%,100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-10px) rotate(2deg); } }
+@keyframes chestHint { 0%,100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+.ar-chest:active .chest-img { transform: scale(.94); }
+
+.ar-roul { display: grid; justify-items: center; gap: 8px; animation: chestPop .4s cubic-bezier(.2,1.6,.4,1) both; }
+.roul-wrap { position: relative; display: grid; place-items: center; }
+.roul-wheel {
+  width: min(72vw, 290px); height: auto; display: block;
+  filter: drop-shadow(0 8px 12px rgba(0,0,0,.55));
+  transform: rotate(0deg);
+}
+.roul-pointer {
+  position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+  width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent;
+  border-top: 26px solid #fff;
+  filter: drop-shadow(0 3px 3px rgba(0,0,0,.6)) drop-shadow(0 0 8px rgba(255,225,77,.9));
+  z-index: 2;
+}
+.roul-msg { margin: 0; font-family: "MushiTitle", var(--font); font-size: 20px; color: #fff3b0;
+  text-shadow: 2px 2px 0 #7a3b00, -2px 2px 0 #7a3b00, 0 0 12px rgba(255,190,60,.8); }
+.ar-roul.hit .roul-wheel { animation: roulHit .5s ease 2; }
+@keyframes roulHit { 0%,100% { filter: drop-shadow(0 8px 12px rgba(0,0,0,.55)); }
+  50% { filter: drop-shadow(0 8px 12px rgba(0,0,0,.55)) drop-shadow(0 0 26px rgba(255,235,120,1)) brightness(1.25); } }
+
+/* とくしゅ こうげきの エフェクト */
+.ar-fx.mv-bomb i {
+  width: 60px; height: 60px; margin: -30px 0 0 -30px; border-radius: 50%;
+  background: radial-gradient(circle at 50% 55%, #fff 0%, #ffe14d 25%, var(--mv) 55%, rgba(0,0,0,0) 74%);
+  filter: blur(1px);
+  animation: fxBoom .8s cubic-bezier(.15,.8,.3,1) both;
+  animation-delay: calc(var(--i) * .06s);
+}
+@keyframes fxBoom {
+  0% { transform: translate(0,0) scale(.2); opacity: 0; }
+  15% { opacity: 1; }
+  100% { transform: translate(calc(var(--dx) * 1px), calc(var(--dy) * .6px)) scale(2.6); opacity: 0; }
+}
+.ar-fx.mv-mizu i {
+  width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50% 50% 50% 8%;
+  background: radial-gradient(circle at 38% 32%, #fff 0%, rgba(255,255,255,.7) 18%, var(--mv) 60%, rgba(0,0,0,0) 76%);
+  box-shadow: inset 0 0 10px rgba(255,255,255,.8);
+  animation: fxWave .9s ease-out both;
+  animation-delay: calc(var(--i) * .05s);
+}
+@keyframes fxWave {
+  0% { transform: translate(0, 40px) scale(.3) rotate(0deg); opacity: 0; }
+  25% { opacity: 1; }
+  100% { transform: translate(calc(var(--dx) * .7px), -70px) scale(1.5) rotate(180deg); opacity: 0; }
+}
 
 /* まんなかの おおきい もじ */
 .ar-center { position: absolute; inset: 0; z-index: 6; display: grid; place-items: center; pointer-events: none; }

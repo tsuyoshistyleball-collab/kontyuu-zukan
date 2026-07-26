@@ -37,9 +37,9 @@
         <span class="plate-switch" id="plate-switch">🔄 タップで お花図鑑(はなずかん)に 切(き)りかえ</span>
       </button>
       <div class="topbar-btns">
-        <button id="book-open" class="icon-btn" aria-label="図鑑をめくる" hidden>📖</button>
-        <button id="arena-open" class="icon-btn" aria-label="闘技場" hidden>⚔️</button>
-        <button id="settings-btn" class="icon-btn" aria-label="設定">⚙️</button>
+        <button id="menu-btn" class="icon-btn menu-btn" aria-label="メニュー" aria-expanded="false">
+          <span class="mb-bar"></span><span class="mb-bar"></span><span class="mb-bar"></span>
+        </button>
       </div>
     </div>
     <p id="progress-msg" class="progress-msg">読(よ)みこみ中(ちゅう)…</p>
@@ -365,6 +365,31 @@
     <span id="toast-text" class="toast-text"></span>
   </div>
 
+  <!-- 右(みぎ)から でる メニュー -->
+  <div id="drawer-bg" class="drawer-bg" hidden></div>
+  <aside id="drawer" class="drawer" hidden aria-label="メニュー">
+    <div class="drawer-head">
+      <span class="drawer-title">🌿 メニュー</span>
+      <button id="drawer-close" class="drawer-close" aria-label="閉じる">✕</button>
+    </div>
+    <button id="book-open" class="drawer-item di-book" hidden>
+      <span class="di-ico">📖</span>
+      <span class="di-tx"><b>図鑑(ずかん)を めくる</b><small>本(ほん)みたいに 1ページずつ 見(み)る</small></span>
+      <span class="di-go">›</span>
+    </button>
+    <button id="arena-open" class="drawer-item di-arena" hidden>
+      <span class="di-ico">⚔️</span>
+      <span class="di-tx"><b>とうぎじょう</b><small>あつめた カードで バトル！</small></span>
+      <span class="di-go">›</span>
+    </button>
+    <button id="settings-btn" class="drawer-item di-settings">
+      <span class="di-ico">⚙️</span>
+      <span class="di-tx"><b>設定(せってい)</b><small>AI・音(おと)・バックアップ</small></span>
+      <span class="di-go">›</span>
+    </button>
+    <p class="drawer-foot" id="drawer-ver"></p>
+  </aside>
+
   <!-- とうぎじょう（カードで たたかう）-->
   <div id="arena" class="arena" hidden>
     <button id="ar-bgm" class="ar-close ar-bgm" aria-label="音楽のオンオフ">🎵</button>
@@ -406,6 +431,22 @@
         <div id="ar-fx" class="ar-fx" aria-hidden="true"></div>
         <div id="ar-center" class="ar-center" hidden><i class="ar-rays"></i><i class="ar-burst"></i><b></b></div>
         <div id="ar-flash" class="ar-flash" aria-hidden="true"></div>
+
+        <!-- たからばこ → ルーレット → とくしゅ こうげき -->
+        <div id="ar-bonus" class="ar-bonus" hidden>
+          <button id="ar-chest" class="ar-chest" aria-label="たからばこを あける">
+            <img src="./img/chest.png" alt="" class="chest-img" />
+            <span class="chest-hint">タップ！</span>
+          </button>
+
+          <div id="ar-roul" class="ar-roul" hidden>
+            <div class="roul-wrap">
+              <img id="ar-wheel" src="./img/wheel.png" alt="" class="roul-wheel" />
+              <span class="roul-pointer" aria-hidden="true"></span>
+            </div>
+            <p id="ar-roul-msg" class="roul-msg">なにが でるかな…？</p>
+          </div>
+        </div>
       </div>
 
       <p id="ar-msg" class="ar-msg">じゃんけんを えらんでね！</p>

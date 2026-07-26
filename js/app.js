@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v73";
+  const APP_VERSION = "v75";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -827,16 +827,26 @@
     }
   }
 
+  // ★5だけの にじいろオーラと、ななめに はしる ひかり
+  function addR5Deco(el) {
+    const aura = document.createElement("span");
+    aura.className = "r5-aura"; aura.setAttribute("aria-hidden", "true");
+    const shine = document.createElement("span");
+    shine.className = "r5-shine"; shine.setAttribute("aria-hidden", "true");
+    el.appendChild(aura); el.appendChild(shine);
+  }
+
   function buildCard(g) {
     const ill = illustFor(g.name);
     const card = document.createElement("button");
     card.className = "card found r" + g.rarity;
     card.style.setProperty("--c", ill.color);
     card.setAttribute("aria-label", g.name);
-    // ★5は カードごとに にじの いろを ずらす
+    // ★5は カードごとに にじの いろを ずらす＋オーラを つける
     if (g.rarity >= 5) {
       let h = 0; for (let i = 0; i < g.name.length; i++) h += g.name.charCodeAt(i);
       card.style.animationDelay = "-" + ((h % 32) / 10).toFixed(2) + "s";
+      addR5Deco(card);
     }
 
     const media = document.createElement("div");
@@ -1003,9 +1013,10 @@
      つぶ（i）に すきな むきや ずれを もたせて、まいかい すこし ちがう 見た目に。*/
   function arFx(side, kind, color) {
     const el = $("#ar-fx");
-    const en = MOVE_KIND_EN[kind] || "kiri";
+    const en = MOVE_KIND_EN[kind] || (/^[a-z]+$/.test(String(kind)) ? String(kind) : "kiri");
     el.className = "ar-fx " + side + " mv-" + en;
-    const n = en === "iwa" ? 10 : en === "honoo" || en === "doku" ? 12 : en === "kaminari" ? 4 : en === "koori" ? 7 : 4;
+    const n = en === "iwa" ? 10 : en === "honoo" || en === "doku" || en === "mizu" ? 14
+            : en === "bomb" ? 9 : en === "kaminari" ? 4 : en === "koori" ? 7 : 4;
     let html = "";
     for (let i = 0; i < n; i++) {
       const a = en === "koori" ? -70 + (140 / Math.max(1, n - 1)) * i : Math.round(Math.random() * 360);
@@ -1066,6 +1077,7 @@
         `<span class="bt-def">🛡️<b>${g.defense}</b></span></span>`;
       b.dataset.name = nm;
       b.insertAdjacentHTML("afterbegin", `<span class="apc-no" hidden></span>`);
+      if (clampR(g.rarity) >= 5) addR5Deco(b);
       b.addEventListener("click", () => arToggleSel(nm));
       list.appendChild(b);
     }
@@ -1166,6 +1178,7 @@
     $$("#arena .ar-ch").forEach((el) => el.classList.remove("ko", "hit", "lunge", "enter"));
     $("#ar-slash").innerHTML = "";
     $("#ar-fx").innerHTML = "";
+    $("#ar-bonus").hidden = true;
     arItemPaint();
     arSwapPaint();
     $("#ar-swap-sheet").hidden = true;
@@ -1258,6 +1271,8 @@
     arHideCenter();
 
     if (def.hp <= 0) { await arDown(!iWin); return; }
+    if (await arMaybeBonus()) return;          // たからばこ（ときどき）
+    if (arOver) return;
     $("#ar-msg").textContent = "じゃんけんを えらんでね！";
     arBusy = false;
   }
@@ -1363,6 +1378,110 @@
     arBusy = false;
   }
 
+  /* ============================================================
+     たからばこ → ルーレット → とくしゅ こうげき
+     ・たたかいの あと、5かいに 1かいくらい たからばこが でる
+     ・タップすると ルーレットが まわり、とまった わざで こうげき
+     ============================================================ */
+  const SPECIALS = [
+    { key: "bomb",  icon: "💣", name: "ばくだん", color: "#ff7a2f", mul: 1.9, fx: "bomb", deg: 315,
+      cry: "ドッカーン！ ばくだん こうげき！", word: "ドッカーン！" },
+    { key: "fire",  icon: "🔥", name: "ほのお",   color: "#ff5a1f", mul: 1.6, fx: "honoo", deg: 45,
+      cry: "ゴォォ！ ほのおの こうげき！", word: "ゴォォ！" },
+    { key: "sword", icon: "⚔️", name: "けん",     color: "#dfe9ff", mul: 1.7, fx: "kiri", deg: 225,
+      cry: "スパッ！ けんの こうげき！", word: "スパーン！" },
+    { key: "water", icon: "💧", name: "みず",     color: "#4dc4ff", mul: 1.4, fx: "mizu", deg: 135,
+      cry: "ザブーン！ みずの こうげき！", word: "ザブーン！" },
+  ];
+  const BONUS_RATE = 0.2;            // 5かいに 1かいくらい
+  let arChestDone = null;
+
+  // たからばこを だして、タップ（か 6びょう）を まつ
+  function arShowChest() {
+    $("#ar-bonus").hidden = false;
+    $("#ar-chest").hidden = false;
+    $("#ar-roul").hidden = true;
+    $("#ar-msg").textContent = "たからばこが でた！ タップしてね";
+    sound.blip();
+    if (navigator.vibrate) navigator.vibrate([0, 30, 60, 30]);
+    return new Promise((res) => {
+      let done = false;
+      const fin = () => { if (!done) { done = true; clearTimeout(t); res(); } };
+      arChestDone = fin;
+      const t = setTimeout(fin, 6000);
+    });
+  }
+  /* ルーレットを まわす。うえの ▼に とまった ところが わざ。
+     わの ならびは 上(うえ)から 時計(とけい)まわりに
+     ほのお(45°) → みず(135°) → けん(225°) → ばくだん(315°) */
+  async function arSpinRoulette() {
+    const win = Math.floor(Math.random() * SPECIALS.length);
+    const sp = SPECIALS[win];
+    const wheel = $("#ar-wheel");
+    $("#ar-chest").hidden = true;
+    $("#ar-roul").hidden = false;
+    $("#ar-roul").classList.remove("hit");
+    $("#ar-roul-msg").textContent = "なにが でるかな…？";
+    $("#ar-msg").textContent = "ルーレット！";
+    // とまる いち（すこし ばらつかせる）
+    const jitter = (Math.random() - 0.5) * 46;
+    const deg = 360 * 5 + (360 - sp.deg) + jitter;
+    wheel.style.transition = "none";
+    wheel.style.transform = "rotate(0deg)";
+    void wheel.offsetWidth;
+    wheel.style.transition = "transform 3.1s cubic-bezier(.12,.78,.2,1)";
+    wheel.style.transform = `rotate(${deg}deg)`;
+    for (let i = 0; i < 16; i++) setTimeout(() => sound.blip(), 80 + i * i * 11);
+    await arSleep(3300);
+    $("#ar-roul").classList.add("hit");
+    $("#ar-roul-msg").textContent = `${sp.icon} ${sp.name} が でた！`;
+    sound.fanfare(4);
+    if (navigator.vibrate) navigator.vibrate([0, 60, 40, 90]);
+    await arSleep(1200);
+    $("#ar-bonus").hidden = true;
+    return sp;
+  }
+  // とくしゅ こうげき（あいてに おおきな ダメージ）
+  async function arSpecialAttack(sp) {
+    const dmg = Math.round(Math.max(120, arMe.attack * sp.mul - arFoe.defense / 4) / 10) * 10;
+    arFoe.hp = Math.max(0, arFoe.hp - dmg);
+
+    $("#ar-msg").textContent = sp.cry;
+    $("#ar-me").classList.add("lunge");
+    arCenter(sp.name + "！", "super");
+    sound.charge();
+    await arSleep(800);
+    arHideCenter();
+
+    arFlash();
+    arQuake();
+    arFx("foe", sp.fx === "kiri" ? "きり" : sp.fx === "honoo" ? "ほのお" : sp.fx, sp.color);
+    if (sp.fx === "kiri") arSlash("foe", true, sp.color);
+    arCenter(sp.word, "super");
+    $("#ar-foe").classList.add("hit");
+    sound.hit(true);
+    confetti(4);
+    if (navigator.vibrate) navigator.vibrate([0, 180, 50, 140]);
+    await arSleep(700);
+    $("#ar-me").classList.remove("lunge");
+    $("#ar-foe").classList.remove("hit");
+
+    arCenter(String(dmg), "dmg super");
+    arPaintBars();
+    $("#ar-msg").textContent = `${sp.name}で ${dmg} の 大(だい)ダメージ！`;
+    await arSleep(1100);
+    arHideCenter();
+    if (arFoe.hp <= 0) { await arDown(false); return true; }
+    return false;
+  }
+  /* 5かいに 1かいくらい たからばこ。おわったら true（けっちゃく が ついた）*/
+  async function arMaybeBonus() {
+    if (arOver || Math.random() >= BONUS_RATE) return false;
+    await arShowChest();
+    const sp = await arSpinRoulette();
+    return await arSpecialAttack(sp);
+  }
+
   /* かいふく（じぶんだけ・1しあい 2かいまで）*/
   function arItemPaint() {
     const b = $("#ar-item");
@@ -1412,6 +1531,27 @@
     arCenter(iWin ? "しょうり！" : "まけ…", iWin ? "" : "bad");
     if (iWin) { sound.fanfare(arMe.rarity); confetti(clampR(arMe.rarity)); }
     rubyifyDOM($("#arena"));
+  }
+
+  /* ---- 右(みぎ)から でる メニュー ---- */
+  let drawerTimer = 0;
+  const drawerOpen = () => $("#drawer").classList.contains("open");
+  function openDrawer() {
+    clearTimeout(drawerTimer);
+    const dr = $("#drawer"), bg = $("#drawer-bg");
+    dr.hidden = false; bg.hidden = false;
+    $("#drawer-ver").textContent = "むしずかん " + APP_VERSION;
+    void dr.offsetWidth;                       // アニメを かならず さいしょから
+    dr.classList.add("open"); bg.classList.add("open");
+    $("#menu-btn").setAttribute("aria-expanded", "true");
+    sound.blip();
+  }
+  function closeDrawer() {
+    const dr = $("#drawer"), bg = $("#drawer-bg");
+    dr.classList.remove("open"); bg.classList.remove("open");
+    $("#menu-btn").setAttribute("aria-expanded", "false");
+    clearTimeout(drawerTimer);
+    drawerTimer = setTimeout(() => { dr.hidden = true; bg.hidden = true; }, 320);
   }
 
   // ---- ブック（よこに めくる ずかん）----
@@ -3222,6 +3362,12 @@
     $("#file-gallery").addEventListener("change", onFile);
 
     $("#arena-open").addEventListener("click", openArena);
+    // ---- 右(みぎ)から でる メニュー ----
+    $("#menu-btn").addEventListener("click", () => (drawerOpen() ? closeDrawer() : openDrawer()));
+    $("#drawer-close").addEventListener("click", closeDrawer);
+    $("#drawer-bg").addEventListener("click", closeDrawer);
+    $("#drawer").addEventListener("click", (e) => { if (e.target.closest(".drawer-item")) closeDrawer(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && drawerOpen()) closeDrawer(); });
     $("#ar-close").addEventListener("click", closeArena);
     // 「なかまを かえる」は えらび直し（せんたくを まっさらに）
     $("#ar-back").addEventListener("click", () => { bgm.stop(); arSel = []; openArena(); });
@@ -3229,6 +3375,7 @@
     $("#ar-again").addEventListener("click", () =>
       arStart(arMyTeam.length ? arMyTeam.map((f) => f.name) : arSel.slice()));
     $("#ar-item").addEventListener("click", arUseItem);
+    $("#ar-chest").addEventListener("click", () => { if (arChestDone) arChestDone(); });
     const bgmBtn = $("#ar-bgm");
     const paintBgm = () => {
       bgmBtn.textContent = bgm.on ? "🎵" : "🔇";
