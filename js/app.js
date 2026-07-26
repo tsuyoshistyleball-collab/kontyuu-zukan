@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v56";
+  const APP_VERSION = "v57";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -1043,12 +1043,7 @@
     arCenter("ポン！"); sound.blip(); await arSleep(1000);
     arHideCenter();
 
-    // どっちが なにを だしたか、ゆっくり みせる
     const r = arJudge(myHand, foeHand);
-    $("#ar-msg").textContent =
-      `じぶん ${HAND_EMOJI[myHand]}${myHand}　あいて ${HAND_EMOJI[foeHand]}${foeHand}`;
-    await arSleep(1100);
-
     if (r === 0) {
       $("#ar-me-hand").classList.add("tie");
       $("#ar-foe-hand").classList.add("tie");
