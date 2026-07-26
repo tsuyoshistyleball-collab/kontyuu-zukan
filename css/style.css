@@ -1357,6 +1357,8 @@ rt {
   width: 42px; height: 42px; border-radius: 50%; background: var(--card); color: var(--ink);
   font-size: 18px; font-weight: 800; box-shadow: 0 3px 0 var(--frame-d);
 }
+.ar-bgm { right: 64px; font-size: 19px; }
+.ar-bgm.off { opacity: .5; }
 .ar-title { font-family: "MushiTitle", var(--font); text-align: center; font-size: 26px; margin: 0; color: #ffe9a3; }
 .ar-sub { text-align: center; font-size: 14px; font-weight: 800; margin: 6px 0 2px; color: #dff0cd; }
 .ar-record { text-align: center; font-size: 13px; font-weight: 800; margin: 0 0 12px; color: #ffd36b; }

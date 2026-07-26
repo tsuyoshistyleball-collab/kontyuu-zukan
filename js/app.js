@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v64";
+  const APP_VERSION = "v65";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -1030,6 +1030,7 @@
     rubyifyDOM($("#ar-pick"));
   }
   function closeArena() {
+    bgm.stop();
     $("#arena").hidden = true;
     document.body.classList.remove("noscroll");
   }
@@ -1048,6 +1049,7 @@
     arMyIdx = 0; arFoeIdx = 0; arHeal = AR_HEAL_MAX;
     arMe = arMyTeam[0]; arFoe = arFoeTeam[0];
     arOver = false; arBusy = false;
+    bgm.start();
     $("#ar-pick").hidden = true;
     $("#ar-fight").hidden = false;
     $("#ar-end").hidden = true;
@@ -1277,6 +1279,7 @@
 
   function arFinish(iWin) {
     arOver = true; arBusy = false;
+    bgm.stop(true);
     const rec = arRecord();
     rec.play = (rec.play || 0) + 1;
     if (iWin) rec.win = (rec.win || 0) + 1;
@@ -2300,6 +2303,7 @@
     }
     return {
       get on() { return on; },
+      ctx() { return ac(); },
       toggle() { on = !on; localStorage.setItem("mz-sound", on ? "on" : "off"); if (on) this.blip(); return on; },
       fanfare(p) { if (!on) return; try { [523, 659, 784, 1047].forEach((f, i) => note(f, i * 0.12, 0.5, "triangle", 0.16)); if (clampR(p) >= 4) note(1319, 0.5, 0.7, "triangle", 0.16); if (clampR(p) >= 5) note(1568, 0.62, 0.8, "triangle", 0.16); } catch (e) {} },
       blip() { if (!on) return; try { note(880, 0, 0.16, "triangle", 0.12); note(1175, 0.08, 0.16, "triangle", 0.12); } catch (e) {} },
@@ -2415,6 +2419,150 @@
       },
     };
   })();
+
+  /* ============================================================
+     とうぎじょうの おんがく
+     ・むかしの ゲームみたいな 音で、ぜんぶ その場で つくって いる
+     ・ベース＋アルペジオ＋メロディ＋ドラム の 4パート、8小節で くりかえし
+     ============================================================ */
+  const bgm = (() => {
+    const KEY = "mz-bgm";
+    const BPM = 152;
+    const STEP = 60 / BPM / 4;          // 16ぶおんぷ 1つぶんの ながさ
+    const BARS = 8, PER_BAR = 16, LEN = BARS * PER_BAR;
+    const mid = (n) => 440 * Math.pow(2, (n - 69) / 12);
+
+    // 8小節の コード（ラ短調： Am - F - G - Am - F - G - E - E）
+    const ROOT = [45, 41, 43, 45, 41, 43, 40, 40];
+    const TRIAD = [[57, 60, 64], [53, 57, 60], [55, 59, 62], [57, 60, 64],
+                   [53, 57, 60], [55, 59, 62], [52, 56, 59], [52, 56, 59]];
+    // メロディ（0は やすみ）
+    const LEAD = [
+      [69, 0, 0, 72, 71, 0, 69, 0, 64, 0, 0, 0, 69, 0, 0, 0],
+      [65, 0, 0, 69, 67, 0, 65, 0, 60, 0, 0, 0, 65, 0, 0, 0],
+      [67, 0, 0, 71, 69, 0, 67, 0, 62, 0, 0, 0, 67, 0, 0, 0],
+      [69, 0, 72, 0, 71, 0, 69, 0, 67, 0, 69, 0, 71, 0, 72, 0],
+      [72, 0, 0, 74, 72, 0, 69, 0, 65, 0, 0, 0, 69, 0, 0, 0],
+      [74, 0, 0, 76, 74, 0, 71, 0, 67, 0, 0, 0, 71, 0, 0, 0],
+      [76, 0, 74, 0, 72, 0, 71, 0, 68, 0, 71, 0, 72, 0, 74, 0],
+      [76, 0, 0, 0, 0, 0, 0, 0, 71, 0, 72, 0, 74, 0, 76, 0],
+    ];
+    // ベース（8ぶおんぷ 8つ ぶんの かた）
+    const BASS = [0, 0, 12, 0, 0, 7, 12, 0];
+
+    let on = true;
+    try { on = localStorage.getItem(KEY) !== "off"; } catch (e) {}
+    let timer = null, step = 0, nextT = 0, master = null, playing = false;
+
+    function gainNode(c) {
+      if (!master) { master = c.createGain(); master.gain.value = 0; master.connect(c.destination); }
+      return master;
+    }
+    // かんたんな 音を 1つ ならす
+    function tone(c, out, freq, t, dur, type, gain, cutoff) {
+      const o = c.createOscillator(), g = c.createGain();
+      o.type = type; o.frequency.value = freq;
+      let last = g;
+      if (cutoff) {
+        const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = cutoff;
+        o.connect(lp); lp.connect(g);
+      } else o.connect(g);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(gain, t + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      last.connect(out);
+      o.start(t); o.stop(t + dur + 0.03);
+    }
+    function noiseHit(c, out, t, dur, hp, gain) {
+      const buf = c.createBuffer(1, Math.ceil(c.sampleRate * dur), c.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2);
+      const src = c.createBufferSource(); src.buffer = buf;
+      const f = c.createBiquadFilter(); f.type = "highpass"; f.frequency.value = hp;
+      const g = c.createGain(); g.gain.value = gain;
+      src.connect(f); f.connect(g); g.connect(out);
+      src.start(t); src.stop(t + dur + 0.02);
+    }
+    function kick(c, out, t) {
+      const o = c.createOscillator(), g = c.createGain();
+      o.type = "sine";
+      o.frequency.setValueAtTime(150, t);
+      o.frequency.exponentialRampToValueAtTime(45, t + 0.11);
+      g.gain.setValueAtTime(0.34, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+      o.connect(g); g.connect(out); o.start(t); o.stop(t + 0.2);
+    }
+
+    function playStep(i, t) {
+      const c = sound.ctx(), out = gainNode(c);
+      const bar = Math.floor(i / PER_BAR), k = i % PER_BAR;
+      // ドラム
+      if (k === 0 || k === 3 || k === 8 || k === 10 || k === 14) kick(c, out, t);
+      if (k === 4 || k === 12) noiseHit(c, out, t, 0.16, 1300, 0.16);
+      if (k % 2 === 0) noiseHit(c, out, t, 0.035, 7000, 0.05);
+      // ベース（8ぶおんぷ）
+      if (k % 2 === 0) tone(c, out, mid(ROOT[bar] + BASS[k / 2]), t, STEP * 1.7, "square", 0.11, 700);
+      // アルペジオ（16ぶおんぷ）
+      const tri = TRIAD[bar];
+      tone(c, out, mid(tri[k % 3] + (k % 6 >= 3 ? 12 : 0)), t, STEP * 0.9, "triangle", 0.05);
+      // メロディ
+      const n = LEAD[bar][k];
+      if (n) {
+        tone(c, out, mid(n), t, STEP * 2.6, "square", 0.075, 4200);
+        tone(c, out, mid(n) * 1.005, t, STEP * 2.6, "square", 0.04, 3200);   // ちょっと ずらして あつく
+      }
+      // さいごの 小節の おわりで もりあげる
+      if (bar === 7 && k >= 12) noiseHit(c, out, t, 0.09, 4000, 0.09);
+    }
+
+    function tick() {
+      const c = sound.ctx();
+      while (nextT < c.currentTime + 0.28) {
+        try { playStep(step, nextT); } catch (e) {}
+        step = (step + 1) % LEN;
+        nextT += STEP;
+      }
+    }
+
+    return {
+      get on() { return on; },
+      get playing() { return playing; },
+      toggle() {
+        on = !on;
+        try { localStorage.setItem(KEY, on ? "on" : "off"); } catch (e) {}
+        if (!on) this.stop(); else if (arenaOpen()) this.start();
+        return on;
+      },
+      start() {
+        if (!on || !sound.on || playing) return;
+        try {
+          const c = sound.ctx();
+          if (c.state === "suspended") c.resume();
+          const g = gainNode(c);
+          g.gain.cancelScheduledValues(c.currentTime);
+          g.gain.setValueAtTime(0.0001, c.currentTime);
+          g.gain.linearRampToValueAtTime(0.5, c.currentTime + 0.6);
+          step = 0; nextT = c.currentTime + 0.08;
+          playing = true;
+          tick();
+          timer = setInterval(tick, 60);
+        } catch (e) { playing = false; }
+      },
+      stop(quick) {
+        if (timer) { clearInterval(timer); timer = null; }
+        playing = false;
+        try {
+          const c = sound.ctx();
+          if (master) {
+            master.gain.cancelScheduledValues(c.currentTime);
+            master.gain.setValueAtTime(master.gain.value, c.currentTime);
+            master.gain.linearRampToValueAtTime(0.0001, c.currentTime + (quick ? 0.08 : 0.35));
+          }
+        } catch (e) {}
+      },
+    };
+  })();
+  const arenaOpen = () => !$("#arena").hidden;
 
   // ---- せってい ----
   function openSettings() {
@@ -2904,11 +3052,23 @@
     $("#arena-open").addEventListener("click", openArena);
     $("#ar-close").addEventListener("click", closeArena);
     // 「なかまを かえる」は えらび直し（せんたくを まっさらに）
-    $("#ar-back").addEventListener("click", () => { arSel = []; openArena(); });
+    $("#ar-back").addEventListener("click", () => { bgm.stop(); arSel = []; openArena(); });
     $("#ar-go").addEventListener("click", () => arStart(arSel.slice()));
     $("#ar-again").addEventListener("click", () =>
       arStart(arMyTeam.length ? arMyTeam.map((f) => f.name) : arSel.slice()));
     $("#ar-item").addEventListener("click", arUseItem);
+    const bgmBtn = $("#ar-bgm");
+    const paintBgm = () => {
+      bgmBtn.textContent = bgm.on ? "🎵" : "🔇";
+      bgmBtn.classList.toggle("off", !bgm.on);
+    };
+    paintBgm();
+    bgmBtn.addEventListener("click", () => { bgm.toggle(); paintBgm(); });
+    // アプリを うしろに やったら 音楽を とめる
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) bgm.stop(true);
+      else if (arenaOpen() && !$("#ar-fight").hidden && !arOver) bgm.start();
+    });
     $("#ar-swap").addEventListener("click", arSwapBtn);
     $("#ar-swap-cancel").addEventListener("click", () => arCloseSwap(-1));
     $$("#ar-hands .ar-hand").forEach((b) => b.addEventListener("click", () => arPlay(b.dataset.hand)));
