@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v53";
+  const APP_VERSION = "v54";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -866,26 +866,45 @@
              rarity: clampR(k.stars), photo: "", svg: k.svg, wild: true };
   }
 
-  function arCardHTML(f, side) {
-    const pic = f.photo
-      ? `<img class="arf-pic" src="${f.photo}" alt="">`
-      : `<span class="arf-pic svg">${f.svg}</span>`;
+  // ステージに たつ むし（しゃしん が なければ イラスト）
+  function arChHTML(f) {
+    return f.photo ? `<img src="${f.photo}" alt="">` : `<span class="svgbox">${f.svg}</span>`;
+  }
+  // うえの たいりょく バー
+  function arSideHTML(f) {
+    const pct = Math.max(0, Math.min(100, (f.hp / f.maxHp) * 100));
+    const cls = pct <= 20 ? " crit" : pct <= 45 ? " low" : "";
     return (
-      `<div class="arf-top">${pic}` +
-      `<div class="arf-info">` +
-        `<p class="arf-name">${escapeHtml(f.name)}${f.wild ? '<small>やせい</small>' : ""}</p>` +
-        `<div class="battle"><span class="bt-hand h-${f.hand === "グー" ? "g" : f.hand === "チョキ" ? "c" : "p"}">` +
-          `${HAND_EMOJI[f.hand] || "✊"}<b>${escapeHtml(f.hand)}</b></span>` +
-          `<span class="bt-atk">⚔️<b>${f.attack}</b></span><span class="bt-def">🛡️<b>${f.defense}</b></span></div>` +
-        `<div class="arf-bar"><i style="width:${Math.max(0, (f.hp / f.maxHp) * 100)}%"></i></div>` +
-        `<p class="arf-hp">${f.hp} / ${f.maxHp}</p>` +
-      `</div></div>`
+      `<div class="as-top"><span class="as-name">${escapeHtml(f.name)}${f.wild ? "（やせい）" : ""}</span>` +
+        `<span class="as-atk">${HAND_EMOJI[f.hand] || "✊"} ${f.attack}</span></div>` +
+      `<div class="as-bar${cls}"><i style="width:${pct}%"></i></div>` +
+      `<p class="as-hp">${f.hp} / ${f.maxHp}</p>`
     );
   }
-  function arPaint() {
-    $("#ar-foe").innerHTML = arCardHTML(arFoe, "foe");
-    $("#ar-me").innerHTML = arCardHTML(arMe, "me");
-    rubyifyDOM($("#arena"));
+  function arPaintBars() {
+    $("#ar-foe-bar").innerHTML = arSideHTML(arFoe);
+    $("#ar-me-bar").innerHTML = arSideHTML(arMe);
+    rubyifyDOM($("#ar-foe-bar")); rubyifyDOM($("#ar-me-bar"));
+  }
+  function arPaintFighters() {
+    $("#ar-foe").innerHTML = arChHTML(arFoe);
+    $("#ar-me").innerHTML = arChHTML(arMe);
+  }
+  // まんなかに おおきい もじを だす
+  function arCenter(text, cls) {
+    const el = $("#ar-center");
+    el.className = "ar-center" + (cls ? " " + cls : "");
+    el.hidden = false;
+    const b = el.querySelector("b");
+    b.textContent = text;
+    // アニメを かならず さいしょから
+    const burst = el.querySelector(".ar-burst");
+    for (const n of [b, burst]) { n.style.animation = "none"; void n.offsetWidth; n.style.animation = ""; }
+  }
+  const arHideCenter = () => { $("#ar-center").hidden = true; };
+  function arFlash() {
+    const el = $("#ar-flash");
+    el.classList.remove("on"); void el.offsetWidth; el.classList.add("on");
   }
 
   function openArena() {
@@ -938,45 +957,72 @@
     $("#ar-foe-hand").textContent = "";
     $("#ar-me-hand").textContent = "";
     $("#ar-msg").textContent = "じゃんけんを えらんでね！";
-    arPaint();
+    arHideCenter();
+    $$("#ar-hands .ar-hand").forEach((b) => b.classList.toggle("fav", b.dataset.hand === arMe.hand));
+    arPaintFighters();
+    arPaintBars();
     rubyifyDOM($("#arena"));
   }
+
+  const AR_CRY = ["ガンガン いくぜ！", "それっ！", "くらえー！", "とりゃー！", "いっけー！"];
+  const AR_OW = ["いてっ！", "うわっ…！", "きかないぞ！", "ぐぬぬ…"];
+  const AR_BAM = ["ドカッ！", "バシッ！", "ポカッ！", "ガツン！", "ズドン！"];
+  const arPick = (a) => a[Math.floor(Math.random() * a.length)];
 
   async function arPlay(myHand) {
     if (arBusy || arOver) return;
     arBusy = true;
     const foeHand = HANDS[Math.floor(Math.random() * 3)];
+    $("#ar-me-hand").textContent = "";
+    $("#ar-foe-hand").textContent = "";
+
+    // じゃん…けん…ぽん！
+    $("#ar-msg").textContent = "しょうぶ！";
+    arCenter("ジャン"); sound.blip(); await arSleep(320);
+    arCenter("ケン"); await arSleep(320);
     $("#ar-me-hand").textContent = HAND_EMOJI[myHand];
-    $("#ar-foe-hand").textContent = "❓";
-    $("#ar-msg").textContent = "さいしょは グー…！";
-    sound.blip();
-    await arSleep(450);
     $("#ar-foe-hand").textContent = HAND_EMOJI[foeHand];
+    arCenter("ポン！"); sound.blip(); await arSleep(430);
+    arHideCenter();
 
     const r = arJudge(myHand, foeHand);
     if (r === 0) {
+      arCenter("あいこ！");
       $("#ar-msg").textContent = "あいこ！ もう一度(いちど)！";
-      await arSleep(500);
+      await arSleep(650);
+      arHideCenter();
       arBusy = false;
       return;
     }
     const iWin = r === 1;
     const att = iWin ? arMe : arFoe;
     const def = iWin ? arFoe : arMe;
+    const attEl = iWin ? $("#ar-me") : $("#ar-foe");
+    const defEl = iWin ? $("#ar-foe") : $("#ar-me");
     const boosted = iWin ? myHand === arMe.hand : foeHand === arFoe.hand;
     const dmg = arDamage(att, def, boosted);
     def.hp = Math.max(0, def.hp - dmg);
 
-    $("#ar-msg").textContent =
-      (iWin ? "かった！ " : "やられた… ") +
-      (boosted ? "とくいわざ で " : "") + `${dmg} の ダメージ！`;
-    (iWin ? $("#ar-foe") : $("#ar-me")).classList.add("hit");
+    // つっこむ → ぶつかる
+    $("#ar-msg").textContent = iWin ? arPick(AR_CRY) : arPick(AR_OW);
+    attEl.classList.add("lunge");
+    await arSleep(190);
+    arFlash();
+    arCenter(boosted ? "とくいわざ！" : arPick(AR_BAM));
+    defEl.classList.add("hit");
     sound.blip();
     if (navigator.vibrate) navigator.vibrate(iWin ? [0, 40, 30, 40] : [0, 90]);
-    arPaint();
-    await arSleep(120);
-    $$("#arena .ar-fighter").forEach((el) => el.classList.remove("hit"));
-    await arSleep(500);
+    await arSleep(360);
+    attEl.classList.remove("lunge");
+    defEl.classList.remove("hit");
+
+    // ダメージの すうじ
+    arCenter(String(dmg), iWin ? "dmg" : "dmg bad");
+    arPaintBars();
+    $("#ar-msg").textContent =
+      (iWin ? "かった！ " : "やられた… ") + (boosted ? "とくいわざ で " : "") + `${dmg} の ダメージ！`;
+    await arSleep(700);
+    arHideCenter();
 
     if (def.hp <= 0) { arFinish(iWin); return; }
     $("#ar-msg").textContent = "じゃんけんを えらんでね！";
@@ -2592,7 +2638,6 @@
 
     $$(".size-btn").forEach((btn) => btn.addEventListener("click", () => applyCols(+btn.dataset.cols)));
 
-    $("#place-add").addEventListener("click", () => openPlaceModal(null));
     $("#pl-close").addEventListener("click", () => $("#place-modal").close());
     // はいけいを タップでも とじられる
     for (const id of ["#place-modal", "#settings", "#result"]) {
@@ -2610,7 +2655,10 @@
     $("#pl-delete").addEventListener("click", deletePlace);
 
     const sb = $("#sound-btn");
-    const refreshSound = () => (sb.textContent = sound.on ? "🔊" : "🔈");
+    const refreshSound = () => {
+      sb.textContent = sound.on ? "🔊 音(おと)は オン" : "🔈 音(おと)は オフ";
+      rubyifyDOM(sb);
+    };
     refreshSound();
     sb.addEventListener("click", () => { sound.toggle(); refreshSound(); });
 
