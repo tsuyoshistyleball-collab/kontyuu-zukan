@@ -1,5 +1,5 @@
 /* むしずかん — サービスワーカー（オフラインでも つかえる／あたらしい ばんに すぐ なる）*/
-const CACHE = "mushizukan-v80";
+const CACHE = "mushizukan-v81";
 const ASSETS = [
   "./",
   "./index.html",
@@ -13,6 +13,7 @@ const ASSETS = [
   "./img/fav-p.png",
   "./img/chest.png",
   "./img/wheel.png",
+  "./img/heal.png",
   "./fonts/mochiy-pop-one-jp-subset.woff2",
   "./js/data.js",
   "./js/gemini.js",

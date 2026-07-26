@@ -2131,7 +2131,25 @@ button.stm:not(:disabled):active .stm-in { transform: scale(.9); }
 }
 .ar-item:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,.4); }
 .ar-item:disabled { opacity: .45; box-shadow: 0 4px 0 rgba(0,0,0,.3); }
-.ai-dots { letter-spacing: .12em; color: #d8412f; font-size: 13px; }
+/* かいふく（絵の ボタン）。みどりの バーが のこり回数 */
+.ar-heal {
+  position: relative; flex: none; border: 0; padding: 0; background: none;
+  width: min(56vw, 220px); aspect-ratio: 520 / 164;
+  background-image: url("../img/heal.png");
+  background-size: 100% 100%; background-repeat: no-repeat;
+  filter: drop-shadow(0 4px 5px rgba(0,0,0,.55));
+  touch-action: manipulation;
+}
+.ai-used {
+  position: absolute; top: 39%; right: 18.7%; height: 24%;
+  width: calc(55% * var(--used, 0) / 2);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(10,24,6,.88), rgba(10,24,6,.72));
+  box-shadow: inset 0 0 10px rgba(0,0,0,.85);
+  transition: width .45s ease;
+}
+.ar-heal:active { transform: translateY(2px) scale(.98); }
+.ar-heal:disabled { filter: grayscale(.9) brightness(.62); }
 .ar-item.swap { background: linear-gradient(180deg,#cfe9ff,#7fb2ef); color: #17385f; }
 
 .ar-swap-sheet { position: fixed; inset: 0; z-index: 48; display: grid; place-items: center;

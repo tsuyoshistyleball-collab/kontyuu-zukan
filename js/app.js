@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v80";
+  const APP_VERSION = "v81";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -1599,9 +1599,8 @@
   function arItemPaint() {
     const b = $("#ar-item");
     b.disabled = arHeal <= 0 || arOver;
-    b.innerHTML = `🍯 かいふく <span class="ai-dots">` +
-      "●".repeat(arHeal) + "○".repeat(AR_HEAL_MAX - arHeal) + `</span>`;
-    rubyifyDOM(b);
+    // つかった ぶんだけ みどりの バーが へる（2かい ぶん）
+    b.style.setProperty("--used", String(AR_HEAL_MAX - arHeal));
   }
   async function arUseItem() {
     if (arBusy || arOver || arHeal <= 0) return;
