@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v50";
+  const APP_VERSION = "v52";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -154,15 +154,75 @@
   const say = (t) => alert(plain(t));
   const ask = (t) => confirm(plain(t));
 
+
+  /* ============================================================
+     たたかいの すうじ（こうげき・しゅび・じゃんけん）
+     ・AIが きめた すうじを 100〜900 の 10きざみに ならす
+     ・AIが こたえられなかった ときは、なまえから きまった すうじを つくる
+       （おなじ なまえなら いつでも おなじ すうじに なる）
+     ============================================================ */
+  const HANDS = ["グー", "チョキ", "パー"];
+  const HAND_EMOJI = { "グー": "✊", "チョキ": "✌️", "パー": "🖐️" };
+
+  const clampPower = (n) => {
+    let v = parseInt(n, 10);
+    if (!isFinite(v) || v <= 0) return 0;
+    v = Math.round(v / 10) * 10;
+    return Math.min(900, Math.max(100, v));
+  };
+  function normHand(h) {
+    const t = String(h || "");
+    if (/グー|ぐー|グウ|rock|石|いし/i.test(t)) return "グー";
+    if (/チョキ|ちょき|scissors|はさみ/i.test(t)) return "チョキ";
+    if (/パー|ぱー|paper|かみ/i.test(t)) return "パー";
+    return "";
+  }
+  function nameHash(name) {
+    let h = 2166136261;
+    const t = String(name || "");
+    for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+    return h;
+  }
+  // なまえと レアどから きまった すうじを つくる（AIが なくても カードが そろう）
+  function autoStats(name, rarity) {
+    const h = nameHash(name);
+    const base = 80 + clampR(rarity) * 110;                 // ★1→190、★5→630
+    const atk = clampPower(base + ((h % 15) - 7) * 20);
+    const def = clampPower(base - 30 + (((h >> 8) % 15) - 7) * 20);
+    return { attack: atk, defense: def, hand: HANDS[(h >> 16) % 3] };
+  }
+  // カードや ページに はる「たたかいの すうじ」
+  function battleRow(g, big) {
+    const el = document.createElement("div");
+    el.className = "battle" + (big ? " big" : "");
+    el.innerHTML =
+      `<span class="bt-hand h-${g.hand === "グー" ? "g" : g.hand === "チョキ" ? "c" : "p"}">` +
+        `${HAND_EMOJI[g.hand] || "✊"}<b>${escapeHtml(g.hand || "")}</b></span>` +
+      `<span class="bt-atk">⚔️<b>${g.attack}</b></span>` +
+      `<span class="bt-def">🛡️<b>${g.defense}</b></span>`;
+    return el;
+  }
+
+  function statsFor(name, rarity, src) {
+    const a = clampPower(src && src.attack);
+    const d = clampPower(src && src.defense);
+    const hd = normHand(src && src.hand);
+    if (a && d && hd) return { attack: a, defense: d, hand: hd };
+    const auto = autoStats(name, rarity);
+    return { attack: a || auto.attack, defense: d || auto.defense, hand: hd || auto.hand };
+  }
+
   function illustFor(name) {
     const hana = Zukan.id === "hana";
     const k = hana ? matchKnownFlower(name) : matchKnown(name);
     const gen = hana ? GENERIC_FLOWER : GENERIC_BUG;
     return k
       ? { svg: k.svg, color: k.color, knownId: k.id, kana: k.kana, fact: k.fact, where: k.where, rarity: k.stars,
-          family: k.family || "", trivia: k.trivia || [], habitat: k.habitat || "", season: k.season || "", food: k.food || "", size: k.size || "", care: k.care || "" }
+          family: k.family || "", trivia: k.trivia || [], habitat: k.habitat || "", season: k.season || "", food: k.food || "", size: k.size || "", care: k.care || "",
+          attack: k.attack || 0, defense: k.defense || 0, hand: k.hand || "" }
       : { svg: gen.svg, color: gen.color, knownId: null, kana: "", fact: "", where: "", rarity: 1,
-          family: "", trivia: [], habitat: "", season: "", food: "", size: "", care: "" };
+          family: "", trivia: [], habitat: "", season: "", food: "", size: "", care: "",
+          attack: 0, defense: 0, hand: "" };
   }
 
   /* ★3までだった ころの データを ★5の めもりに あわせる（1かいだけ）。
@@ -226,6 +286,8 @@
       g.season = pick("season") || "";
       g.food = pick("food") || "";
       g.size = pick("size") || "";
+      const st = statsFor(g.name, g.rarity, { attack: pick("attack"), defense: pick("defense"), hand: pick("hand") });
+      g.attack = st.attack; g.defense = st.defense; g.hand = st.hand;
       g.care = pick("care") || "";
       g.where = pick("where") || "";
       g.hasDetails = !!(g.trivia.length || g.habitat || g.care);
@@ -754,6 +816,7 @@
     const rar = document.createElement("div");
     rar.className = "card-stars s" + g.rarity; rar.textContent = stars(g.rarity);
     card.appendChild(rar);
+    card.appendChild(battleRow(g));
 
     card.addEventListener("click", () => openBook(g.name));
     return card;
@@ -1090,6 +1153,8 @@
     st.className = "page-stars";
     renderStars(st, g.rarity, (v) => setRarity(g.name, v));
     page.appendChild(st);
+    page.appendChild(battleRow(g, true));
+
     const stHint = document.createElement("p");
     stHint.className = "star-hint page-star-hint";
     stHint.textContent = "★を タップで 変(か)えられるよ";
@@ -1270,6 +1335,7 @@
         food: d.food || "",
         size: (d.size || "").trim(),
         care: d.care || "",
+        ...statsFor(name, (groups.get(name) || {}).rarity, d),
       };
       if (d.fact) patch.fact = d.fact;
       await DB.patchByName(name, patch);
@@ -1463,7 +1529,8 @@
   // ---- けっか（AIすいそく＋なまえ しゅうせい）----
   function openResult(blob, ai, err) {
     const r = { name: "", kana: "", fact: "", where: "", rarity: 1, category: "", aiName: null, confidence: null,
-                family: "", trivia: [], habitat: "", season: "", food: "", size: "", care: "" };
+                family: "", trivia: [], habitat: "", season: "", food: "", size: "", care: "",
+          attack: 0, defense: 0, hand: "" };
     if (ai && ai.is_creature && ai.name) {
       r.name = ai.name; r.kana = ai.kana || ""; r.fact = ai.fact || ""; r.where = ai.where || "";
       r.rarity = clampR(ai.rarity); r.category = ai.category || ""; r.aiName = ai.name;
@@ -1471,6 +1538,7 @@
       r.family = (ai.family || "").trim();
       r.trivia = Array.isArray(ai.trivia) ? ai.trivia.filter(Boolean) : [];
       r.habitat = ai.habitat || ""; r.season = ai.season || ""; r.food = ai.food || ""; r.size = ai.size || ""; r.care = ai.care || "";
+      r.attack = ai.attack || 0; r.defense = ai.defense || 0; r.hand = ai.hand || "";
     }
     const known = (Zukan.id === "hana") ? matchKnownFlower(r.name) : matchKnown(r.name);
     if (known) {
@@ -1481,6 +1549,9 @@
       r.season = r.season || known.season || "";
       r.food = r.food || known.food || "";
       r.size = r.size || known.size || "";
+      r.attack = r.attack || known.attack || 0;
+      r.defense = r.defense || known.defense || 0;
+      r.hand = r.hand || known.hand || "";
       r.care = r.care || known.care || "";
       if (!(ai && ai.is_creature)) r.rarity = known.stars;
     }
@@ -1496,6 +1567,7 @@
     pendingRarity = rarityFor(r.name, r.rarity);
     rarityTouched = false;
     drawResultStars();
+    drawResultBattle();
 
     const note = $("#r-note");
     note.className = "r-note";
@@ -1536,11 +1608,26 @@
     guessPlaceId().then((id) => { if (id && !$("#r-place").value) $("#r-place").value = id; });
   }
 
+  // とうろく がめんの たたかいの すうじ
+  function drawResultBattle() {
+    const box = $("#r-battle");
+    if (!box) return;
+    const name = ($("#r-name-input").value || (pendingResolved && pendingResolved.name) || "").trim();
+    const g = groups.get(name);
+    // ほぞん する ときと おなじ きめかたで だす（がめんと カードで くいちがわない ように）
+    const st = g ? { attack: g.attack, defense: g.defense, hand: g.hand }
+                 : detailsForName(name || "?", pendingResolved || {});
+    box.innerHTML = "";
+    box.appendChild(battleRow(st, true));
+    rubyifyDOM(box);
+  }
+
   function drawResultStars() {
     renderStars($("#r-stars"), pendingRarity, (v) => {
       pendingRarity = v;
       rarityTouched = true;
       drawResultStars();
+      drawResultBattle();
       sound.blip();
     });
   }
@@ -1561,15 +1648,22 @@
         trivia: (known.trivia || []).slice(0, 4),
         habitat: known.habitat || "", season: known.season || "",
         food: known.food || "", size: known.size || "", care: known.care || "",
+        ...statsFor(name, known.stars, known),
       };
     }
     const sameAsAi = r.aiName && _norm(name) === _norm(r.aiName);
-    if (!sameAsAi) return { where: "", family: "", trivia: [], habitat: "", season: "", food: "", size: "", care: "" };
+    if (!sameAsAi) {
+      const g0 = groups.get(name);
+      const keep = g0 ? { attack: g0.attack, defense: g0.defense, hand: g0.hand } : null;
+      return Object.assign({ where: "", family: "", trivia: [], habitat: "", season: "", food: "", size: "", care: "" },
+        keep || statsFor(name, pendingRarity, null));
+    }
     return {
       where: r.where || "", family: r.family || "",
       trivia: Array.isArray(r.trivia) ? r.trivia.slice(0, 4) : [],
       habitat: r.habitat || "", season: r.season || "",
       food: r.food || "", size: r.size || "", care: r.care || "",
+      ...statsFor(name, pendingRarity, r),
     };
   }
 
@@ -1592,9 +1686,11 @@
   function onResultNameInput(name) {
     updateResultIllust(name);
     const r = pendingResolved || {};
+    drawResultBattle();
     if (rarityTouched) return;   // てで えらんだ ★は そのまま
     pendingRarity = rarityFor(name, r.rarity);
     drawResultStars();
+    drawResultBattle();
   }
 
   async function saveResult() {

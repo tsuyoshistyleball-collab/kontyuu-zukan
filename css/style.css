@@ -244,7 +244,15 @@ main { max-width: 760px; margin: 0 auto; }
   position: absolute; left: 5px; top: 5px; background: var(--terra); color: #fff;
   font-size: 12px; font-weight: 800; padding: 2px 8px; border-radius: 999px; box-shadow: 0 2px 0 var(--terra-d);
 }
-.card-name { font-size: 15px; font-weight: 900; line-height: 1.15; color: var(--ink); }
+.card-name {
+  /* なまえが 1ぎょうでも 2ぎょうでも、したの ★や すうじの いちが そろう ように
+     たかさを 2ぎょうぶんで こていする */
+  font-size: 15px; font-weight: 900; color: var(--ink);
+  height: 2.5em; width: 100%;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  overflow: hidden; word-break: break-word;
+  align-content: start;
+}
 .card-stars { font-size: 13px; letter-spacing: 1px; line-height: 1; }
 .card-stars.s1 { color: #8fbf6a; }
 .card-stars.s2 { color: #7ec8a9; }
@@ -818,7 +826,7 @@ body.noscroll .card::before { animation: none !important; }
 #sections[data-cols="4"] .grid, #sections[data-cols="5"] .grid { gap: 8px; padding: 0 10px; }
 #sections[data-cols="4"] .card, #sections[data-cols="5"] .card { border-radius: 15px; padding: 6px 4px 8px; gap: 4px; }
 #sections[data-cols="4"] .card::after, #sections[data-cols="5"] .card::after { inset: 3px; border-radius: 11px; border-width: 1.5px; }
-#sections[data-cols="4"] .card-name, #sections[data-cols="5"] .card-name { font-size: 11px; }
+#sections[data-cols="4"] .card-name, #sections[data-cols="5"] .card-name { font-size: 11px; height: 2.6em; }
 #sections[data-cols="4"] .card-badge, #sections[data-cols="5"] .card-badge { width: 22px; height: 22px; padding: 3px; }
 #sections[data-cols="4"] .card-stars { font-size: 11px; letter-spacing: 0; }
 #sections[data-cols="5"] .card-stars { font-size: 9px; letter-spacing: 0; }
@@ -1000,7 +1008,7 @@ body.noscroll .card::before { animation: none !important; }
 .place-name {
   font-size: 13px; font-weight: 900; color: var(--ink); line-height: 1.28;
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
-  overflow: hidden; word-break: break-word; align-self: center;
+  overflow: hidden; word-break: break-word; align-self: start; width: 100%;
 }
 .place-visits {
   font-size: 11px; font-weight: 800; color: #fff; background: var(--green);
@@ -1268,10 +1276,11 @@ rt {
 /* ルビの ぶんだけ ぎょうかんを ひろげる */
 .page-fact, .info-trivia li, .info-val, .info-label, .m-fact, .m-hint,
 .page-info, .r-note, .sheet-title, .progress-msg, .info-empty,
-.card-name, .place-name, .page-meta, .page-place, .s-lead, .s-help, .s-note,
+.page-meta, .page-place, .s-lead, .s-help, .s-note,
 .s-toggle-text, .cel-sub, .toast-text, .mini-note, .empty p {
   line-height: 2.05;
 }
+.card-name, .place-name { line-height: 1.25; }
 .logo, .page-name, .cel-name { line-height: 1.75; }
 .sec-title, .zp-title, .info-head, .level-title { line-height: 1.9; }
 .fab, .r-save, .r-cancel, .page-again, .page-delete, .sheet-btn,
@@ -1300,3 +1309,34 @@ rt {
 .s-backup-btn.share { background: linear-gradient(180deg,#8fd07a,#4c9a3a); color: #fff; box-shadow: 0 4px 0 #397a2a; }
 .s-help.handover { margin-top: 14px; }
 .s-help.handover ol { margin: 6px 0 4px 18px; }
+
+/* ---------- たたかいの すうじ（こうげき・しゅび・じゃんけん）---------- */
+.battle {
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  margin-top: 3px; font-weight: 900; font-size: 10.5px; line-height: 1;
+  flex-wrap: nowrap; white-space: nowrap;
+}
+.battle span { display: inline-flex; align-items: center; gap: 2px;
+  padding: 2px 6px; border-radius: 999px; background: var(--paper2); color: var(--ink); }
+.battle b { font-weight: 900; font-size: 11px; }
+.battle .bt-atk { background: #ffe0d6; color: #b8452a; }
+.battle .bt-def { background: #d9e8ff; color: #2f5c9e; }
+.battle .bt-hand b { display: none; }
+.battle .bt-hand.h-g { background: #ffe7c2; }
+.battle .bt-hand.h-c { background: #e0f0d0; }
+.battle .bt-hand.h-p { background: #f2ddf5; }
+
+/* 図鑑ページ・とうろく画面は おおきく */
+.battle.big { gap: 8px; margin-top: 12px; font-size: 15px; }
+.battle.big span { padding: 6px 13px; border-radius: 14px; box-shadow: 0 2px 0 rgba(120,90,50,.22); }
+.battle.big b { font-size: 19px; letter-spacing: .02em; }
+.battle.big .bt-hand b { display: inline; font-size: 14px; }
+.r-battle { display: flex; justify-content: center; margin-top: 10px; }
+
+/* カードが ちいさい ときは じゃんけんだけ */
+#sections[data-cols="4"] .battle .bt-atk, #sections[data-cols="4"] .battle .bt-def,
+#sections[data-cols="5"] .battle .bt-atk, #sections[data-cols="5"] .battle .bt-def {
+  padding: 2px 4px; font-size: 9px;
+}
+#sections[data-cols="5"] .battle { gap: 3px; font-size: 9px; }
+#sections[data-cols="5"] .battle b { font-size: 9.5px; }
