@@ -12,6 +12,9 @@ const DB = (() => {
   let backend = null; // "idb" | "ls"
   let idb = null;
   let ready = null;
+  let colId = "mushi";                       // いまの ずかん（mushi / hana）
+  const recCol = (r) => (r && r.col) || "mushi";
+  function setCollection(id) { colId = (id === "hana") ? "hana" : "mushi"; }
 
   // ---------- きょうつう ヘルパー ----------
   function blobToDataURL(blob) {
@@ -76,10 +79,11 @@ const DB = (() => {
   function idbStore(mode) { return idb.transaction("captures", mode).objectStore("captures"); }
 
   async function idbAdd(rec) {
-    let toStore = rec;
+    let toStore = Object.assign({ col: colId }, rec);
+    if (!toStore.col) toStore.col = colId;
     if (rec && rec.blob instanceof Blob) {
       const buf = await rec.blob.arrayBuffer();
-      toStore = Object.assign({}, rec, { img: buf, mime: rec.blob.type || "image/jpeg" });
+      toStore = Object.assign({}, toStore, { img: buf, mime: rec.blob.type || "image/jpeg" });
       delete toStore.blob;
     }
     return new Promise((resolve, reject) => {
@@ -109,7 +113,7 @@ const DB = (() => {
       const req = idbStore("readwrite").openCursor();
       req.onsuccess = (e) => {
         const cur = e.target.result; if (!cur) return resolve();
-        if (cur.value.name === oldName) { const v = cur.value; v.name = newName; cur.update(v); }
+        if (cur.value.name === oldName && recCol(cur.value) === colId) { const v = cur.value; v.name = newName; cur.update(v); }
         cur.continue();
       };
       req.onerror = () => reject(req.error);
@@ -123,14 +127,14 @@ const DB = (() => {
       const req = idbStore("readwrite").openCursor();
       req.onsuccess = (e) => {
         const cur = e.target.result; if (!cur) return resolve();
-        if (cur.value.name === name) cur.update(Object.assign({}, cur.value, patch));
+        if (cur.value.name === name && recCol(cur.value) === colId) cur.update(Object.assign({}, cur.value, patch));
         cur.continue();
       };
       req.onerror = () => reject(req.error);
     });
   }
   function lsPatchByName(name, patch) {
-    lsWrite(lsRead().map((r) => (r.name === name ? Object.assign({}, r, patch) : r)));
+    lsWrite(lsRead().map((r) => (r.name === name && recCol(r) === colId ? Object.assign({}, r, patch) : r)));
     return Promise.resolve();
   }
 
@@ -142,7 +146,8 @@ const DB = (() => {
     const id = arr.reduce((m, r) => Math.max(m, r.id || 0), 0) + 1;
     let imgData = rec.imgData;
     if (rec.blob instanceof Blob) imgData = await blobToDataURL(rec.blob);
-    const row = Object.assign({}, rec, { id, imgData });
+    const row = Object.assign({ col: colId }, rec, { id, imgData });
+    if (!row.col) row.col = colId;
     delete row.blob;
     arr.push(row);
     lsWrite(arr); // QuotaExceededError は そのまま なげる
@@ -153,7 +158,7 @@ const DB = (() => {
   }
   function lsRemove(id) { lsWrite(lsRead().filter((r) => r.id !== id)); return Promise.resolve(); }
   function lsRename(oldName, newName) {
-    lsWrite(lsRead().map((r) => (r.name === oldName ? Object.assign({}, r, { name: newName }) : r)));
+    lsWrite(lsRead().map((r) => (r.name === oldName && recCol(r) === colId ? Object.assign({}, r, { name: newName }) : r)));
     return Promise.resolve();
   }
 
@@ -174,7 +179,8 @@ const DB = (() => {
 
   // ---------- こうかい API ----------
   async function add(rec) { await init(); return backend === "idb" ? idbAdd(rec) : lsAdd(rec); }
-  async function getAll() { await init(); return backend === "idb" ? idbGetAll() : lsGetAll(); }
+  async function getAllRaw() { await init(); return backend === "idb" ? idbGetAll() : lsGetAll(); }
+  async function getAll() { return (await getAllRaw()).filter((r) => recCol(r) === colId); }
   async function remove(id) { await init(); return backend === "idb" ? idbRemove(id) : lsRemove(id); }
   async function renameGroup(o, n) { await init(); return backend === "idb" ? idbRename(o, n) : lsRename(o, n); }
   async function patchByName(name, patch) { await init(); return backend === "idb" ? idbPatchByName(name, patch) : lsPatchByName(name, patch); }
@@ -196,5 +202,5 @@ const DB = (() => {
 
   async function mode() { await init(); return backend; }
 
-  return { add, getAll, remove, renameGroup, patchByName, reset, mode };
+  return { add, getAll, getAllRaw, remove, renameGroup, patchByName, reset, mode, setCollection };
 })();

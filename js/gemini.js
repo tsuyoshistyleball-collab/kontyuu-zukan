@@ -22,21 +22,39 @@ const Gemini = (() => {
     });
   }
 
-  const PROMPT = [
-    "あなたは こども向けの こんちゅう ずかんの アシスタントです。",
-    "この しゃしんに うつっている いきもの（むし・こんちゅう・くも・かたつむり・かえる など）が なにか みてください。",
-    "4さいの こどもが よめるように、こたえは やさしい ひらがな で かいてください。",
-    "つぎの JSON だけを かえして ください：",
-    "- name: いちばん ありそうな なまえ（ひらがな。れい: かぶとむし）",
-    "- kana: カタカナの なまえ（れい: カブトムシ）",
-    "- is_creature: しゃしんに むし等の いきものが いるなら true、いないなら false",
-    "- confidence: どれくらい じしんが あるか 0.0〜1.0 の すうじ",
-    "- rarity: めずらしさ 1〜3（1=よく みる、2=ときどき、3=めずらしい）",
-    "- fact: その むしの おもしろい ひとこと（やさしい ひらがな、みじかく）",
-    "- where: どこで みつかるか（やさしい ひらがな、みじかく）",
-    "- category: なかまわけ。つぎの どれか ひとつ： こうちゅう / ちょう・が / とんぼ / せみ / ばった・かまきり / はち・あり / くも / かたつむり / みずのむし / かえる・いきもの / そのほか",
-    "いきものが いない ときは name を からっぽ、is_creature を false にして ください。",
-  ].join("\n");
+  const PROMPTS = {
+    mushi: [
+      "あなたは こども向けの こんちゅう ずかんの アシスタントです。",
+      "この しゃしんに うつっている いきもの（むし・こんちゅう・くも・かたつむり・かえる など）が なにか みてください。",
+      "4さいの こどもが よめるように、こたえは やさしい ひらがな で かいてください。",
+      "つぎの JSON だけを かえして ください：",
+      "- name: いちばん ありそうな なまえ（ひらがな。れい: かぶとむし）",
+      "- kana: カタカナの なまえ（れい: カブトムシ）",
+      "- is_creature: しゃしんに むし等の いきものが いるなら true、いないなら false",
+      "- confidence: どれくらい じしんが あるか 0.0〜1.0 の すうじ",
+      "- rarity: めずらしさ 1〜3（1=よく みる、2=ときどき、3=めずらしい）",
+      "- fact: その むしの おもしろい ひとこと（やさしい ひらがな、みじかく）",
+      "- where: どこで みつかるか（やさしい ひらがな、みじかく）",
+      "- category: なかまわけ。つぎの どれか ひとつ： こうちゅう / ちょう・が / とんぼ / せみ / ばった・かまきり / はち・あり / くも / かたつむり / みずのむし / かえる・いきもの / そのほか",
+      "いきものが いない ときは name を からっぽ、is_creature を false にして ください。",
+    ].join("\n"),
+    hana: [
+      "あなたは こども向けの しょくぶつ（おはな）ずかんの アシスタントです。",
+      "この しゃしんに うつっている しょくぶつ（おはな・くさ・はっぱ・き・きのみ・どんぐり・きのこ など）が なにか みてください。",
+      "4さいの こどもが よめるように、こたえは やさしい ひらがな で かいてください。",
+      "つぎの JSON だけを かえして ください：",
+      "- name: いちばん ありそうな なまえ（ひらがな。れい: たんぽぽ）",
+      "- kana: カタカナの なまえ（れい: タンポポ）",
+      "- is_creature: しゃしんに しょくぶつ等が うつって いるなら true、ないなら false",
+      "- confidence: どれくらい じしんが あるか 0.0〜1.0 の すうじ",
+      "- rarity: めずらしさ 1〜3（1=よく みる、2=ときどき、3=めずらしい）",
+      "- fact: その おはなの おもしろい ひとこと（やさしい ひらがな、みじかく）",
+      "- where: どこで みつかるか・いつ さくか（やさしい ひらがな、みじかく）",
+      "- category: なかまわけ。つぎの どれか ひとつ： きの おはな / みちばたの おはな / にわの おはな / はっぱ・くさ / み・たね・どんぐり / きのこ / そのほか",
+      "しょくぶつが ない ときは name を からっぽ、is_creature を false にして ください。",
+    ].join("\n"),
+  };
+  const promptFor = (kind) => PROMPTS[kind === "hana" ? "hana" : "mushi"];
 
   const SCHEMA = {
     type: "OBJECT",
@@ -79,14 +97,14 @@ const Gemini = (() => {
   const MAX_RETRY = 2;
   const MAX_WAIT_S = 40;
 
-  async function identify(blob, key, model, onWait) {
+  async function identify(blob, key, model, onWait, kind) {
     if (!key) throw new Error("NO_KEY");
     const b64 = await blobToBase64(blob);
     const body = {
       contents: [
         {
           parts: [
-            { text: PROMPT },
+            { text: promptFor(kind) },
             { inline_data: { mime_type: "image/jpeg", data: b64 } },
           ],
         },
@@ -171,7 +189,10 @@ const Gemini = (() => {
 
 
   // なまえの リストを まとめて なかまわけ（もじだけ・やすい）
-  const CATS = "こうちゅう / ちょう・が / とんぼ / せみ / ばった・かまきり / はち・あり / くも / かたつむり / みずのむし / かえる・いきもの / そのほか";
+  const CATS = {
+    mushi: "こうちゅう / ちょう・が / とんぼ / せみ / ばった・かまきり / はち・あり / くも / かたつむり / みずのむし / かえる・いきもの / そのほか",
+    hana: "きの おはな / みちばたの おはな / にわの おはな / はっぱ・くさ / み・たね・どんぐり / きのこ / そのほか",
+  };
   const CLASSIFY_SCHEMA = {
     type: "OBJECT",
     properties: {
@@ -187,13 +208,15 @@ const Gemini = (() => {
     required: ["items"],
   };
 
-  async function classifyNames(names, key, model) {
+  async function classifyNames(names, key, model, kind) {
     if (!key) throw new Error("NO_KEY");
     if (!names || !names.length) return {};
+    const isHana = kind === "hana";
     const prompt =
-      "つぎの いきものの なまえを、それぞれ なかまわけ して ください。\n" +
-      "なかまわけは かならず つぎの どれか ひとつ：" + CATS + "\n" +
-      "むし以外（かえる・とかげ など）は「かえる・いきもの」に して ください。\n" +
+      (isHana ? "つぎの しょくぶつの なまえを、" : "つぎの いきものの なまえを、") +
+      "それぞれ なかまわけ して ください。\n" +
+      "なかまわけは かならず つぎの どれか ひとつ：" + (isHana ? CATS.hana : CATS.mushi) + "\n" +
+      (isHana ? "" : "むし以外（かえる・とかげ など）は「かえる・いきもの」に して ください。\n") +
       "なまえ：\n" + names.map((n) => "- " + n).join("\n");
     const resp = await fetch(endpoint(model || DEFAULT_MODEL, key), {
       method: "POST",

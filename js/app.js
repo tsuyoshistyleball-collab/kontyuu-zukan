@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v33";
+  const APP_VERSION = "v34";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -18,6 +18,21 @@
   let pendingResolved = null;
   let pendingRarity = 1;      // とうろく画面で えらんだ ★の かず
   let rarityTouched = false;  // てで かえたら AIの すいそくで うわがきしない
+
+  // ---- ずかんの きりかえ（むし / おはな）----
+  const Zukan = {
+    get id() {
+      const v = localStorage.getItem("mz-zukan");
+      return v === "hana" ? "hana" : "mushi";
+    },
+    set id(v) {
+      const id = v === "hana" ? "hana" : "mushi";
+      try { localStorage.setItem("mz-zukan", id); } catch (e) {}
+      setZukanKind(id);
+      DB.setCollection(id);
+    },
+    get meta() { return zukanMeta(this.id); },
+  };
 
   const Settings = {
     get key() { return localStorage.getItem("mz-gemini-key") || ""; },
@@ -50,11 +65,30 @@
   };
   const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+  // ひょうしに する しゃしん（なまえ → その しゃしんの ひづけ）
+  const Covers = {
+    get all() { try { return JSON.parse(localStorage.getItem("mz-covers") || "{}"); } catch (e) { return {}; } },
+    key(name) { return Zukan.id + "|" + name; },
+    get(name) { return this.all[this.key(name)] || 0; },
+    set(name, date) {
+      const m = this.all, k = this.key(name);
+      if (date) m[k] = date; else delete m[k];
+      try { localStorage.setItem("mz-covers", JSON.stringify(m)); } catch (e) {}
+    },
+    rename(oldName, newName) {
+      const m = this.all, a = this.key(oldName), b = this.key(newName);
+      if (m[a] != null) { m[b] = m[a]; delete m[a]; }
+      try { localStorage.setItem("mz-covers", JSON.stringify(m)); } catch (e) {}
+    },
+  };
+
   function illustFor(name) {
-    const k = matchKnown(name);
+    const hana = Zukan.id === "hana";
+    const k = hana ? matchKnownFlower(name) : matchKnown(name);
+    const gen = hana ? GENERIC_FLOWER : GENERIC_BUG;
     return k
       ? { svg: k.svg, color: k.color, knownId: k.id, kana: k.kana, fact: k.fact, where: k.where, rarity: k.stars }
-      : { svg: GENERIC_BUG.svg, color: GENERIC_BUG.color, knownId: null, kana: "", fact: "", where: "", rarity: 1 };
+      : { svg: gen.svg, color: gen.color, knownId: null, kana: "", fact: "", where: "", rarity: 1 };
   }
 
   // ---- データ ----
@@ -71,6 +105,9 @@
     for (const g of groups.values()) {
       g.list.sort((a, b) => a.date - b.date);
       g.latest = g.list[g.list.length - 1];
+      // ひょうしの しゃしん（えらんで いなければ いちばん あたらしい もの）
+      const cd = Covers.get(g.name);
+      g.cover = (cd && g.list.find((c) => c.date === cd)) || g.latest;
       const rep = g.latest;
       const k = matchKnown(g.name);
       g.rarity = clampR(rep.rarity || (k ? k.stars : 1));
@@ -90,7 +127,7 @@
       byCat.get(cat).push(g);
     }
     const out = [];
-    for (const catId of CATEGORY_ORDER) {
+    for (const catId of categoryOrderFor()) {
       if (byCat.has(catId)) out.push({ catId, groups: byCat.get(catId).sort((a, b) => b.lastDate - a.lastDate) });
     }
     return out;
@@ -99,18 +136,63 @@
   // ---- レベル（10しゅるいごとに アップ・じょうげんなし）----
   const PER_LEVEL = 10;
   const levelOf = (n) => Math.floor(n / PER_LEVEL) + 1;
-  const LEVEL_TITLES = [
-    "むしみつけ みならい",   // Lv1
-    "むしみつけ たんてい",   // Lv2
-    "むし ハンター",         // Lv3
-    "むし はかせ",           // Lv4
-    "むし マスター",         // Lv5
-    "むし キング",           // Lv6
-    "むし レジェンド",       // Lv7
+  const LEVEL_TITLES_FALLBACK = [
+    "みならい", "たんてい", "ハンター", "はかせ", "マスター", "キング", "レジェンド"
   ];
-  const levelTitle = (lv) =>
-    LEVEL_TITLES[Math.min(lv, LEVEL_TITLES.length) - 1] +
-    (lv > LEVEL_TITLES.length ? " ⭐️" + (lv - LEVEL_TITLES.length + 1) : "");
+  const levelTitle = (lv) => {
+    const t = Zukan.meta.levels || LEVEL_TITLES_FALLBACK;
+    return t[Math.min(lv, t.length) - 1] + (lv > t.length ? " ⭐️" + (lv - t.length + 1) : "");
+  };
+
+  // ---- ずかんの きりかえ ----
+  function applyZukanChrome() {
+    const z = Zukan.meta;
+    document.body.dataset.zukan = z.id;
+    const le = $("#logo-emoji"); if (le) le.textContent = z.emoji;
+    const lt = $("#logo-text"); if (lt) lt.textContent = z.title;
+    const ps = $("#plate-sub"); if (ps) ps.textContent = z.sub;
+    const fb = $("#fab-text"); if (fb) fb.textContent = z.fab;
+    const bb = $("#bar-bug"); if (bb) bb.textContent = z.emoji;
+    document.title = z.title;
+  }
+  async function switchZukan(id) {
+    if (id === Zukan.id) { closeZukanSheet(); return; }
+    closeZukanSheet();
+    Zukan.id = id;
+    applyZukanChrome();
+    $("#loading").hidden = false;
+    try { await reload(); } catch (e) { console.error("switch zukan:", e); }
+    renderProgress(); renderGrid(); renderPlaces();
+    $("#loading").hidden = true;
+    sound.blip();
+    miniNote(`${Zukan.meta.emoji} ${Zukan.meta.title}に きりかえたよ！`);
+  }
+  async function openZukanSheet() {
+    const list = $("#zukan-list");
+    list.innerHTML = "";
+    // それぞれ なんしゅるい あつめたか かぞえる
+    let counts = {};
+    try {
+      const rows = await DB.getAllRaw();
+      for (const z of ZUKANS) {
+        counts[z.id] = new Set(rows.filter((r) => (r.col || "mushi") === z.id).map((r) => r.name)).size;
+      }
+    } catch (e) {}
+    for (const z of ZUKANS) {
+      const b = document.createElement("button");
+      b.className = "zukan-pick" + (z.id === Zukan.id ? " active" : "");
+      b.dataset.zukan = z.id;
+      b.innerHTML =
+        `<span class="zp-emoji">${z.emoji}</span>` +
+        `<span class="zp-body"><span class="zp-title">${escapeHtml(z.title)}</span>` +
+        `<span class="zp-sub">${counts[z.id] ? counts[z.id] + "しゅるい あつめたよ" : "まだ からっぽ"}</span></span>` +
+        (z.id === Zukan.id ? `<span class="zp-now">いま</span>` : "");
+      b.addEventListener("click", () => switchZukan(z.id));
+      list.appendChild(b);
+    }
+    $("#zukan-sheet").hidden = false;
+  }
+  function closeZukanSheet() { $("#zukan-sheet").hidden = true; }
 
   // ---- ヘッダー ----
   function renderProgress() {
@@ -132,8 +214,8 @@
 
     // はげましの ことばは さいしょだけ（ばしょを ひろく つかう）
     const msg = $("#progress-msg");
-    if (n === 0) { msg.textContent = "むしを みつけて しゃしんを とろう！"; msg.hidden = false; }
-    else if (n === 1) { msg.textContent = "さいしょの むし ゲット！ つぎは なにかな？"; msg.hidden = false; }
+    if (n === 0) { msg.textContent = Zukan.meta.hint0; msg.hidden = false; }
+    else if (n === 1) { msg.textContent = Zukan.meta.hint1; msg.hidden = false; }
     else msg.hidden = true;
     $("#api-hint").hidden = !!Settings.key;
     $("#book-open").hidden = n === 0;
@@ -475,7 +557,7 @@
     if (sections.length === 0) {
       wrap.innerHTML =
         `<div class="empty"><div class="empty-bug">🔍🐛</div>
-         <p>まだ ずかんは からっぽ。<br>したの ボタンで むしの しゃしんを とってみよう！</p>
+         <p>まだ ずかんは からっぽ。<br>${Zukan.meta.empty}</p>
          <div class="empty-arrow">⬇︎</div></div>`;
       return;
     }
@@ -511,7 +593,7 @@
     const media = document.createElement("div");
     media.className = "card-media";
     const img = document.createElement("img");
-    img.src = urlFor(g.latest.blob); img.alt = g.name; img.loading = "lazy";
+    img.src = urlFor(g.cover.blob); img.alt = g.name; img.loading = "lazy";
     media.appendChild(img);
     const badge = document.createElement("div");
     badge.className = "card-badge"; badge.innerHTML = ill.svg;
@@ -582,7 +664,7 @@
     const pw = document.createElement("div");
     pw.className = "page-photo-wrap";
     const img = document.createElement("img");
-    img.className = "page-photo"; img.src = urlFor(g.latest.blob); img.alt = g.name;
+    img.className = "page-photo"; img.src = urlFor(g.cover.blob); img.alt = g.name;
     pw.appendChild(img);
     const badge = document.createElement("div");
     badge.className = "page-badge"; badge.innerHTML = ill.svg;
@@ -630,6 +712,7 @@
       if (v === g.name) { renameRow.hidden = true; nameRow.hidden = false; return; }
       await DB.renameGroup(g.name, v);
       await DB.patchByName(v, { aiCategory: "" });
+      Covers.rename(g.name, v);
       await afterChange(v, true);
     });
 
@@ -657,7 +740,14 @@
     gal.className = "page-gallery";
     for (const c of [...g.list].reverse()) {
       const cell = document.createElement("div"); cell.className = "g-cell";
+      if (c.date === g.cover.date) cell.classList.add("is-cover");
       const gi = document.createElement("img"); gi.src = urlFor(c.blob); gi.alt = g.name; cell.appendChild(gi);
+      // ひょうしに する（★を タップ）
+      const cov = document.createElement("button");
+      cov.className = "g-cover"; cov.textContent = c.date === g.cover.date ? "★" : "☆";
+      cov.title = "この しゃしんを カードの ひょうしに する";
+      cov.addEventListener("click", (e) => { e.stopPropagation(); setCover(g.name, c.date); });
+      cell.appendChild(cov);
       const dl = document.createElement("button"); dl.className = "g-save"; dl.textContent = "⬇"; dl.title = "この しゃしんを たんまつに ほぞん";
       dl.addEventListener("click", (e) => { e.stopPropagation(); downloadCapture(c, g.name); });
       cell.appendChild(dl);
@@ -675,7 +765,7 @@
     page.appendChild(again);
 
     const del = document.createElement("button");
-    del.className = "page-delete"; del.textContent = "🗑️ この むしを ずかんから けす";
+    del.className = "page-delete"; del.textContent = Zukan.meta.delGroup;
     del.addEventListener("click", () => deleteGroup(g.name));
     page.appendChild(del);
 
@@ -690,6 +780,17 @@
     return page;
   }
 
+
+  // カードの ひょうしに する しゃしんを えらぶ
+  async function setCover(name, date) {
+    const g = groups.get(name);
+    if (!g) return;
+    // おなじ ★を もう いちど おしたら「いちばん あたらしい しゃしん」に もどす
+    Covers.set(name, Covers.get(name) === date ? 0 : date);
+    sound.blip();
+    await afterChange(name, true);
+    miniNote("★ ひょうしの しゃしんを かえたよ！");
+  }
 
   // ★の かずを かえて ほぞん（おなじ なまえ ぜんぶ）
   async function setRarity(name, v) {
@@ -711,6 +812,7 @@
     try {
       for (const c of g.list.slice()) { await DB.remove(c.id); }
     } catch (e) { console.error("delete group:", e); }
+    Covers.set(name, 0);
     $("#loading").hidden = true;
     await afterChange(name, true);
   }
@@ -794,7 +896,7 @@
     if (!key) { openResult(blob, null, "NO_KEY"); return; }
     startThinking(blob);
     try {
-      const ai = await Gemini.identify(blob, key, Settings.model, onAiWait);
+      const ai = await Gemini.identify(blob, key, Settings.model, onAiWait, Zukan.id);
       stopThinking();
       openResult(blob, ai, null);
     } catch (err) {
@@ -818,24 +920,19 @@
   }
 
   // ---- とうろく中の えんしゅつ ----
-  const THINK_MSGS = [
-    "AIが むしを しらべているよ！",
-    "どんな むしかな…？",
-    "ずかんを めくって さがしてるよ📖",
-    "はっぱの うらまで かくにん中🍃",
-    "もうすこしで わかるよ！",
-  ];
+  const thinkMsgs = () => Zukan.meta.think;
   function startThinking(blob) {
     const t = $("#thinking");
     $("#think-photo").src = urlFor(blob);
     let i = 0;
-    $("#think-sub").textContent = THINK_MSGS[0];
+    const msgs = thinkMsgs();
+    $("#think-sub").textContent = msgs[0];
     clearInterval(startThinking._t);
     startThinking._t = setInterval(() => {
-      i = (i + 1) % THINK_MSGS.length;
+      i = (i + 1) % msgs.length;
       const el = $("#think-sub");
       el.style.opacity = "0";
-      setTimeout(() => { el.textContent = THINK_MSGS[i]; el.style.opacity = "1"; }, 180);
+      setTimeout(() => { el.textContent = msgs[i]; el.style.opacity = "1"; }, 180);
     }, 1800);
     t.hidden = false;
   }
@@ -913,7 +1010,7 @@
     } else if (err) {
       note.classList.add("warn"); note.innerHTML = "AIが つかえなかったよ。なまえを てで いれてね。" + detail(err);
     } else if (ai && !ai.is_creature) {
-      note.classList.add("warn"); note.textContent = "むしが みつからなかったかも。なまえを いれてね。";
+      note.classList.add("warn"); note.textContent = Zukan.meta.notFound;
     } else if (ai) {
       const pct = r.confidence != null ? Math.round(r.confidence * 100) : null;
       note.innerHTML = `🤖 AIの すいそく：<b>${escapeHtml(r.name)}</b>` + (pct != null ? `（じしん ${pct}%）` : "") + "<br><span class='r-note-sub'>ちがったら なまえを なおしてね</span>";
@@ -1113,11 +1210,11 @@
     const key = Settings.key;
     if (!key) { out.textContent = "さきに APIキーを いれてね"; out.className = "s-test-result warn"; return; }
     const names = [...groups.keys()];
-    if (!names.length) { out.textContent = "まだ むしが いないよ"; out.className = "s-test-result warn"; return; }
+    if (!names.length) { out.textContent = `まだ ${Zukan.meta.one}が いないよ`; out.className = "s-test-result warn"; return; }
     out.textContent = `AIが ${names.length}しゅるいを しらべているよ…`;
     out.className = "s-test-result";
     try {
-      const map = await Gemini.classifyNames(names, key, Settings.model);
+      const map = await Gemini.classifyNames(names, key, Settings.model, Zukan.id);
       let changed = 0;
       for (const name of names) {
         const label = map[name];
@@ -1175,32 +1272,27 @@
   const SIG_KEY = "mz-backup-sig";     // さいごに ほぞんした データの しるし
   const AUTO_EVERY = 6 * 60 * 60 * 1000;
   const autoBackupOn = () => { try { return localStorage.getItem(AUTO_KEY) !== "0"; } catch (e) { return true; } };
-  function dataSig() {
-    let newest = 0;
-    for (const c of captures) if (c.date > newest) newest = c.date;
-    return `${captures.length}|${newest}|${Places.all.length}`;
-  }
-  function markBackedUp() {
+  function markBackedUp(sig) {
     try {
       localStorage.setItem(BACKUP_KEY, String(Date.now()));
-      localStorage.setItem(SIG_KEY, dataSig());
+      if (sig) localStorage.setItem(SIG_KEY, sig);
     } catch (e) {}
     updateBackupHint();
   }
   // データが かわって、まえの じどう ほぞんから じかんが たっていたら ほぞんする
   async function maybeAutoBackup() {
-    if (!autoBackupOn() || !captures.length) return;
+    if (!autoBackupOn()) return;
     let last = 0, lastSig = "";
     try {
       last = parseInt(localStorage.getItem(BACKUP_KEY) || "0", 10) || 0;
       lastSig = localStorage.getItem(SIG_KEY) || "";
     } catch (e) {}
-    if (dataSig() === lastSig) return;                       // なにも かわっていない
     if (last && Date.now() - last < AUTO_EVERY) return;       // まだ はやい
     try {
-      const { blob, count } = await buildBackup();
+      const { blob, count, sig } = await buildBackup();
+      if (!count || sig === lastSig) return;                  // なにも かわって いない
       downloadBlob(blob, backupFileName());
-      markBackedUp();
+      markBackedUp(sig);
       miniNote(`💾 じどうで バックアップしたよ（しゃしん ${count}まい）`);
     } catch (err) {
       console.warn("auto backup failed:", err);
@@ -1240,19 +1332,26 @@
 
   // バックアップの ファイルを つくる（てどうも じどうも これを つかう）
   async function buildBackup() {
-    const rows = await DB.getAll();
+    const rows = await DB.getAllRaw();   // ずかん ぜんぶ（むし も おはな も）
     const items = [];
+    let newest = 0;
     for (const r of rows) {
       const rec = Object.assign({}, r);
+      if (!rec.col) rec.col = "mushi";
       if (!rec.imgData && rec.blob) rec.imgData = await blobToDataURL(rec.blob);
       delete rec.blob; delete rec.img; delete rec.id;
+      if (rec.date > newest) newest = rec.date;
       items.push(rec);
     }
     const data = {
       app: "mushizukan", version: APP_VERSION, exportedAt: Date.now(),
-      captures: items, places: Places.all,
+      captures: items, places: Places.all, covers: Covers.all,
     };
-    return { blob: new Blob([JSON.stringify(data)], { type: "application/json" }), count: items.length };
+    return {
+      blob: new Blob([JSON.stringify(data)], { type: "application/json" }),
+      count: items.length,
+      sig: `${items.length}|${newest}|${Places.all.length}`,
+    };
   }
   const backupFileName = () => `mushizukan-backup-${toDateInput(Date.now())}.json`;
   function downloadBlob(blob, filename) {
@@ -1268,9 +1367,9 @@
     const out = $("#s-backup-result");
     out.textContent = "バックアップを つくっているよ…"; out.className = "s-test-result";
     try {
-      const { blob, count } = await buildBackup();
+      const { blob, count, sig } = await buildBackup();
       downloadBlob(blob, backupFileName());
-      markBackedUp();
+      markBackedUp(sig);
       out.textContent = `✓ ${count}まいの しゃしんを ほぞんしたよ！`;
       out.className = "s-test-result ok";
     } catch (err) {
@@ -1286,18 +1385,26 @@
     try {
       const data = JSON.parse(await file.text());
       if (!data || data.app !== "mushizukan") throw new Error("むしずかんの バックアップ ではないみたい");
-      const existing = await DB.getAll();
-      const keyOf = (c) => `${c.name}|${c.date}`;
+      const existing = await DB.getAllRaw();
+      const keyOf = (c) => `${c.col || "mushi"}|${c.name}|${c.date}`;
       const have = new Set(existing.map(keyOf));
       let added = 0;
       for (const c of data.captures || []) {
         if (!c || !c.name || have.has(keyOf(c))) continue;
         const rec = Object.assign({}, c);
         delete rec.id;
+        if (!rec.col) rec.col = "mushi";
         if (rec.imgData) { rec.blob = dataURLToBlob(rec.imgData); delete rec.imgData; }
         await DB.add(rec);
         have.add(keyOf(c));
         added++;
+      }
+      // ひょうしの しゃしんの えらび も もどす
+      if (data.covers && typeof data.covers === "object") {
+        try {
+          const m = Object.assign({}, data.covers, Covers.all);
+          localStorage.setItem("mz-covers", JSON.stringify(m));
+        } catch (e) {}
       }
       let addedPlaces = 0;
       const cur = Places.all;
@@ -1338,6 +1445,9 @@
   // ---- はいせん ----
   function wire() {
     $("#fab").addEventListener("click", () => openPicker("discovery"));
+    $("#zukan-switch").addEventListener("click", openZukanSheet);
+    $("#zukan-cancel").addEventListener("click", closeZukanSheet);
+    $("#zukan-sheet").addEventListener("click", (e) => { if (e.target.id === "zukan-sheet") closeZukanSheet(); });
     $("#pick-camera").addEventListener("click", () => { closePicker(); $("#file-camera").click(); });
     $("#pick-file").addEventListener("click", () => { closePicker(); $("#file-gallery").click(); });
     $("#pick-cancel").addEventListener("click", closePicker);
@@ -1428,7 +1538,9 @@
   }
 
   async function start() {
+    Zukan.id = Zukan.id;          // ほぞんして ある ずかんを data.js / db.js に つたえる
     wire();
+    applyZukanChrome();
     applyCols(localStorage.getItem("mz-cols") || 2);
     const ver = $("#app-ver"); if (ver) ver.textContent = APP_VERSION;
     const sver = $("#s-ver"); if (sver) sver.textContent = APP_VERSION;

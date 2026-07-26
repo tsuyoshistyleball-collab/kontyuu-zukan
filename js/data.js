@@ -275,8 +275,10 @@ const CATEGORIES = [
   { id: "other",     label: "そのほか",         emoji: "🐛" },
 ];
 const CATEGORY_ORDER = CATEGORIES.map((c) => c.id);
-function categoryMeta(id) {
-  return CATEGORIES.find((c) => c.id === id) || CATEGORIES[CATEGORIES.length - 1];
+/* いまの ずかん（むし / おはな）に あわせて かえす */
+function categoryMeta(id, kind) {
+  const list = categoriesFor(kind);
+  return list.find((c) => c.id === id) || list[list.length - 1];
 }
 
 const _KNOWN_CATEGORY = {
@@ -331,7 +333,8 @@ function _catFromLabel(label) {
   return _matchCat(k);
 }
 
-function categorize(name, aiCategory) {
+function categorize(name, aiCategory, kind) {
+  if ((kind || ZUKAN_KIND) === "hana") return categorizeFlower(name, aiCategory);
   // 1) ずかんに ある むしは きまった なかまわけ
   const known = matchKnown(name);
   if (known && _KNOWN_CATEGORY[known.id]) return _KNOWN_CATEGORY[known.id];
@@ -345,4 +348,238 @@ function categorize(name, aiCategory) {
   // 「〜が」で おわる なまえは たいてい 蛾（あまがえる などは のぞく）
   if (nm.length >= 3 && nm.endsWith("が")) return "butterfly";
   return "other";
+}
+
+/* ============================================================
+   おはなずかん（ずかんの きりかえ よう）
+   ============================================================ */
+
+/* ずかんの しゅるい */
+const ZUKANS = [
+  {
+    id: "mushi", title: "むしずかん", sub: "みつけた むしの きろく", emoji: "🐛", one: "むし",
+    fab: "むしを みつけた！", empty: "したの ボタンで むしの しゃしんを とってみよう！",
+    hint0: "むしを みつけて しゃしんを とろう！", hint1: "さいしょの むし ゲット！ つぎは なにかな？",
+    notFound: "むしが みつからなかったかも。なまえを いれてね。",
+    delGroup: "🗑️ この むしを ずかんから けす",
+    levels: ["むしみつけ みならい", "むしみつけ たんてい", "むし ハンター", "むし はかせ", "むし マスター", "むし キング", "むし レジェンド"],
+    think: ["AIが むしを しらべているよ！", "どんな むしかな…？", "はっぱの うらまで かくにん中🍃", "もうすこしで わかるよ！"],
+  },
+  {
+    id: "hana", title: "おはなずかん", sub: "みつけた おはなの きろく", emoji: "🌸", one: "おはな",
+    fab: "おはなを みつけた！", empty: "したの ボタンで おはなの しゃしんを とってみよう！",
+    hint0: "おはなを みつけて しゃしんを とろう！", hint1: "さいしょの おはな ゲット！ つぎは なにかな？",
+    notFound: "おはなが みつからなかったかも。なまえを いれてね。",
+    delGroup: "🗑️ この おはなを ずかんから けす",
+    levels: ["おはな みならい", "おはな たんてい", "おはな ハンター", "おはな はかせ", "おはな マスター", "おはな クイーン", "おはな レジェンド"],
+    think: ["AIが おはなを しらべているよ！", "どんな おはな かな…？", "はなびらを かぞえ中🌼", "もうすこしで わかるよ！"],
+  },
+];
+let ZUKAN_KIND = "mushi";
+function setZukanKind(k) { ZUKAN_KIND = (k === "hana") ? "hana" : "mushi"; }
+function zukanMeta(id) { return ZUKANS.find((z) => z.id === (id || ZUKAN_KIND)) || ZUKANS[0]; }
+
+/* おはなの なかまわけ */
+const FLOWER_CATEGORIES = [
+  { id: "f_tree",   label: "きの おはな",       emoji: "🌸" },
+  { id: "f_wild",   label: "みちばたの おはな", emoji: "🌼" },
+  { id: "f_garden", label: "にわの おはな",     emoji: "🌻" },
+  { id: "f_leaf",   label: "はっぱ・くさ",      emoji: "🍀" },
+  { id: "f_fruit",  label: "み・たね・どんぐり", emoji: "🌰" },
+  { id: "f_mush",   label: "きのこ",            emoji: "🍄" },
+  { id: "f_other",  label: "そのほか",          emoji: "🌱" },
+];
+
+function categoriesFor(kind) { return (kind || ZUKAN_KIND) === "hana" ? FLOWER_CATEGORIES : CATEGORIES; }
+function categoryOrderFor(kind) { return categoriesFor(kind).map((c) => c.id); }
+
+const _FCAT_KEYWORDS = [
+  ["f_tree",   ["さくら", "うめ", "もも", "つばき", "さざんか", "つつじ", "あじさい", "もくれん", "こぶし",
+                "きんもくせい", "はなみずき", "ふじ", "さるすべり", "みもざ", "れんぎょう", "ゆきやなぎ",
+                "cherry", "plum", "camellia", "azalea", "hydrangea", "magnolia", "wisteria"]],
+  ["f_wild",   ["たんぽぽ", "すみれ", "しろつめくさ", "つめくさ", "おおいぬのふぐり", "はこべ", "なずな",
+                "へびいちご", "かたばみ", "つゆくさ", "ひめじょおん", "はるじおん", "のげし", "げんげ",
+                "からすのえんどう", "ほとけのざ", "おおばこ", "れんげ", "のあざみ", "あざみ",
+                "dandelion", "violet", "clover flower"]],
+  ["f_garden", ["ちゅーりっぷ", "ひまわり", "ばら", "ゆり", "あさがお", "ぱんじー", "びおら", "こすもす",
+                "まりーごーるど", "きく", "すいせん", "しゃくやく", "ぼたん", "だりあ", "ぜらにうむ",
+                "にちにちそう", "さるびあ", "ひやしんす", "らべんだー", "あじさい", "けいとう", "きんせんか",
+                "tulip", "sunflower", "rose", "lily", "cosmos", "pansy", "marigold"]],
+  ["f_leaf",   ["はっぱ", "はっぱ", "くろーばー", "よもぎ", "すすき", "しだ", "こけ", "つた", "ささ",
+                "もみじ", "いちょう", "かえで", "ねこじゃらし", "えのころぐさ", "しろつめくさのは",
+                "leaf", "moss", "fern", "grass", "clover"]],
+  ["f_fruit",  ["どんぐり", "まつぼっくり", "まつかさ", "たね", "このみ", "きのみ", "くり", "ぎんなん",
+                "さくらんぼ", "いちご", "みかん", "かき", "なんてん", "ひいらぎ",
+                "acorn", "pinecone", "seed", "berry"]],
+  ["f_mush",   ["きのこ", "しめじ", "えのき", "しいたけ", "べにてんぐ", "ほこりたけ", "きくらげ", "mushroom", "fungus"]],
+];
+
+const _FCAT_LABEL_MAP = {
+  "きのおはな": "f_tree", "みちばたのおはな": "f_wild", "にわのおはな": "f_garden",
+  "はっぱくさ": "f_leaf", "みたねどんぐり": "f_fruit", "きのこ": "f_mush",
+};
+
+function _matchFCat(hay) {
+  if (!hay) return null;
+  for (const [id, kws] of _FCAT_KEYWORDS) {
+    for (const kw of kws) {
+      const k = _norm(kw);
+      if (k.length >= 2 && hay.includes(k)) return id;
+    }
+  }
+  return null;
+}
+function _fcatFromLabel(label) {
+  const k = _norm(label);
+  if (!k) return null;
+  if (k === "そのほか") return null;
+  if (_FCAT_LABEL_MAP[k]) return _FCAT_LABEL_MAP[k];
+  for (const key in _FCAT_LABEL_MAP) {
+    if (k.includes(key) || key.includes(k)) return _FCAT_LABEL_MAP[key];
+  }
+  return _matchFCat(k);
+}
+function categorizeFlower(name, aiCategory) {
+  const known = matchKnownFlower(name);
+  if (known && known.cat) return known.cat;
+  const byAi = _fcatFromLabel(aiCategory);
+  if (byAi) return byAi;
+  const hit = _matchFCat(_norm(name));
+  if (hit) return hit;
+  return "f_other";
+}
+
+/* おはなの イラスト（すこしだけ。ないものは そうごうアイコン）*/
+const FLOWERS = [
+  {
+    id: "tanpopo", name: "たんぽぽ", kana: "タンポポ", stars: 1, color: "#ffd23f", cat: "f_wild",
+    where: "みちばた・こうえんの じめん", fact: "わたげに なって かぜで とんでいくよ。",
+    svg: `<svg viewBox="0 0 120 120"><path d="M60 58 V112" stroke="#4c8033" stroke-width="7" stroke-linecap="round"/>
+    <path d="M60 90 q-24 -8 -30 10 q22 9 30 -10Z" fill="#5da03d"/><path d="M60 100 q24 -8 30 10 q-22 9 -30 -10Z" fill="#3f7a2b"/>
+    <g fill="#ffc107"><ellipse cx="60" cy="28" rx="8" ry="15"/><ellipse cx="60" cy="28" rx="8" ry="15" transform="rotate(45 60 52)"/>
+    <ellipse cx="60" cy="28" rx="8" ry="15" transform="rotate(90 60 52)"/><ellipse cx="60" cy="28" rx="8" ry="15" transform="rotate(135 60 52)"/>
+    <ellipse cx="60" cy="28" rx="8" ry="15" transform="rotate(180 60 52)"/><ellipse cx="60" cy="28" rx="8" ry="15" transform="rotate(225 60 52)"/>
+    <ellipse cx="60" cy="28" rx="8" ry="15" transform="rotate(270 60 52)"/><ellipse cx="60" cy="28" rx="8" ry="15" transform="rotate(315 60 52)"/></g>
+    <circle cx="60" cy="52" r="19" fill="#ffd23f"/><circle cx="60" cy="52" r="11" fill="#f0a93c"/></svg>`
+  },
+  {
+    id: "sakura", name: "さくら", kana: "サクラ", stars: 2, color: "#ffb7c5", cat: "f_tree",
+    where: "はるの こうえんや かわぞい", fact: "はるに いっせいに さいて、ひらひら ちるよ。",
+    svg: `<svg viewBox="0 0 120 120"><g fill="#ffc2d1" stroke="#ff9fb5" stroke-width="2">
+    <path d="M60 20 q13 14 8 26 q-8 6 -16 0 q-5 -12 8 -26Z"/>
+    <path d="M60 20 q13 14 8 26 q-8 6 -16 0 q-5 -12 8 -26Z" transform="rotate(72 60 58)"/>
+    <path d="M60 20 q13 14 8 26 q-8 6 -16 0 q-5 -12 8 -26Z" transform="rotate(144 60 58)"/>
+    <path d="M60 20 q13 14 8 26 q-8 6 -16 0 q-5 -12 8 -26Z" transform="rotate(216 60 58)"/>
+    <path d="M60 20 q13 14 8 26 q-8 6 -16 0 q-5 -12 8 -26Z" transform="rotate(288 60 58)"/></g>
+    <circle cx="60" cy="58" r="10" fill="#fff0f4"/>
+    <g stroke="#ffa8bd" stroke-width="2.5" stroke-linecap="round"><path d="M60 58 l0 -11"/><path d="M60 58 l10 -5"/><path d="M60 58 l-10 -5"/><path d="M60 58 l7 8"/><path d="M60 58 l-7 8"/></g>
+    <g fill="#ffd23f"><circle cx="60" cy="45" r="2.6"/><circle cx="71" cy="52" r="2.6"/><circle cx="49" cy="52" r="2.6"/><circle cx="67" cy="67" r="2.6"/><circle cx="53" cy="67" r="2.6"/></g></svg>`
+  },
+  {
+    id: "tulip", name: "ちゅーりっぷ", kana: "チューリップ", stars: 1, color: "#e8556d", cat: "f_garden",
+    where: "はるの かだん", fact: "あか・きいろ・しろ…いろんな いろが あるよ。",
+    svg: `<svg viewBox="0 0 120 120"><path d="M60 62 V112" stroke="#4c8033" stroke-width="7" stroke-linecap="round"/>
+    <path d="M60 78 q-26 4 -26 30 q24 -2 26 -30Z" fill="#5da03d"/><path d="M60 88 q26 4 26 26 q-24 -2 -26 -26Z" fill="#3f7a2b"/>
+    <path d="M36 44 q0 -22 12 -28 q4 12 12 12 q8 0 12 -12 q12 6 12 28 q0 22 -24 22 q-24 0 -24 -22Z" fill="#e8556d"/>
+    <path d="M60 28 q-3 20 0 38" stroke="#c33d54" stroke-width="2.5" fill="none"/>
+    <path d="M42 40 q2 16 8 24" stroke="#f47c8e" stroke-width="2.5" fill="none"/></svg>`
+  },
+  {
+    id: "himawari", name: "ひまわり", kana: "ヒマワリ", stars: 2, color: "#ffb703", cat: "f_garden",
+    where: "なつの はたけ・かだん", fact: "おひさまの ほうを むいて さくよ。",
+    svg: `<svg viewBox="0 0 120 120"><path d="M60 66 V112" stroke="#4c8033" stroke-width="7" stroke-linecap="round"/>
+    <path d="M60 86 q-24 -4 -28 14 q22 6 28 -14Z" fill="#5da03d"/>
+    <g fill="#ffb703"><ellipse cx="60" cy="24" rx="9" ry="17"/>
+    <ellipse cx="60" cy="24" rx="9" ry="17" transform="rotate(40 60 54)"/><ellipse cx="60" cy="24" rx="9" ry="17" transform="rotate(80 60 54)"/>
+    <ellipse cx="60" cy="24" rx="9" ry="17" transform="rotate(120 60 54)"/><ellipse cx="60" cy="24" rx="9" ry="17" transform="rotate(160 60 54)"/>
+    <ellipse cx="60" cy="24" rx="9" ry="17" transform="rotate(200 60 54)"/><ellipse cx="60" cy="24" rx="9" ry="17" transform="rotate(240 60 54)"/>
+    <ellipse cx="60" cy="24" rx="9" ry="17" transform="rotate(280 60 54)"/><ellipse cx="60" cy="24" rx="9" ry="17" transform="rotate(320 60 54)"/></g>
+    <circle cx="60" cy="54" r="19" fill="#6b4423"/><circle cx="60" cy="54" r="19" fill="none" stroke="#4d3018" stroke-width="3"/>
+    <g fill="#4d3018"><circle cx="54" cy="49" r="2"/><circle cx="63" cy="48" r="2"/><circle cx="58" cy="56" r="2"/><circle cx="66" cy="57" r="2"/><circle cx="52" cy="59" r="2"/></g></svg>`
+  },
+  {
+    id: "asagao", name: "あさがお", kana: "アサガオ", stars: 1, color: "#7b6cd9", cat: "f_garden",
+    where: "なつの あさ、つるの さき", fact: "あさ さいて、ひるには しぼんじゃう。",
+    svg: `<svg viewBox="0 0 120 120"><path d="M74 70 q-14 20 -6 42" stroke="#4c8033" stroke-width="6" fill="none" stroke-linecap="round"/>
+    <path d="M70 86 q-22 -6 -26 12 q20 8 26 -12Z" fill="#5da03d"/>
+    <circle cx="60" cy="50" r="32" fill="#8a7ae0"/><circle cx="60" cy="50" r="32" fill="none" stroke="#6a5cc4" stroke-width="3"/>
+    <path d="M60 18 v64 M28 50 h64 M37 27 l46 46 M83 27 l-46 46" stroke="#b6aef0" stroke-width="2.5" opacity=".8"/>
+    <circle cx="60" cy="50" r="13" fill="#fdf6ff"/><circle cx="60" cy="50" r="5" fill="#ffe08a"/></svg>`
+  },
+  {
+    id: "clover", name: "しろつめくさ", kana: "シロツメクサ", stars: 1, color: "#7cb85e", cat: "f_wild",
+    where: "こうえんの しばふ", fact: "よつばを みつけたら ラッキー！",
+    svg: `<svg viewBox="0 0 120 120"><path d="M60 60 q4 28 -2 50" stroke="#4c8033" stroke-width="6" fill="none" stroke-linecap="round"/>
+    <g fill="#5da03d" stroke="#3f7a2b" stroke-width="2">
+    <path d="M60 58 q-4 -26 -22 -22 q-14 4 -8 18 q6 12 30 4Z"/>
+    <path d="M60 58 q4 -26 22 -22 q14 4 8 18 q-6 12 -30 4Z"/>
+    <path d="M60 58 q-26 4 -24 22 q2 12 16 10 q12 -3 8 -32Z"/>
+    <path d="M60 58 q26 4 24 22 q-2 12 -16 10 q-12 -3 -8 -32Z"/></g>
+    <g fill="#fff" opacity=".85"><ellipse cx="46" cy="44" rx="6" ry="4" transform="rotate(-25 46 44)"/><ellipse cx="74" cy="44" rx="6" ry="4" transform="rotate(25 74 44)"/></g>
+    <circle cx="60" cy="58" r="5" fill="#3f7a2b"/></svg>`
+  },
+  {
+    id: "kinoko", name: "きのこ", kana: "キノコ", stars: 2, color: "#e05a47", cat: "f_mush",
+    where: "しめった はやしの じめん", fact: "たべられない ものも あるよ。さわったら てを あらおう。",
+    svg: `<svg viewBox="0 0 120 120"><path d="M46 62 q-4 34 4 44 q10 4 20 0 q8 -10 4 -44Z" fill="#fdf0dc" stroke="#e0cba6" stroke-width="3"/>
+    <path d="M18 64 q0 -42 42 -42 q42 0 42 42 q-42 10 -84 0Z" fill="#e05a47"/>
+    <g fill="#fff8ee"><ellipse cx="40" cy="42" rx="9" ry="7"/><ellipse cx="72" cy="36" rx="7" ry="6"/><ellipse cx="86" cy="52" rx="6" ry="5"/><ellipse cx="56" cy="52" rx="6" ry="5"/></g>
+    <path d="M18 64 q42 12 84 0" stroke="#b8402f" stroke-width="3" fill="none"/></svg>`
+  },
+  {
+    id: "donguri", name: "どんぐり", kana: "ドングリ", stars: 1, color: "#a8763e", cat: "f_fruit",
+    where: "あきの こうえん、きの した", fact: "はるに なると めが でて きに なるよ。",
+    svg: `<svg viewBox="0 0 120 120"><path d="M60 26 v-12" stroke="#6b4423" stroke-width="6" stroke-linecap="round"/>
+    <path d="M32 44 q0 -20 28 -20 q28 0 28 20 q-28 8 -56 0Z" fill="#8a5a2b"/>
+    <path d="M32 44 q28 8 56 0" stroke="#6b4423" stroke-width="3" fill="none"/>
+    <g stroke="#6b4423" stroke-width="2" opacity=".6"><path d="M42 28 v14"/><path d="M54 25 v18"/><path d="M66 25 v18"/><path d="M78 28 v14"/></g>
+    <path d="M32 44 q4 54 28 54 q24 0 28 -54 q-28 8 -56 0Z" fill="#c08a4a"/>
+    <ellipse cx="46" cy="62" rx="6" ry="12" fill="#d9a56a" opacity=".7"/></svg>`
+  },
+  {
+    id: "momiji", name: "もみじ", kana: "モミジ", stars: 1, color: "#e0523a", cat: "f_leaf",
+    where: "あきの やま・こうえん", fact: "さむく なると あかや きいろに かわるよ。",
+    svg: `<svg viewBox="0 0 120 120"><path d="M60 74 q2 20 0 34" stroke="#8a5a2b" stroke-width="5" stroke-linecap="round" fill="none"/>
+    <path d="M60 14 l10 22 l20 -8 l-10 20 l22 4 l-20 12 l12 18 l-22 -8 l-2 22 l-10 -22 l-10 22 l-2 -22 l-22 8 l12 -18 l-20 -12 l22 -4 l-10 -20 l20 8Z" fill="#e0523a"/>
+    <g stroke="#a83725" stroke-width="2" opacity=".7"><path d="M60 74 V26"/><path d="M60 52 L36 40"/><path d="M60 52 L84 40"/><path d="M60 64 L40 66"/><path d="M60 64 L80 66"/></g></svg>`
+  },
+];
+
+const GENERIC_FLOWER = {
+  color: "#f4a8c0",
+  svg: `<svg viewBox="0 0 120 120"><path d="M60 62 V112" stroke="#4c8033" stroke-width="7" stroke-linecap="round"/>
+    <path d="M60 84 q-24 -6 -28 12 q22 8 28 -12Z" fill="#5da03d"/><path d="M60 94 q24 -6 28 12 q-22 8 -28 -12Z" fill="#3f7a2b"/>
+    <g fill="#f4a8c0" stroke="#e488a4" stroke-width="2">
+    <ellipse cx="60" cy="26" rx="12" ry="17"/>
+    <ellipse cx="60" cy="26" rx="12" ry="17" transform="rotate(72 60 54)"/>
+    <ellipse cx="60" cy="26" rx="12" ry="17" transform="rotate(144 60 54)"/>
+    <ellipse cx="60" cy="26" rx="12" ry="17" transform="rotate(216 60 54)"/>
+    <ellipse cx="60" cy="26" rx="12" ry="17" transform="rotate(288 60 54)"/></g>
+    <circle cx="60" cy="54" r="13" fill="#ffe08a"/><circle cx="60" cy="54" r="7" fill="#f5c141"/></svg>`
+};
+
+const _FALIASES = {
+  tanpopo: ["蒲公英", "たんぽぽの わたげ", "せいようたんぽぽ"],
+  sakura: ["桜", "そめいよしの", "やえざくら", "しだれざくら"],
+  tulip: ["チューリップ", "tulip"],
+  himawari: ["向日葵", "ヒマワリ", "sunflower"],
+  asagao: ["朝顔", "アサガオ"],
+  clover: ["白詰草", "クローバー", "くろーばー", "よつば", "よつばの くろーばー", "しろつめぐさ"],
+  kinoko: ["茸", "キノコ", "きのこ", "べにてんぐたけ"],
+  donguri: ["団栗", "ドングリ", "どんぐりの み"],
+  momiji: ["紅葉", "もみじの は", "かえで", "いろはもみじ"],
+};
+
+function matchKnownFlower(name) {
+  const q = _norm(name);
+  if (!q) return null;
+  for (const f of FLOWERS) {
+    const cands = [f.name, f.kana, ...(_FALIASES[f.id] || [])].map(_norm);
+    for (const c of cands) {
+      if (!c) continue;
+      if (q === c) return f;
+      if (q.length >= 2 && c.length >= 2 && (q.includes(c) || c.includes(q))) return f;
+    }
+  }
+  return null;
 }

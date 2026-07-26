@@ -23,18 +23,19 @@
       <span class="deco d3">🌿</span><span class="deco d4">🐝</span>
     </div>
     <div class="topbar-row">
-      <div class="title-plate">
+      <button id="zukan-switch" class="title-plate" aria-label="ずかんを きりかえる">
         <span class="plate-corner tl"></span><span class="plate-corner tr"></span>
         <span class="plate-corner bl"></span><span class="plate-corner br"></span>
         <span class="plate-tape left" aria-hidden="true"></span>
         <span class="plate-tape right" aria-hidden="true"></span>
         <div class="plate-title-row">
           <span class="plate-leaf" aria-hidden="true">🌿</span>
-          <h1 class="logo"><span class="logo-bug">🪲</span> むしずかん</h1>
+          <h1 class="logo"><span class="logo-bug" id="logo-emoji">🪲</span> <span id="logo-text">むしずかん</span></h1>
           <span class="plate-leaf flip" aria-hidden="true">🌿</span>
         </div>
-        <span class="plate-sub">みつけた むしの きろく</span>
-      </div>
+        <span class="plate-sub" id="plate-sub">みつけた むしの きろく</span>
+        <span class="plate-switch" aria-hidden="true">🔄 タップで きりかえ</span>
+      </button>
       <div class="topbar-btns">
         <button id="place-add" class="icon-btn" aria-label="いった ばしょを とうろく">🗺️</button>
         <button id="book-open" class="icon-btn" aria-label="ずかんを めくる" hidden>📖</button>
@@ -79,7 +80,7 @@
 
   <!-- おっきい ボタン -->
   <button id="fab" class="fab" aria-label="むしを みつけた">
-    <span class="fab-ico">📷</span><span class="fab-text">むしを みつけた！</span>
+    <span class="fab-ico">📷</span><span class="fab-text" id="fab-text">むしを みつけた！</span>
   </button>
 
   <!-- しゃしんの えらびかた（カメラ / ファイル） -->
@@ -310,6 +311,15 @@
   <div id="toast" class="toast" hidden>
     <img id="toast-photo" class="toast-photo" alt="" />
     <span id="toast-text" class="toast-text"></span>
+  </div>
+
+  <!-- ずかんの きりかえ -->
+  <div id="zukan-sheet" class="sheet" hidden>
+    <div class="sheet-card">
+      <p class="sheet-title">どの ずかんに する？</p>
+      <div id="zukan-list" class="zukan-list"></div>
+      <button id="zukan-cancel" class="sheet-btn cancel">やめる</button>
+    </div>
   </div>
 
   <!-- ちいさな おしらせ（じどう バックアップ など）-->
