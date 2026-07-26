@@ -250,7 +250,12 @@
 
     <div class="s-divider"></div>
     <p class="s-lead">💾 バックアップ（きえないように ときどき ほぞん してね）</p>
-    <button id="s-export" class="s-backup-btn save">💾 バックアップを ほぞん</button>
+    <label class="s-toggle">
+      <input id="s-auto-backup" type="checkbox" checked />
+      <span class="s-toggle-box" aria-hidden="true"></span>
+      <span class="s-toggle-text">じどうで バックアップする<br><small>むしを とうろく した あと、6じかんに 1かいくらい ファイルを ほぞんします</small></span>
+    </label>
+    <button id="s-export" class="s-backup-btn save">💾 いま バックアップを ほぞん</button>
     <button id="s-import" class="s-backup-btn load">📂 バックアップから もどす</button>
     <input id="s-import-file" type="file" accept="application/json,.json" hidden />
     <p id="s-backup-result" class="s-test-result"></p>
@@ -306,6 +311,9 @@
     <img id="toast-photo" class="toast-photo" alt="" />
     <span id="toast-text" class="toast-text"></span>
   </div>
+
+  <!-- ちいさな おしらせ（じどう バックアップ など）-->
+  <div id="mini-note" class="mini-note" hidden></div>
 
   <!-- ほぞん中 -->
   <div id="loading" class="loading" hidden>

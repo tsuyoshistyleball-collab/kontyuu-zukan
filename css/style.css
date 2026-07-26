@@ -63,15 +63,16 @@ button { font-family: inherit; cursor: pointer; border: none; color: inherit; }
     radial-gradient(120% 60% at 50% 120%, #85c063 0%, transparent 60%),
     linear-gradient(180deg, #7cb85e 0%, #5b9440 100%);
   color: #fff;
-  border-radius: 0 0 30px 30px;
-  box-shadow: 0 6px 0 #cda86a, 0 12px 22px var(--shadow);
+  border-radius: 0;
+  box-shadow: 0 10px 20px var(--shadow);
 }
-/* すその スカラップ（絵本の バナー風）*/
+/* すその なみなみ（絵本の カーテン風）
+   background-repeat: round なので、はしが かけたり すきまが できたり しない */
 .topbar::after {
-  content: ""; position: absolute; top: 100%; left: 0; right: 0; height: 13px;
-  background-image: radial-gradient(circle at 13px 0, #5b9440 10px, transparent 11px);
-  background-size: 26px 13px; background-repeat: repeat-x;
-  filter: drop-shadow(0 3px 0 rgba(120,90,50,.15));
+  content: ""; position: absolute; top: 100%; left: 0; right: 0; height: 14px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 16' preserveAspectRatio='none'%3E%3Cpath d='M0 0H20V9Q10 19 0 9Z' fill='%23cda86a'/%3E%3Cpath d='M0 0H20V3Q10 13 0 3Z' fill='%235b9440'/%3E%3C/svg%3E");
+  background-size: 20px 14px; background-repeat: round;
+  filter: drop-shadow(0 3px 5px rgba(70,50,30,.18));
 }
 .topbar-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 
@@ -900,6 +901,31 @@ input[type="date"].s-input { -webkit-appearance: none; appearance: none; }
 .s-backup-btn.save { background: linear-gradient(180deg,#6cc3e8,#2f8fbf); color: #fff; box-shadow: 0 4px 0 #226f96; }
 .s-backup-btn.load { background: var(--paper2); color: var(--green-d); box-shadow: 0 3px 0 var(--frame-d); border-color: #fff; }
 .s-backup-btn:active { transform: translateY(2px); }
+/* じどう バックアップの スイッチ */
+.s-toggle { display: flex; align-items: flex-start; gap: 10px; margin-top: 10px; padding: 11px 13px;
+  background: var(--paper2); border-radius: 14px; cursor: pointer; }
+.s-toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
+.s-toggle-box { flex: none; width: 26px; height: 26px; border-radius: 9px; background: #fff;
+  border: 3px solid var(--frame-d); position: relative; margin-top: 1px; }
+.s-toggle input:checked + .s-toggle-box { background: linear-gradient(180deg,#84c266,#4c8033); border-color: #4c8033; }
+.s-toggle input:checked + .s-toggle-box::after {
+  content: "✓"; position: absolute; inset: 0; color: #fff; font-weight: 900; font-size: 16px;
+  line-height: 20px; text-align: center;
+}
+.s-toggle-text { font-weight: 800; font-size: 14px; color: var(--green-d); line-height: 1.5; }
+.s-toggle-text small { display: block; font-weight: 700; font-size: 11.5px; color: var(--ink-sub); margin-top: 2px; }
+
+/* ちいさな おしらせ */
+.mini-note {
+  position: fixed; left: 12px; right: 12px; bottom: calc(var(--safe-bot) + 96px); z-index: 55;
+  margin: 0 auto; width: max-content; max-width: calc(100% - 24px);
+  padding: 11px 18px; border-radius: 999px; text-align: center;
+  background: rgba(255, 250, 235, .97); color: var(--green-d);
+  font-weight: 800; font-size: 14px; line-height: 1.4;
+  border: 3px solid #fff; box-shadow: 0 6px 18px rgba(70,50,30,.28);
+  opacity: 0; transform: translateY(12px); transition: opacity .25s ease, transform .25s ease;
+}
+.mini-note.show { opacity: 1; transform: none; }
 
 /* バックアップの おすすめ / しゃしん ほぞん */
 .backup-hint { background: rgba(255,246,225,.96); color: #a05a12; }

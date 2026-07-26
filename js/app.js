@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v32";
+  const APP_VERSION = "v33";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -277,7 +277,7 @@
     }
 
     $("#place-modal").showModal();
-    if (!p) setTimeout(() => $("#pl-name").focus(), 200);
+    // じどうで キーボードを ださない（なまえの らんを タップ したら ひらく）
   }
 
   // 📍 いまいる ばしょ
@@ -746,6 +746,8 @@
       else if (flatOrder.length) rebuildBook(flatOrder[0]);
       else closeBook();
     }
+    // おいわいの あとに そっと じどう バックアップ
+    setTimeout(() => { maybeAutoBackup(); }, 1200);
   }
 
   // ---- しゃしんを えらぶ（カメラ or ファイル）----
@@ -989,6 +991,7 @@
     $("#loading").hidden = true;
     const leveledUp = levelOf(groups.size) > lvBefore;
     if (isNew) celebrate(rec, leveledUp); else miniCheer(rec);
+    setTimeout(() => { maybeAutoBackup(); }, 1200);
   }
 
   function errText(err) {
@@ -1085,6 +1088,7 @@
     $("#s-key").value = Settings.key;
     $("#s-model").value = Settings.model;
     $("#s-test-result").textContent = ""; $("#s-test-result").className = "s-test-result";
+    $("#s-auto-backup").checked = autoBackupOn();
     $("#settings").showModal();
   }
   function saveSettings() {
@@ -1152,7 +1156,7 @@
 
   // バックアップの おすすめ（ながらく していない ときだけ）
   const BACKUP_KEY = "mz-last-backup";
-  const BACKUP_EVERY = 7 * 24 * 60 * 60 * 1000;
+  const BACKUP_EVERY = 3 * 24 * 60 * 60 * 1000;
   function updateBackupHint() {
     const el = $("#backup-hint");
     if (!el) return;
@@ -1164,6 +1168,56 @@
     el.textContent = last
       ? "💾 まえの バックアップから じかんが たったよ。タップで ほぞん"
       : "💾 だいじな しゃしんを まもろう！ タップで バックアップ";
+  }
+
+  // ---- じどう バックアップ ----
+  const AUTO_KEY = "mz-auto-backup";   // "0" なら オフ（きほんは オン）
+  const SIG_KEY = "mz-backup-sig";     // さいごに ほぞんした データの しるし
+  const AUTO_EVERY = 6 * 60 * 60 * 1000;
+  const autoBackupOn = () => { try { return localStorage.getItem(AUTO_KEY) !== "0"; } catch (e) { return true; } };
+  function dataSig() {
+    let newest = 0;
+    for (const c of captures) if (c.date > newest) newest = c.date;
+    return `${captures.length}|${newest}|${Places.all.length}`;
+  }
+  function markBackedUp() {
+    try {
+      localStorage.setItem(BACKUP_KEY, String(Date.now()));
+      localStorage.setItem(SIG_KEY, dataSig());
+    } catch (e) {}
+    updateBackupHint();
+  }
+  // データが かわって、まえの じどう ほぞんから じかんが たっていたら ほぞんする
+  async function maybeAutoBackup() {
+    if (!autoBackupOn() || !captures.length) return;
+    let last = 0, lastSig = "";
+    try {
+      last = parseInt(localStorage.getItem(BACKUP_KEY) || "0", 10) || 0;
+      lastSig = localStorage.getItem(SIG_KEY) || "";
+    } catch (e) {}
+    if (dataSig() === lastSig) return;                       // なにも かわっていない
+    if (last && Date.now() - last < AUTO_EVERY) return;       // まだ はやい
+    try {
+      const { blob, count } = await buildBackup();
+      downloadBlob(blob, backupFileName());
+      markBackedUp();
+      miniNote(`💾 じどうで バックアップしたよ（しゃしん ${count}まい）`);
+    } catch (err) {
+      console.warn("auto backup failed:", err);
+    }
+  }
+  // ちいさな おしらせ（3びょうで きえる）
+  function miniNote(text) {
+    const el = $("#mini-note");
+    if (!el) return;
+    el.textContent = text;
+    el.hidden = false;
+    requestAnimationFrame(() => el.classList.add("show"));
+    clearTimeout(miniNote._t);
+    miniNote._t = setTimeout(() => {
+      el.classList.remove("show");
+      setTimeout(() => (el.hidden = true), 300);
+    }, 3600);
   }
 
   // ============ バックアップ（ほぞん / もどす）============
@@ -1184,32 +1238,40 @@
     return new Blob([arr], { type: mime });
   }
 
+  // バックアップの ファイルを つくる（てどうも じどうも これを つかう）
+  async function buildBackup() {
+    const rows = await DB.getAll();
+    const items = [];
+    for (const r of rows) {
+      const rec = Object.assign({}, r);
+      if (!rec.imgData && rec.blob) rec.imgData = await blobToDataURL(rec.blob);
+      delete rec.blob; delete rec.img; delete rec.id;
+      items.push(rec);
+    }
+    const data = {
+      app: "mushizukan", version: APP_VERSION, exportedAt: Date.now(),
+      captures: items, places: Places.all,
+    };
+    return { blob: new Blob([JSON.stringify(data)], { type: "application/json" }), count: items.length };
+  }
+  const backupFileName = () => `mushizukan-backup-${toDateInput(Date.now())}.json`;
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+
   async function exportBackup() {
     const out = $("#s-backup-result");
     out.textContent = "バックアップを つくっているよ…"; out.className = "s-test-result";
     try {
-      const rows = await DB.getAll();
-      const items = [];
-      for (const r of rows) {
-        const rec = Object.assign({}, r);
-        if (!rec.imgData && rec.blob) rec.imgData = await blobToDataURL(rec.blob);
-        delete rec.blob; delete rec.img; delete rec.id;
-        items.push(rec);
-      }
-      const data = {
-        app: "mushizukan", version: APP_VERSION, exportedAt: Date.now(),
-        captures: items, places: Places.all,
-      };
-      const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `mushizukan-backup-${toDateInput(Date.now())}.json`;
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 4000);
-      try { localStorage.setItem(BACKUP_KEY, String(Date.now())); } catch (e) {}
-      updateBackupHint();
-      out.textContent = `✓ ${items.length}まいの しゃしんを ほぞんしたよ！`;
+      const { blob, count } = await buildBackup();
+      downloadBlob(blob, backupFileName());
+      markBackedUp();
+      out.textContent = `✓ ${count}まいの しゃしんを ほぞんしたよ！`;
       out.className = "s-test-result ok";
     } catch (err) {
       console.error(err);
@@ -1311,6 +1373,10 @@
     $("#s-save").addEventListener("click", saveSettings);
     $("#s-test").addEventListener("click", testSettings);
     $("#s-reclass").addEventListener("click", reclassifyWithAI);
+    $("#s-auto-backup").checked = autoBackupOn();
+    $("#s-auto-backup").addEventListener("change", (e) => {
+      try { localStorage.setItem(AUTO_KEY, e.target.checked ? "1" : "0"); } catch (err) {}
+    });
     $("#s-export").addEventListener("click", exportBackup);
     $("#backup-hint").addEventListener("click", exportBackup);
     $("#s-import").addEventListener("click", () => $("#s-import-file").click());
@@ -1394,6 +1460,8 @@
       }, 150);
     }
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("./service-worker.js").catch(() => {});
+    // データが かってに けされにくく なるように おねがいする
+    try { navigator.storage && navigator.storage.persist && navigator.storage.persist().catch(() => {}); } catch (e) {}
   }
   start();
 })();
