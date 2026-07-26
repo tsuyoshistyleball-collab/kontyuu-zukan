@@ -1361,6 +1361,60 @@ rt {
 .ar-sub { text-align: center; font-size: 14px; font-weight: 800; margin: 6px 0 2px; color: #dff0cd; }
 .ar-record { text-align: center; font-size: 13px; font-weight: 800; margin: 0 0 12px; color: #ffd36b; }
 
+/* えらんだ なかまの おきば（うえに ストック）*/
+.ar-team {
+  position: sticky; top: -2px; z-index: 4; margin: 0 -4px 12px; padding: 8px 8px 10px;
+  border-radius: 16px; border: 2px solid rgba(255,255,255,.28);
+  background: linear-gradient(180deg, rgba(12,32,10,.94), rgba(12,32,10,.82));
+  backdrop-filter: blur(3px);
+}
+.ar-team.ready { border-color: #ffce2e; box-shadow: 0 0 14px rgba(255,206,46,.45); }
+.ar-team-lead { margin: 0 0 7px; text-align: center; font-size: 12px; font-weight: 900; color: #dff0cd; }
+.ar-team-lead b { color: #ffd36b; font-size: 15px; }
+.ar-team-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ar-slot {
+  display: block; padding: 0; background: none; border: 0; font-family: inherit;
+}
+.slot-in {
+  display: grid; justify-items: center; gap: 3px; padding: 6px 4px 7px; border-radius: 14px;
+  background: rgba(255,255,255,.1); border: 2px dashed rgba(255,255,255,.35);
+}
+.ar-slot.filled .slot-in {
+  background: var(--card); border: 3px solid #fff; border-style: solid;
+  box-shadow: 0 3px 0 var(--frame-d);
+  animation: slotFloat 3s ease-in-out infinite;
+}
+.ar-slot.filled:nth-child(2) .slot-in { animation-delay: .35s; }
+.ar-slot.filled:nth-child(3) .slot-in { animation-delay: .7s; }
+.ar-slot.filled.r4 .slot-in { border-color: #cbb4f5; box-shadow: 0 3px 0 var(--frame-d), 0 0 10px 1px rgba(180,124,255,.7); }
+.ar-slot.filled.r5 .slot-in { border-color: #ffb37c; box-shadow: 0 3px 0 var(--frame-d), 0 0 12px 2px rgba(255,150,90,.8); }
+.ar-slot .slot-no {
+  justify-self: start; margin: -1px 0 -3px -1px; min-width: 18px; height: 18px; border-radius: 999px;
+  display: grid; place-items: center; background: #f2820f; color: #fff; border: 2px solid #fff;
+  font-size: 11px; font-weight: 900;
+}
+.ar-slot img { width: 100%; aspect-ratio: 1/1; max-height: 72px; object-fit: cover; border-radius: 10px; }
+.slot-name { font-size: 10.5px; font-weight: 900; color: var(--ink); line-height: 1.2;
+  max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.slot-q { display: grid; place-items: center; width: 100%; height: 72px;
+  font-size: 22px; font-weight: 900; color: rgba(255,255,255,.5); }
+.ar-slot.empty .slot-in::after { content: "あき"; font-size: 10.5px; font-weight: 900; color: rgba(255,255,255,.45); }
+.ar-slot.empty .slot-in { min-height: 100%; }
+.ar-slot.pop { animation: slotPop .5s cubic-bezier(.2,1.7,.4,1); }
+@keyframes slotPop {
+  0% { transform: scale(.2) rotate(-16deg); opacity: 0; }
+  55% { transform: scale(1.18) rotate(5deg); opacity: 1; }
+  75% { transform: scale(.96) rotate(-2deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+@keyframes slotFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ar-slot.pop, .ar-slot.filled .slot-in { animation: none !important; }
+}
+
 /* なかまを えらぶ */
 .ar-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; padding-bottom: 4px; }
 .ar-pickcard {

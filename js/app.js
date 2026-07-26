@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v60";
+  const APP_VERSION = "v61";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -971,13 +971,42 @@
     rubyifyDOM($("#arena"));
   }
   // なかまを えらぶ／やめる
+  let arJustAdded = -1;      // いま はいった ばしょ（アニメ用）
   function arToggleSel(nm) {
     const i = arSel.indexOf(nm);
-    if (i >= 0) arSel.splice(i, 1);
-    else if (arSel.length < AR_TEAM) arSel.push(nm);
-    else { arSel.shift(); arSel.push(nm); }
+    if (i >= 0) { arSel.splice(i, 1); arJustAdded = -1; }
+    else {
+      if (arSel.length >= AR_TEAM) arSel.shift();
+      arSel.push(nm);
+      arJustAdded = arSel.length - 1;
+    }
     sound.blip();
     arSelPaint();
+  }
+  // うえに ならぶ「えらんだ なかま」
+  function arTeamPaint() {
+    const box = $("#ar-team");
+    const slots = Math.max(arSel.length, Math.min(AR_TEAM, groups.size));
+    let html = `<p class="ar-team-lead">えらんだ なかま <b>${arSel.length}</b> / ${slots}</p><div class="ar-team-row">`;
+    for (let i = 0; i < slots; i++) {
+      const nm = arSel[i];
+      if (nm) {
+        const g = groups.get(nm);
+        html += `<button class="ar-slot filled r${g ? g.rarity : 1}${i === arJustAdded ? " pop" : ""}" data-i="${i}">` +
+          `<span class="slot-in"><span class="slot-no">${i + 1}</span>` +
+          `<img src="${urlFor(g.cover.blob)}" alt="">` +
+          `<b class="slot-name">${escapeHtml(nm)}</b></span></button>`;
+      } else {
+        html += `<span class="ar-slot empty"><span class="slot-in"><span class="slot-q">？</span></span></span>`;
+      }
+    }
+    html += `</div>`;
+    box.innerHTML = html;
+    box.classList.toggle("ready", arSel.length >= slots);
+    for (const b of $$("#ar-team .ar-slot.filled")) {
+      b.addEventListener("click", () => { arSel.splice(+b.dataset.i, 1); arJustAdded = -1; sound.blip(); arSelPaint(); });
+    }
+    arJustAdded = -1;
   }
   function arSelPaint() {
     for (const b of $$("#ar-list .ar-pickcard")) {
@@ -994,6 +1023,7 @@
     $(".ar-sub").textContent = arSel.length === 0
       ? "3(さん)びき えらんで チームを つくろう！"
       : left > 0 ? `あと ${left}ひき えらべるよ` : "チーム かんせい！ たたかおう！";
+    arTeamPaint();
     rubyifyDOM($("#ar-pick"));
   }
   function closeArena() {
