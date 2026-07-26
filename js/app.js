@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v66";
+  const APP_VERSION = "v68";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -894,7 +894,30 @@
   function arPaintBars() {
     $("#ar-foe-bar").innerHTML = arSideHTML(arFoe, arFoeTeam, arFoeIdx);
     $("#ar-me-bar").innerHTML = arSideHTML(arMe, arMyTeam, arMyIdx);
+    arSyncSideTeams();
     rubyifyDOM($("#ar-foe-bar")); rubyifyDOM($("#ar-me-bar"));
+  }
+  // はしっこの もちふだ（チームの のこり）
+  function arSideTeamHTML(team, idx) {
+    return team.map((f, i) =>
+      `<span class="stm${i === idx ? " now" : ""}${f.hp <= 0 ? " dead" : ""}" title="${escapeHtml(f.name)}">` +
+      (f.photo ? `<img src="${f.photo}" alt="">` : f.svg) + `</span>`).join("");
+  }
+  function arBuildSideTeams() {
+    $("#ar-foe-team").innerHTML = arSideTeamHTML(arFoeTeam, arFoeIdx);
+    $("#ar-me-team").innerHTML = arSideTeamHTML(arMyTeam, arMyIdx);
+  }
+  // クラスだけ つけかえる（しゃしんを よみなおさない）
+  function arSyncSideTeams() {
+    const pair = [[$("#ar-foe-team"), arFoeTeam, arFoeIdx], [$("#ar-me-team"), arMyTeam, arMyIdx]];
+    for (const [box, team, idx] of pair) {
+      const items = box ? box.children : [];
+      if (items.length !== team.length) { arBuildSideTeams(); return; }
+      for (let i = 0; i < team.length; i++) {
+        items[i].classList.toggle("now", i === idx);
+        items[i].classList.toggle("dead", team[i].hp <= 0);
+      }
+    }
   }
   function arPaintFighters() {
     $("#ar-foe").innerHTML = arChHTML(arFoe);
@@ -922,16 +945,28 @@
     el.style.animation = "none"; void el.offsetWidth; el.style.animation = "";
   }
   // ざんげき（やられた ほうの うえに はしる）
-  function arSlash(side) {
+  function arSlash(side, super_) {
     const el = $("#ar-slash");
-    el.className = "ar-slash " + side;
-    el.innerHTML = "<span></span><span></span><span></span>";
+    el.className = "ar-slash " + side + (super_ ? " super" : "");
+    el.innerHTML = "<span></span>".repeat(super_ ? 5 : 3);
     setTimeout(() => { if (el.className.indexOf(side) >= 0) el.innerHTML = ""; }, 700);
   }
   function arQuake() {
     const st = $("#ar-stage");
     st.classList.remove("quake"); void st.offsetWidth; st.classList.add("quake");
     setTimeout(() => st.classList.remove("quake"), 700);
+  }
+  // とくいわざの ため（くらくして、こうげきする ほうが 金いろに ひかる）
+  async function arCharge(attEl) {
+    $("#ar-dim").hidden = false;
+    attEl.classList.add("charge");
+    arCenter("とくいわざ！", "super");
+    sound.charge();
+    if (navigator.vibrate) navigator.vibrate([0, 30, 60, 30, 60, 60]);
+    await arSleep(1000);
+    arHideCenter();
+    $("#ar-dim").hidden = true;
+    attEl.classList.remove("charge");
   }
   function arFlash() {
     const el = $("#ar-flash");
@@ -1066,6 +1101,7 @@
     $("#ar-swap-sheet").hidden = true;
     $$("#ar-hands .ar-hand").forEach((b) => b.classList.toggle("fav", b.dataset.hand === arMe.hand));
     arPaintFighters();
+    arBuildSideTeams();
     arPaintBars();
     rubyifyDOM($("#arena"));
   }
@@ -1073,6 +1109,7 @@
   const AR_CRY = ["ガンガン いくぜ！", "それっ！", "くらえー！", "とりゃー！", "いっけー！"];
   const AR_OW = ["いてっ！", "うわっ…！", "きかないぞ！", "ぐぬぬ…"];
   const AR_BAM = ["ドカッ！", "バシッ！", "ポカッ！", "ガツン！", "ズドン！"];
+  const AR_SUPER = ["ドッカーン！", "だいばくはつ！", "とくいわざ！", "ズガーン！"];
   const arPick = (a) => a[Math.floor(Math.random() * a.length)];
 
   async function arPlay(myHand) {
@@ -1123,21 +1160,25 @@
     def.hp = Math.max(0, def.hp - dmg);
 
     // つっこむ → ぶつかる
-    $("#ar-msg").textContent = iWin ? arPick(AR_CRY) : arPick(AR_OW);
+    $("#ar-msg").textContent = boosted
+      ? `${att.name}の とくいわざ！`
+      : (iWin ? arPick(AR_CRY) : arPick(AR_OW));
+    if (boosted) await arCharge(attEl);      // ためて…
     attEl.classList.add("lunge");
     await arSleep(220);
     arFlash();
-    arSlash(iWin ? "foe" : "me");
-    arCenter(boosted ? "とくいわざ！" : arPick(AR_BAM));
+    arSlash(iWin ? "foe" : "me", boosted);
+    arCenter(boosted ? arPick(AR_SUPER) : arPick(AR_BAM), boosted ? "super" : "");
     defEl.classList.add("hit");
     sound.hit(boosted);
-    if (navigator.vibrate) navigator.vibrate(iWin ? [0, 40, 30, 40] : [0, 90]);
-    await arSleep(360);
+    if (boosted) { arQuake(); if (iWin) confetti(3); }
+    if (navigator.vibrate) navigator.vibrate(boosted ? [0, 160, 40, 120] : iWin ? [0, 40, 30, 40] : [0, 90]);
+    await arSleep(boosted ? 520 : 360);
     attEl.classList.remove("lunge");
     defEl.classList.remove("hit");
 
     // ダメージの すうじ
-    arCenter(String(dmg), iWin ? "dmg" : "dmg bad");
+    arCenter(String(dmg), (iWin ? "dmg" : "dmg bad") + (boosted ? " super" : ""));
     arPaintBars();
     $("#ar-msg").textContent =
       (iWin ? "かった！ " : "やられた… ") + (boosted ? "とくいわざ で " : "") + `${dmg} の ダメージ！`;
@@ -2397,6 +2438,36 @@
           bg.gain.exponentialRampToValueAtTime(0.0001, t + 0.13);
           bo.connect(bg); bg.connect(c.destination);
           bo.start(t); bo.stop(t + 0.16);
+        } catch (e) {}
+      },
+      // とくいわざを ためる おと（ぐんぐん 上がって いく）
+      charge() {
+        if (!on) return;
+        try {
+          const c = ac(), t = c.currentTime;
+          const o = c.createOscillator(), g = c.createGain();
+          o.type = "sawtooth";
+          o.frequency.setValueAtTime(110, t);
+          o.frequency.exponentialRampToValueAtTime(1500, t + 0.85);
+          const lp = c.createBiquadFilter(); lp.type = "lowpass";
+          lp.frequency.setValueAtTime(600, t);
+          lp.frequency.exponentialRampToValueAtTime(6500, t + 0.85);
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.linearRampToValueAtTime(0.13, t + 0.55);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + 0.95);
+          o.connect(lp); lp.connect(g); g.connect(c.destination);
+          o.start(t); o.stop(t + 1);
+          // きらきらと 上がる おと
+          [659, 880, 1047, 1319, 1568].forEach((f, i) => note(f, i * 0.13, 0.26, "triangle", 0.09));
+          // ちからが すいこまれる ノイズ
+          const src = this.noise(0.9, (x) => Math.pow(x, 2.2));
+          const hp = c.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 1800;
+          const ng = c.createGain();
+          ng.gain.setValueAtTime(0.0001, t);
+          ng.gain.linearRampToValueAtTime(0.15, t + 0.8);
+          ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.96);
+          src.connect(hp); hp.connect(ng); ng.connect(c.destination);
+          src.start(t); src.stop(t + 0.96);
         } catch (e) {}
       },
       // たおれた おと（よろよろ さがって、ドサッ）
