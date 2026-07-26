@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v49";
+  const APP_VERSION = "v50";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -831,6 +831,8 @@
     el.style.transform =
       `rotateY(${deg.toFixed(2)}deg) skewY(${(-2.4 * b).toFixed(2)}deg) ` +
       `scaleY(${(1 - 0.026 * b).toFixed(4)}) rotate(${(-0.7 * b).toFixed(2)}deg)`;
+    // 90°（よこむき）を こえたら みえなく する
+    el.style.opacity = t < 0.46 ? "1" : t < 0.5 ? ((0.5 - t) / 0.04).toFixed(3) : "0";
 
     const sh = el.querySelector(".pg-shade");
     if (sh) sh.style.opacity = (0.78 * b).toFixed(3);
@@ -850,6 +852,7 @@
 
   function clearFlipPaint(el) {
     el.style.transform = "";
+    el.style.opacity = "";
     el.style.transition = "";
     el.classList.remove("flip-next", "flip-prev", "cast-out", "cast-in", "is-anim");
     for (const q of [".pg-shade", ".pg-gloss", ".pg-cast"]) {
@@ -997,7 +1000,7 @@
       if (go) sound.page();
       // のこりは CSSトランジションで（コンポジタで うごくので なめらか）
       const eased = "cubic-bezier(.22,.61,.36,1)";
-      el.style.transition = `transform ${ms}ms ${eased}`;
+      el.style.transition = `transform ${ms}ms ${eased}, opacity ${ms}ms ${eased}`;
       for (const q of [".pg-shade", ".pg-gloss > i"]) {
         const n = el.querySelector(q); if (n) n.style.transition = `opacity ${ms}ms ${eased}, transform ${ms}ms ${eased}`;
       }
