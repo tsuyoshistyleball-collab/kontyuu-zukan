@@ -23,7 +23,7 @@
       <span class="deco d3">🌿</span><span class="deco d4">🐝</span>
     </div>
     <div class="topbar-row">
-      <button id="zukan-switch" class="title-plate" aria-label="ずかんを きりかえる">
+      <button id="zukan-switch" class="title-plate" aria-label="図鑑を切りかえる">
         <span class="plate-corner tl"></span><span class="plate-corner tr"></span>
         <span class="plate-corner bl"></span><span class="plate-corner br"></span>
         <span class="plate-tape left" aria-hidden="true"></span>
@@ -33,17 +33,17 @@
           <h1 class="logo"><span class="logo-bug" id="logo-emoji">🪲</span> <span id="logo-text">むしずかん</span></h1>
           <span class="plate-leaf flip" aria-hidden="true">🌿</span>
         </div>
-        <span class="plate-sub" id="plate-sub">みつけた むしの きろく</span>
-        <span class="plate-switch" id="plate-switch">🔄 タップで おはなずかんに きりかえ</span>
+        <span class="plate-sub" id="plate-sub">みつけた 虫(むし)の 記録(きろく)</span>
+        <span class="plate-switch" id="plate-switch">🔄 タップで お花図鑑(はなずかん)に 切(き)りかえ</span>
       </button>
       <div class="topbar-btns">
-        <button id="place-add" class="icon-btn" aria-label="いった ばしょを とうろく">🗺️</button>
-        <button id="book-open" class="icon-btn" aria-label="ずかんを めくる" hidden>📖</button>
-        <button id="sound-btn" class="icon-btn" aria-label="おとの おんおふ">🔊</button>
-        <button id="settings-btn" class="icon-btn" aria-label="せってい">⚙️</button>
+        <button id="place-add" class="icon-btn" aria-label="行った場所を登録">🗺️</button>
+        <button id="book-open" class="icon-btn" aria-label="図鑑をめくる" hidden>📖</button>
+        <button id="sound-btn" class="icon-btn" aria-label="音のオンオフ">🔊</button>
+        <button id="settings-btn" class="icon-btn" aria-label="設定">⚙️</button>
       </div>
     </div>
-    <p id="progress-msg" class="progress-msg">よみこみちゅう…</p>
+    <p id="progress-msg" class="progress-msg">読(よ)みこみ中(ちゅう)…</p>
     <div class="progress">
       <div class="progress-top">
         <span id="level-badge" class="level-badge">Lv.1</span>
@@ -58,7 +58,7 @@
         <span id="level-next" class="level-next"></span>
       </div>
     </div>
-    <button id="api-hint" class="api-hint" hidden>⚙️ AIで なまえを じどう にゅうりょく するには ここを タップ</button>
+    <button id="api-hint" class="api-hint" hidden>⚙️ AIで 名前(なまえ)を 自動(じどう)で 入(い)れるには ここを タップ</button>
     <button id="backup-hint" class="api-hint backup-hint" hidden></button>
   </header>
 
@@ -68,7 +68,7 @@
     <section class="places">
       <div class="cat-head">
         <span class="cat-emoji">🗺️</span>
-        <span class="cat-label">いった ばしょ</span>
+        <span class="cat-label">行(い)った 場所(ばしょ)</span>
         <span class="cat-count" id="places-count">0</span>
       </div>
       <div id="places-list" class="places-list"></div>
@@ -79,15 +79,15 @@
   </main>
 
   <!-- おっきい ボタン -->
-  <button id="fab" class="fab" aria-label="むしを みつけた">
-    <span class="fab-ico">📷</span><span class="fab-text" id="fab-text">むしを みつけた！</span>
+  <button id="fab" class="fab" aria-label="虫を みつけた">
+    <span class="fab-ico">📷</span><span class="fab-text" id="fab-text">虫(むし)を みつけた！</span>
   </button>
 
   <!-- しゃしんの えらびかた（カメラ / ファイル） -->
   <div id="picker" class="sheet" hidden>
     <div class="sheet-card">
-      <p class="sheet-title">むしの しゃしんを…</p>
-      <button id="pick-camera" class="sheet-btn cam">📷 カメラで とる</button>
+      <p class="sheet-title">写真(しゃしん)を…</p>
+      <button id="pick-camera" class="sheet-btn cam">📷 カメラで 撮(と)る</button>
       <button id="pick-file" class="sheet-btn file">🖼️ アルバム・ファイルから</button>
       <button id="pick-cancel" class="sheet-btn cancel">やめる</button>
     </div>
@@ -97,12 +97,12 @@
 
   <!-- ブック（よこに めくる） -->
   <div id="book" class="book" hidden>
-    <button id="book-close" class="book-close" aria-label="とじる">✕</button>
+    <button id="book-close" class="book-close" aria-label="閉じる">✕</button>
     <div id="book-counter" class="book-counter"></div>
     <div id="book-track" class="book-track"></div>
-    <button id="book-prev" class="book-nav prev" aria-label="まえ">‹</button>
-    <button id="book-next" class="book-nav next" aria-label="つぎ">›</button>
-    <div class="book-hint">← よこに めくってね →</div>
+    <button id="book-prev" class="book-nav prev" aria-label="前">‹</button>
+    <button id="book-next" class="book-nav next" aria-label="次">›</button>
+    <div class="book-hint">← 横(よこ)に めくってね →</div>
   </div>
 
   <!-- けっか（AIすいそく → なまえ しゅうせい → とうろく） -->
@@ -110,36 +110,36 @@
     <div class="m-illust-wrap"><div id="r-illust" class="m-illust"></div></div>
     <div class="r-photo-wrap"><img id="r-photo" class="r-photo" alt="" /></div>
     <p id="r-note" class="r-note"></p>
-    <button id="r-retry" class="r-retry" type="button" hidden>🔄 もういちど AIに きく</button>
+    <button id="r-retry" class="r-retry" type="button" hidden>🔄 もう一度(いちど) AIに 聞(き)く</button>
     <div class="m-stars-row">
-      <div id="r-stars" class="r-stars star-pick" role="group" aria-label="レアど"></div>
-      <span class="star-hint">タップで かえられるよ</span>
+      <div id="r-stars" class="r-stars star-pick" role="group" aria-label="レア度"></div>
+      <span class="star-hint">タップで 変(か)えられるよ</span>
     </div>
-    <label class="r-label">なまえ（なおせるよ）</label>
-    <input id="r-name-input" class="r-name-input" type="text" maxlength="24" placeholder="なまえを いれてね"
+    <label class="r-label">名前(なまえ)（直(なお)せるよ）</label>
+    <input id="r-name-input" class="r-name-input" type="text" maxlength="24" placeholder="名前を 入れてね"
            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
            name="mushi_name" data-lpignore="true" data-1p-ignore />
-    <label class="r-label">🗺️ みつけた ばしょ</label>
+    <label class="r-label">🗺️ みつけた 場所(ばしょ)</label>
     <select id="r-place" class="r-place"></select>
     <p id="r-kana" class="m-kana"></p>
     <p id="r-fact" class="m-fact"></p>
     <p id="r-hint" class="m-hint" hidden></p>
     <div class="r-actions">
       <button id="r-cancel" class="r-cancel">やめる</button>
-      <button id="r-save" class="r-save">✓ ずかんに とうろく！</button>
+      <button id="r-save" class="r-save">✓ 図鑑(ずかん)に 登録(とうろく)！</button>
     </div>
   </dialog>
 
   <!-- ばしょの とうろく -->
   <dialog id="place-modal" class="modal place-modal">
-    <button id="pl-close" class="m-close" aria-label="とじる">✕</button>
-    <h2 id="pl-title" class="s-title">🗺️ ばしょを とうろく</h2>
+    <button id="pl-close" class="m-close" aria-label="閉じる">✕</button>
+    <h2 id="pl-title" class="s-title">🗺️ 場所(ばしょ)を 登録(とうろく)</h2>
 
-    <button id="pl-here" class="pl-here">📍 いま いる ばしょを つかう</button>
+    <button id="pl-here" class="pl-here">📍 今(いま) いる 場所(ばしょ)を 使(つか)う</button>
 
-    <label class="s-label">🔎 ばしょを さがす</label>
+    <label class="s-label">🔎 場所(ばしょ)を さがす</label>
     <div class="pl-search-row">
-      <input id="pl-search" class="s-input" type="search" maxlength="40" placeholder="こうえんの なまえ など"
+      <input id="pl-search" class="s-input" type="search" maxlength="40" placeholder="公園の 名前 など"
              autocomplete="off" spellcheck="false" name="place_search" data-lpignore="true" data-1p-ignore />
       <button id="pl-search-btn" class="pl-search-btn" type="button">さがす</button>
     </div>
@@ -149,7 +149,7 @@
     <div id="pl-photo-wrap" class="pl-photo-wrap">
       <img id="pl-photo" class="pl-photo" alt="" hidden />
       <div id="pl-map" class="pl-map" hidden></div>
-      <button id="pl-photo-btn" class="pl-photo-btn">📷 ばしょの しゃしんを つける</button>
+      <button id="pl-photo-btn" class="pl-photo-btn">📷 場所(ばしょ)の 写真(しゃしん)を つける</button>
       <button id="pl-photo-del" class="pl-photo-del" hidden>✕</button>
     </div>
     <input id="pl-photo-input" type="file" accept="image/*" hidden />
@@ -157,22 +157,22 @@
     <label class="s-label">どんな ところ？</label>
     <div id="pl-emoji" class="pl-emoji-row"></div>
 
-    <label class="s-label">ばしょの なまえ</label>
-    <input id="pl-name" class="s-input" type="text" maxlength="20" placeholder="こうえん・おやまなど"
+    <label class="s-label">場所(ばしょ)の 名前(なまえ)</label>
+    <input id="pl-name" class="s-input" type="text" maxlength="20" placeholder="公園・お山 など"
            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
            name="place_name" data-lpignore="true" data-1p-ignore />
 
     <div id="pl-first-wrap" hidden>
-      <label class="s-label">📅 はじめて いった ひ</label>
+      <label class="s-label">📅 はじめて 行(い)った 日(ひ)</label>
       <div class="pl-date-row">
         <input id="pl-first" class="s-input" type="date" name="place_first" />
       </div>
     </div>
 
-    <label class="s-label" id="pl-date-label">📅 いった ひ</label>
+    <label class="s-label" id="pl-date-label">📅 行(い)った 日(ひ)</label>
     <div class="pl-date-row">
       <input id="pl-date" class="s-input" type="date" name="place_date" />
-      <button id="pl-today" class="pl-today" type="button">きょう</button>
+      <button id="pl-today" class="pl-today" type="button">今日(きょう)</button>
     </div>
 
     <label class="s-label">メモ（なくても いいよ）</label>
@@ -183,41 +183,41 @@
     <p id="pl-meta" class="pl-meta"></p>
 
     <div id="pl-bugs-wrap" class="pl-bugs-wrap" hidden>
-      <p class="pl-bugs-title">🐛 ここで みつけた むし</p>
+      <p class="pl-bugs-title">🐛 ここで みつけた 生(い)きもの</p>
       <div id="pl-bugs" class="pl-bugs"></div>
     </div>
 
-    <button id="pl-visit" class="pl-visit" hidden>🎉 また いった！（かいすう +1）</button>
+    <button id="pl-visit" class="pl-visit" hidden>🎉 また 行(い)った！（回数(かいすう) +1）</button>
 
     <div class="r-actions">
-      <button id="pl-delete" class="r-cancel pl-delete" hidden>🗑️ けす</button>
-      <button id="pl-save" class="r-save">✓ ほぞん</button>
+      <button id="pl-delete" class="r-cancel pl-delete" hidden>🗑️ 消(け)す</button>
+      <button id="pl-save" class="r-save">✓ 保存(ほぞん)</button>
     </div>
   </dialog>
 
   <!-- せってい（Gemini API） -->
   <dialog id="settings" class="modal settings">
-    <button id="s-close" class="m-close" aria-label="とじる">✕</button>
-    <h2 class="s-title">⚙️ せってい</h2>
+    <button id="s-close" class="m-close" aria-label="閉じる">✕</button>
+    <h2 class="s-title">⚙️ 設定(せってい)</h2>
 
-    <label class="s-label">🖼️ カードの おおきさ（1れつの まいすう）</label>
+    <label class="s-label">🖼️ カードの 大(おお)きさ（1列(れつ)の 枚数(まいすう)）</label>
     <div class="size-seg">
-      <button class="size-btn" data-cols="2" aria-label="2れつ">2</button>
-      <button class="size-btn" data-cols="3" aria-label="3れつ">3</button>
-      <button class="size-btn" data-cols="4" aria-label="4れつ">4</button>
-      <button class="size-btn" data-cols="5" aria-label="5れつ">5</button>
+      <button class="size-btn" data-cols="2" aria-label="2列">2</button>
+      <button class="size-btn" data-cols="3" aria-label="3列">3</button>
+      <button class="size-btn" data-cols="4" aria-label="4列">4</button>
+      <button class="size-btn" data-cols="5" aria-label="5列">5</button>
     </div>
 
     <div class="s-divider"></div>
 
-    <p class="s-lead">Gemini（ジェミニ）の APIキーを いれると、しゃしんから じどうで むしの なまえを すいそく します。</p>
+    <p class="s-lead">Gemini（ジェミニ）の APIキーを 入(い)れると、写真(しゃしん)から 自動(じどう)で 名前(なまえ)を 予想(よそう)します。</p>
 
     <label class="s-label">Gemini APIキー</label>
     <div class="s-key-row">
       <input id="s-key" class="s-input masked" type="text" inputmode="text" placeholder="AIza..."
              autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
              name="gemini_api_key" data-lpignore="true" data-1p-ignore data-form-type="other" />
-      <button id="s-key-toggle" class="s-key-toggle" type="button" aria-label="ひょうじ">👁</button>
+      <button id="s-key-toggle" class="s-key-toggle" type="button" aria-label="表示">👁</button>
     </div>
 
     <label class="s-label">モデル</label>
@@ -227,43 +227,43 @@
       <option value="gemini-3-flash-preview"></option>
       <option value="gemini-2.5-flash"></option>
     </datalist>
-    <p class="s-note">おすすめは <b>gemini-3.1-flash-lite</b>（はやくて やすい 正式版）。
-      「せいげん」が すぐ でる ときは、むりょうわくの じょうげんが ちいさい プレビュー版に なっていないか たしかめてね。</p>
+    <p class="s-note">おすすめは <b>gemini-3.1-flash-lite</b>（速(はや)くて 安(やす)い 正式版(せいしきばん)）。
+      「制限(せいげん)」が すぐ 出(で)る ときは、無料枠(むりょうわく)の 上限(じょうげん)が 小(ちい)さい プレビュー版(ばん)に なって いないか 確(たし)かめてね。</p>
 
-    <button id="s-test" class="s-test-btn">せつぞく テスト</button>
+    <button id="s-test" class="s-test-btn">接続(せつぞく)テスト</button>
     <p id="s-test-result" class="s-test-result"></p>
 
-    <button id="s-reclass" class="s-test-btn">🤖 AIで なかまわけを やりなおす</button>
+    <button id="s-reclass" class="s-test-btn">🤖 AIで 仲間分(なかまわ)けを やり直(なお)す</button>
     <p id="s-reclass-result" class="s-test-result"></p>
 
     <div class="s-help">
-      <p>🔑 APIキーの とりかた：</p>
+      <p>🔑 APIキーの 取(と)りかた：</p>
       <ol>
-        <li><b>Google AI Studio</b>（aistudio.google.com/apikey）を ひらく</li>
+        <li><b>Google AI Studio</b>（aistudio.google.com/apikey）を 開(ひら)く</li>
         <li>Google アカウントで ログイン</li>
-        <li>「Create API key」で キーを つくって コピー</li>
-        <li>ここに はりつけて「ほぞん」</li>
+        <li>「Create API key」で キーを 作(つく)って コピー</li>
+        <li>ここに はりつけて「保存(ほぞん)」</li>
       </ol>
-      <p class="s-note">🔒 キーは この たんまつ（ブラウザ）だけに ほぞんされ、がいぶには おくられません。</p>
+      <p class="s-note">🔒 キーは この 端末(たんまつ)（ブラウザ）だけに 保存(ほぞん)され、外部(がいぶ)には 送(おく)られません。</p>
     </div>
 
-    <button id="s-save" class="s-save">ほぞん</button>
+    <button id="s-save" class="s-save">保存(ほぞん)</button>
 
     <div class="s-divider"></div>
-    <p class="s-lead">💾 バックアップ（きえないように ときどき ほぞん してね）</p>
+    <p class="s-lead">💾 バックアップ（消(き)えないように ときどき 保存(ほぞん)してね）</p>
     <label class="s-toggle">
       <input id="s-auto-backup" type="checkbox" checked />
       <span class="s-toggle-box" aria-hidden="true"></span>
-      <span class="s-toggle-text">じどうで バックアップする<br><small>むしを とうろく した あと、6じかんに 1かいくらい ファイルを ほぞんします</small></span>
+      <span class="s-toggle-text">自動(じどう)で バックアップする<br><small>登録(とうろく)した あと、6時間(じかん)に 1回(かい)くらい ファイルを 保存(ほぞん)します</small></span>
     </label>
-    <button id="s-export" class="s-backup-btn save">💾 いま バックアップを ほぞん</button>
-    <button id="s-import" class="s-backup-btn load">📂 バックアップから もどす</button>
+    <button id="s-export" class="s-backup-btn save">💾 今(いま) バックアップを 保存(ほぞん)</button>
+    <button id="s-import" class="s-backup-btn load">📂 バックアップから 戻(もど)す</button>
     <input id="s-import-file" type="file" accept="application/json,.json" hidden />
     <p id="s-backup-result" class="s-test-result"></p>
 
     <div class="s-danger">
-      <p class="s-danger-title">こまった とき</p>
-      <button id="s-reset" class="s-reset">🗑️ データを けす（さいしょから）</button>
+      <p class="s-danger-title">困(こま)った とき</p>
+      <button id="s-reset" class="s-reset">🗑️ データを 消(け)す（最初(さいしょ)から）</button>
       <p class="s-ver-line">バージョン <span id="s-ver"></span></p>
     </div>
   </dialog>
@@ -283,8 +283,8 @@
     <div class="think-bugs">
       <span>🐛</span><span>🦋</span><span>🐞</span><span>🐝</span><span>🦗</span>
     </div>
-    <p class="think-title">とうろく中<span class="think-dots"><i>.</i><i>.</i><i>.</i></span></p>
-    <p id="think-sub" class="think-sub">AIが むしを しらべているよ！</p>
+    <p class="think-title">登録中(とうろくちゅう)<span class="think-dots"><i>.</i><i>.</i><i>.</i></span></p>
+    <p id="think-sub" class="think-sub">AIが 虫(むし)を 調(しら)べて いるよ！</p>
     <div class="think-bar"><div class="think-bar-fill"></div></div>
   </div>
 
@@ -292,7 +292,7 @@
   <div id="celebrate" class="celebrate" hidden>
     <div class="cel-card">
       <div id="cel-level" class="cel-level" hidden></div>
-      <p class="cel-title">やった！ あたらしい むし！</p>
+      <p class="cel-title">やった！ 新(あたら)しい 生(い)きもの！</p>
       <div class="cel-photo-wrap">
         <img id="cel-photo" class="cel-photo" alt="" />
         <div id="cel-illust" class="cel-illust"></div>
@@ -302,7 +302,7 @@
       <h2 id="cel-name" class="cel-name"></h2>
       <p id="cel-kana" class="cel-kana"></p>
       <p id="cel-fact" class="cel-fact"></p>
-      <p class="cel-sub">ずかんに とうろく したよ！</p>
+      <p class="cel-sub">図鑑(ずかん)に 登録(とうろく)したよ！</p>
       <button id="cel-ok" class="cel-ok">やったー！</button>
     </div>
   </div>
@@ -316,7 +316,7 @@
   <!-- ずかんの きりかえ -->
   <div id="zukan-sheet" class="sheet" hidden>
     <div class="sheet-card">
-      <p class="sheet-title">どの ずかんに する？</p>
+      <p class="sheet-title">どの 図鑑(ずかん)に する？</p>
       <div id="zukan-list" class="zukan-list"></div>
       <button id="zukan-cancel" class="sheet-btn cancel">やめる</button>
     </div>
@@ -328,7 +328,7 @@
   <!-- ほぞん中 -->
   <div id="loading" class="loading" hidden>
     <div class="spinner">🐝</div>
-    <p>ずかんに かいているよ…</p>
+    <p>図鑑(ずかん)に 書(か)いて いるよ…</p>
   </div>
 
   <canvas id="confetti" class="confetti" hidden></canvas>

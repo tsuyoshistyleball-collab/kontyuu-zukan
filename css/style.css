@@ -1012,9 +1012,9 @@ body[data-zukan="hana"] {
 .info-trivia { margin: 0 0 10px; padding-left: 20px; }
 .info-trivia li { font-size: 13.5px; font-weight: 700; color: var(--ink); line-height: 1.65; margin: 4px 0; }
 .info-trivia li::marker { color: var(--honey-d); }
-.info-row { display: flex; gap: 8px; align-items: flex-start; margin: 7px 0; }
-.info-label { flex: none; min-width: 104px; font-size: 12px; font-weight: 900; color: var(--green-d); line-height: 1.6; }
-.info-val { flex: 1 1 auto; font-size: 13px; font-weight: 700; color: var(--ink); line-height: 1.65; }
+.info-row { display: block; margin: 11px 0 0; }
+.info-label { display: block; font-size: 12.5px; font-weight: 900; color: var(--green-d); }
+.info-val { display: block; font-size: 13.5px; font-weight: 700; color: var(--ink); padding-left: 2px; }
 .info-empty { margin: 2px 0 10px; font-size: 12.5px; font-weight: 700; color: var(--ink-sub); line-height: 1.6; }
 .info-more {
   display: block; width: 100%; margin-top: 10px; padding: 10px; border-radius: 13px;
@@ -1025,7 +1025,30 @@ body[data-zukan="hana"] {
 .info-more:disabled { opacity: .7; box-shadow: none; transform: none; }
 
 @media (min-width: 620px) {
-  .info-label { min-width: 120px; font-size: 13px; }
-  .info-val { font-size: 14px; }
-  .info-trivia li { font-size: 14.5px; }
+  .info-label { font-size: 13.5px; }
+  .info-val { font-size: 15px; }
+  .info-trivia li { font-size: 15px; }
 }
+
+/* ---------- ふりがな（ルビ）---------- */
+ruby { ruby-align: center; ruby-position: over; }
+rt {
+  font-size: .5em; font-weight: 700; letter-spacing: 0;
+  opacity: .72; user-select: none; -webkit-user-select: none;
+  transform: translateY(.12em);
+}
+/* ルビの ぶんだけ ぎょうかんを ひろげる */
+.page-fact, .info-trivia li, .info-val, .info-label, .m-fact, .m-hint,
+.page-info, .r-note, .sheet-title, .progress-msg, .info-empty,
+.card-name, .place-name, .page-meta, .page-place, .s-lead, .s-help, .s-note,
+.s-toggle-text, .cel-sub, .toast-text, .mini-note, .empty p {
+  line-height: 2.05;
+}
+.logo, .page-name, .cel-name { line-height: 1.75; }
+.sec-title, .zp-title, .info-head, .level-title { line-height: 1.9; }
+.fab, .r-save, .r-cancel, .page-again, .page-delete, .sheet-btn,
+.s-backup-btn, .s-test-btn, .s-save, .s-reset, .info-more, .pl-here,
+.pl-save, .cel-ok, .zukan-pick { line-height: 1.75; }
+/* 科(か)の みだしの したに、おおきな なかまわけを ちいさく */
+.cat-sub { display: block; font-size: 10.5px; font-weight: 700; color: var(--ink-sub); margin-top: -2px; }
+.cat-label { line-height: 1.35; }

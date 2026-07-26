@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v36";
+  const APP_VERSION = "v37";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -82,15 +82,86 @@
     },
   };
 
+  /* ============================================================
+     ふりがな（ルビ）
+     もじれつの なかの 「漢字(かんじ)」を <ruby>漢字<rt>かんじ</rt></ruby> に かえる。
+     ひょうじの ちょくぜんに DOMを あるいて へんかん するので、
+     ふつうに textContent で かいて おけば よい。
+     ============================================================ */
+  const RUBY_PAT = "([\\u4E00-\\u9FFF\\u3005\\u3006\\u30F6々]+)[（(]([\\u3041-\\u309F\\u30A1-\\u30FCー]+)[)）]";
+  const rubyRe = () => new RegExp(RUBY_PAT, "g");
+  const SKIP_TAGS = { RT: 1, RUBY: 1, RP: 1, SCRIPT: 1, STYLE: 1, TEXTAREA: 1, OPTION: 1, INPUT: 1, SELECT: 1 };
+
+  // 「漢字(かんじ)」の かっこを とって、ただの もじれつに する（alert など ようの）
+  const plain = (t) => String(t == null ? "" : t).replace(rubyRe(), "$1");
+
+  function rubyifyDOM(root) {
+    if (!root || !root.ownerDocument && root.nodeType !== 9 && root.nodeType !== 1) return;
+    const doc = root.ownerDocument || document;
+    const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode(n) {
+        const p = n.parentNode;
+        if (!p || SKIP_TAGS[p.nodeName]) return NodeFilter.FILTER_REJECT;
+        return rubyRe().test(n.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+      },
+    });
+    const targets = [];
+    let n; while ((n = walker.nextNode())) targets.push(n);
+    for (const node of targets) {
+      const src = node.nodeValue;
+      const re = rubyRe();
+      const frag = doc.createDocumentFragment();
+      let last = 0, m;
+      while ((m = re.exec(src))) {
+        if (m.index > last) frag.appendChild(doc.createTextNode(src.slice(last, m.index)));
+        const ruby = doc.createElement("ruby");
+        ruby.appendChild(doc.createTextNode(m[1]));
+        const rt = doc.createElement("rt");
+        rt.textContent = m[2];
+        ruby.appendChild(rt);
+        frag.appendChild(ruby);
+        last = m.index + m[0].length;
+      }
+      if (last < src.length) frag.appendChild(doc.createTextNode(src.slice(last)));
+      if (node.parentNode) node.parentNode.replaceChild(frag, node);
+    }
+  }
+  // レンダリングが おわった あとに まとめて ルビを つける
+  function _rubyLater(el) {
+    if (!el) return;
+    Promise.resolve().then(() => rubyifyDOM(el));
+  }
+
+  // がめん ぜんたいを ふりがな つきに する（レンダリングの あとに よぶ）
+  function rubyAll() {
+    rubyifyDOM(document.body);
+    for (const d of $$("dialog")) rubyifyDOM(d);
+  }
+  /* がめんの もじが かわったら じどうで ルビを つける。
+     こうすると textContent で かいた ところ ぜんぶに ふりがなが つく。*/
+  let _rubyQueued = false;
+  function startRubyWatch() {
+    const obs = new MutationObserver(() => {
+      if (_rubyQueued) return;
+      _rubyQueued = true;
+      requestAnimationFrame(() => { _rubyQueued = false; rubyAll(); });
+    });
+    obs.observe(document.body, { childList: true, subtree: true, characterData: true });
+  }
+
+  // alert / confirm は ルビが つかえないので かっこを とる
+  const say = (t) => alert(plain(t));
+  const ask = (t) => confirm(plain(t));
+
   function illustFor(name) {
     const hana = Zukan.id === "hana";
     const k = hana ? matchKnownFlower(name) : matchKnown(name);
     const gen = hana ? GENERIC_FLOWER : GENERIC_BUG;
     return k
       ? { svg: k.svg, color: k.color, knownId: k.id, kana: k.kana, fact: k.fact, where: k.where, rarity: k.stars,
-          trivia: k.trivia || [], habitat: k.habitat || "", season: k.season || "", food: k.food || "", care: k.care || "" }
+          family: k.family || "", trivia: k.trivia || [], habitat: k.habitat || "", season: k.season || "", food: k.food || "", care: k.care || "" }
       : { svg: gen.svg, color: gen.color, knownId: null, kana: "", fact: "", where: "", rarity: 1,
-          trivia: [], habitat: "", season: "", food: "", care: "" };
+          family: "", trivia: [], habitat: "", season: "", food: "", care: "" };
   }
 
   // ---- データ ----
@@ -123,6 +194,7 @@
         }
         return (k && k[key]) || (Array.isArray(g.list[0] && g.list[0][key]) ? [] : "");
       };
+      g.family = String(pick("family") || "").trim();
       g.trivia = pick("trivia") || [];
       if (!Array.isArray(g.trivia)) g.trivia = [];
       g.habitat = pick("habitat") || "";
@@ -136,26 +208,37 @@
     }
   }
 
-  // カテゴリーごとに まとめる（グリッドと ブックで きょうつう）
+  /* 「科(か)」ごとに まとめる（AIが おしえて くれた 科を つかう）。
+     科が わからない ものは、おおきな なかまわけ（こうちゅう など）に まとめる。
+     ならびは おおきな なかまわけの じゅんばん → 科の 五十音(ごじゅうおん)じゅん。*/
   function groupedByCategory() {
-    const byCat = new Map();
+    const order = categoryOrderFor();
+    const secs = new Map();   // key -> { catId, family, groups }
     for (const g of groups.values()) {
-      const cat = g.category || "other";
-      if (!byCat.has(cat)) byCat.set(cat, []);
-      byCat.get(cat).push(g);
+      const cat = g.category || (Zukan.id === "hana" ? "f_other" : "other");
+      const fam = (g.family || "").trim();
+      const key = fam ? "f:" + fam : "c:" + cat;
+      if (!secs.has(key)) secs.set(key, { catId: cat, family: fam, groups: [] });
+      secs.get(key).groups.push(g);
     }
-    const out = [];
-    for (const catId of categoryOrderFor()) {
-      if (byCat.has(catId)) out.push({ catId, groups: byCat.get(catId).sort((a, b) => b.lastDate - a.lastDate) });
-    }
+    const out = [...secs.values()];
+    for (const sec of out) sec.groups.sort((a, b) => b.lastDate - a.lastDate);
+    out.sort((a, b) => {
+      const oa = order.indexOf(a.catId), ob = order.indexOf(b.catId);
+      if (oa !== ob) return (oa < 0 ? 99 : oa) - (ob < 0 ? 99 : ob);
+      if (!a.family !== !b.family) return a.family ? -1 : 1;   // 科が わかる ものが さき
+      return a.family.localeCompare(b.family, "ja");
+    });
     return out;
   }
+  // セクションの みだし（科が あれば 科の なまえ、なければ おおきな なかまわけ）
+  const secLabel = (sec) => sec.family || categoryMeta(sec.catId).label;
 
   // ---- レベル（10しゅるいごとに アップ・じょうげんなし）----
   const PER_LEVEL = 10;
   const levelOf = (n) => Math.floor(n / PER_LEVEL) + 1;
   const LEVEL_TITLES_FALLBACK = [
-    "みならい", "たんてい", "ハンター", "はかせ", "マスター", "キング", "レジェンド"
+    "見習(みなら)い", "探偵(たんてい)", "ハンター", "博士(はかせ)", "マスター", "キング", "レジェンド"
   ];
   const levelTitle = (lv) => {
     const t = Zukan.meta.levels || LEVEL_TITLES_FALLBACK;
@@ -174,8 +257,8 @@
     if (sw) {
       const others = ZUKANS.filter((x) => x.id !== z.id);
       sw.textContent = others.length === 1
-        ? `🔄 タップで ${others[0].title}に きりかえ`
-        : "🔄 タップで ずかんを きりかえ";
+        ? `🔄 タップで ${others[0].title}に 切(き)りかえ`
+        : "🔄 タップで 図鑑(ずかん)を 切(き)りかえ";
     }
     const fb = $("#fab-text"); if (fb) fb.textContent = z.fab;
     const bb = $("#bar-bug"); if (bb) bb.textContent = z.emoji;
@@ -191,7 +274,7 @@
     renderProgress(); renderGrid(); renderPlaces();
     $("#loading").hidden = true;
     sound.blip();
-    miniNote(`${Zukan.meta.emoji} ${Zukan.meta.title}に きりかえたよ！`);
+    miniNote(`${Zukan.meta.emoji} ${Zukan.meta.title}に 切(き)りかえたよ！`);
   }
   async function openZukanSheet() {
     const list = $("#zukan-list");
@@ -211,8 +294,8 @@
       b.innerHTML =
         `<span class="zp-emoji">${z.emoji}</span>` +
         `<span class="zp-body"><span class="zp-title">${escapeHtml(z.title)}</span>` +
-        `<span class="zp-sub">${counts[z.id] ? counts[z.id] + "しゅるい あつめたよ" : "まだ からっぽ"}</span></span>` +
-        (z.id === Zukan.id ? `<span class="zp-now">いま</span>` : "");
+        `<span class="zp-sub">${counts[z.id] ? counts[z.id] + "種類(しゅるい) 集(あつ)めたよ" : "まだ からっぽ"}</span></span>` +
+        (z.id === Zukan.id ? `<span class="zp-now">今(いま)</span>` : "");
       b.addEventListener("click", () => switchZukan(z.id));
       list.appendChild(b);
     }
@@ -222,10 +305,11 @@
 
   // ---- ヘッダー ----
   function renderProgress() {
+    _rubyLater($("header"));
     const n = groups.size;
     const total = captures.length;
     $("#count").textContent = n;
-    $("#total").textContent = n === 0 ? "" : "しゅるい";
+    $("#total").textContent = n === 0 ? "" : "種類(しゅるい)";
     $("#photo-count").textContent = total ? `📷${total}` : "";
 
     const lv = levelOf(n);
@@ -266,13 +350,14 @@
     set all(v) {
       try { localStorage.setItem("mz-places", JSON.stringify(v)); }
       catch (e) {
-        alert("ばしょを ほぞん できませんでした。\nしゃしんを へらすと なおるかも しれません。");
+        say("場所(ばしょ)を 保存(ほぞん)できませんでした。\n写真(しゃしん)を 減(へ)らすと 直(なお)るかも しれません。");
         throw e;
       }
     },
   };
 
   function renderPlaces() {
+    _rubyLater($(".places"));
     const list = $("#places-list");
     const all = Places.all.sort((a, b) => b.last - a.last);
     $("#places-count").textContent = all.length;
@@ -289,7 +374,7 @@
         `<span class="place-pic">${thumb}<span class="place-emoji">${p.emoji || "🌳"}</span></span>` +
         `<span class="place-name">${escapeHtml(p.name)}</span>` +
         `<span class="place-tags">` +
-          (p.visits > 1 ? `<span class="place-visits">${p.visits}かい</span>` : "") +
+          (p.visits > 1 ? `<span class="place-visits">${p.visits}回(かい)</span>` : "") +
           (bugs ? `<span class="place-bugs">🐛${bugs}</span>` : "") +
         `</span>` +
         `<span class="place-date">${fmtDate(p.last)}</span>`;
@@ -299,7 +384,7 @@
 
     const add = document.createElement("button");
     add.className = "place-card place-add-card";
-    add.innerHTML = `<span class="place-emoji big">🗺️</span><span class="place-name">ばしょを<br>ふやす</span>`;
+    add.innerHTML = `<span class="place-emoji big">🗺️</span><span class="place-name">場所(ばしょ)を<br>増(ふ)やす</span>`;
     add.addEventListener("click", () => openPlaceModal(null));
     list.appendChild(add);
   }
@@ -325,7 +410,7 @@
   function updatePlaceMap() {
     const m = $("#pl-map");
     if (!placePhoto && placeCoord) {
-      m.innerHTML = `<img src="${Geo.tileUrl(placeCoord.lat, placeCoord.lng)}" alt="ちず" loading="lazy">` +
+      m.innerHTML = `<img src="${Geo.tileUrl(placeCoord.lat, placeCoord.lng)}" alt="地図" loading="lazy">` +
                     `<span class="pl-map-pin">📍</span>`;
       m.hidden = false;
     } else { m.innerHTML = ""; m.hidden = true; }
@@ -338,7 +423,7 @@
     placeCoord = p && p.lat != null ? { lat: p.lat, lng: p.lng } : null;
     placeAddress = p ? (p.address || "") : "";
 
-    $("#pl-title").textContent = p ? "🗺️ ばしょ" : "🗺️ ばしょを とうろく";
+    $("#pl-title").textContent = p ? "🗺️ 場所(ばしょ)" : "🗺️ 場所(ばしょ)を 登録(とうろく)";
     $("#pl-name").value = p ? p.name : "";
     $("#pl-note").value = p ? (p.note || "") : "";
     $("#pl-search").value = "";
@@ -347,10 +432,10 @@
     $("#pl-address").textContent = placeAddress ? "📍 " + placeAddress : "";
     $("#pl-date").value = toDateInput(p ? p.last : Date.now());
     $("#pl-first-wrap").hidden = !p;
-    $("#pl-date-label").textContent = p ? "📅 さいきん いった ひ" : "📅 いった ひ";
+    $("#pl-date-label").textContent = p ? "📅 最近(さいきん) 行(い)った 日(ひ)" : "📅 行(い)った 日(ひ)";
     if (p) $("#pl-first").value = toDateInput(p.first || p.last);
     $("#pl-meta").textContent = p
-      ? `はじめて：${fmtDate(p.first)} ・ いった かず：${p.visits}かい`
+      ? `はじめて：${fmtDate(p.first)} ・ 行(い)った 回数(かいすう)：${p.visits}回(かい)`
       : "";
     $("#pl-visit").hidden = !p;
     $("#pl-delete").hidden = !p;
@@ -385,6 +470,7 @@
     }
 
     $("#place-modal").showModal();
+    rubyifyDOM($("#place-modal"));
     // じどうで キーボードを ださない（なまえの らんを タップ したら ひらく）
   }
 
@@ -392,7 +478,7 @@
   async function useCurrentPlace() {
     const msg = $("#pl-search-msg");
     msg.className = "pl-search-msg";
-    msg.textContent = "📍 いまの ばしょを しらべているよ…";
+    msg.textContent = "📍 今(いま)の 場所(ばしょ)を 調(しら)べて いるよ…";
     try {
       const fix = await Geo.current();
       lastFix = fix;
@@ -403,14 +489,14 @@
         placeAddress = r.address;
         $("#pl-address").textContent = "📍 " + r.address;
         if (!$("#pl-name").value.trim()) $("#pl-name").value = r.name.slice(0, 20);
-        msg.textContent = "✓ いまの ばしょが わかったよ！";
+        msg.textContent = "✓ 今(いま)の 場所(ばしょ)が わかったよ！";
       } catch (e) {
         $("#pl-address").textContent = `📍 ${fix.lat.toFixed(5)}, ${fix.lng.toFixed(5)}`;
-        msg.textContent = "✓ いちを きろく したよ（なまえは てで いれてね）";
+        msg.textContent = "✓ 位置(いち)を 記録(きろく)したよ（名前(なまえ)は 手(て)で 入(い)れてね）";
       }
       msg.className = "pl-search-msg ok";
     } catch (err) {
-      msg.textContent = "✕ " + (err.message || "いちが わかりませんでした");
+      msg.textContent = "✕ " + (err.message || "位置(いち)が わかりませんでした");
       msg.className = "pl-search-msg warn";
     }
   }
@@ -420,12 +506,12 @@
     const q = $("#pl-search").value.trim();
     const msg = $("#pl-search-msg");
     const box = $("#pl-results");
-    if (!q) { msg.textContent = "さがす ことばを いれてね"; msg.className = "pl-search-msg warn"; return; }
-    msg.textContent = "さがしているよ…"; msg.className = "pl-search-msg"; box.innerHTML = "";
+    if (!q) { msg.textContent = "さがす 言葉(ことば)を 入(い)れてね"; msg.className = "pl-search-msg warn"; return; }
+    msg.textContent = "さがして いるよ…"; msg.className = "pl-search-msg"; box.innerHTML = "";
     try {
       const rows = await Geo.search(q);
       if (!rows.length) { msg.textContent = "みつかりませんでした"; msg.className = "pl-search-msg warn"; return; }
-      msg.textContent = "タップして えらんでね";
+      msg.textContent = "タップして 選(えら)んでね";
       for (const r of rows) {
         const b = document.createElement("button");
         b.type = "button"; b.className = "pl-result";
@@ -436,13 +522,13 @@
           $("#pl-name").value = r.name.slice(0, 20);
           $("#pl-address").textContent = "📍 " + r.address;
           box.innerHTML = "";
-          msg.textContent = "✓ ばしょを えらんだよ！"; msg.className = "pl-search-msg ok";
+          msg.textContent = "✓ 場所(ばしょ)を 選(えら)んだよ！"; msg.className = "pl-search-msg ok";
           updatePlaceMap();
         });
         box.appendChild(b);
       }
     } catch (err) {
-      msg.textContent = "✕ " + (err.message || "けんさく できませんでした");
+      msg.textContent = "✕ " + (err.message || "検索(けんさく)できませんでした");
       msg.className = "pl-search-msg warn";
     }
   }
@@ -456,12 +542,12 @@
       const reader = new FileReader();
       reader.onload = () => setPlacePhoto(String(reader.result));
       reader.readAsDataURL(blob);
-    } catch (err) { alert("しゃしんを よみこめなかったよ。"); }
+    } catch (err) { say("写真(しゃしん)を 読(よ)みこめなかったよ。"); }
   }
 
   function savePlace() {
     const name = $("#pl-name").value.trim();
-    if (!name) { alert("ばしょの なまえを いれてね"); $("#pl-name").focus(); return; }
+    if (!name) { say("場所(ばしょ)の 名前(なまえ)を 入(い)れてね"); $("#pl-name").focus(); return; }
     const note = $("#pl-note").value.trim();
     const all = Places.all;
     const now = Date.now();
@@ -507,7 +593,7 @@
   function deletePlace() {
     const p = Places.all.find((x) => x.id === placeEditingId);
     if (!p) return;
-    if (!confirm(`「${p.name}」を けしても いい？`)) return;
+    if (!ask(`「${p.name}」を 消(け)しても いい？`)) return;
     Places.all = Places.all.filter((x) => x.id !== placeEditingId);
     $("#place-modal").close();
     renderPlaces();
@@ -517,7 +603,7 @@
   function fillPlaceSelect(preferId) {
     const sel = $("#r-place");
     const all = Places.all.sort((a, b) => b.last - a.last);
-    sel.innerHTML = `<option value="">（えらばない）</option>`;
+    sel.innerHTML = `<option value="">（選(えら)ばない）</option>`;
     for (const p of all) {
       const o = document.createElement("option");
       o.value = p.id;
@@ -576,6 +662,7 @@
 
   // ---- グリッド（ぜんぶ・カテゴリーわけ）----
   function renderGrid() {
+    _rubyLater($("#sections"));
     const wrap = $("#sections");
     wrap.innerHTML = "";
     flatOrder = [];
@@ -591,7 +678,10 @@
       const meta = categoryMeta(sec.catId);
       const head = document.createElement("div");
       head.className = "cat-head";
-      head.innerHTML = `<span class="cat-emoji">${meta.emoji}</span><span class="cat-label">${meta.label}</span><span class="cat-count">${sec.groups.length}</span>`;
+      head.innerHTML = `<span class="cat-emoji">${meta.emoji}</span>` +
+        `<span class="cat-label">${escapeHtml(secLabel(sec))}` +
+        (sec.family ? `<small class="cat-sub">${escapeHtml(meta.label)}</small>` : "") +
+        `</span><span class="cat-count">${sec.groups.length}</span>`;
       wrap.appendChild(head);
 
       const grid = document.createElement("div");
@@ -656,6 +746,7 @@
   }
 
   function rebuildBook(focusName) {
+    _rubyLater($("#book-track"));
     const track = $("#book-track");
     track.innerHTML = "";
     flatOrder.forEach((nm) => track.appendChild(buildPage(groups.get(nm))));
@@ -684,7 +775,7 @@
 
     const cat = document.createElement("div");
     cat.className = "page-cat";
-    cat.innerHTML = `${meta.emoji} ${meta.label}`;
+    cat.textContent = `${meta.emoji} ${g.family || meta.label}`;
     page.appendChild(cat);
 
     const pw = document.createElement("div");
@@ -708,7 +799,7 @@
     page.appendChild(st);
     const stHint = document.createElement("p");
     stHint.className = "star-hint page-star-hint";
-    stHint.textContent = "★を タップで かえられるよ";
+    stHint.textContent = "★を タップで 変(か)えられるよ";
     page.appendChild(stHint);
 
     // なまえ（＋ しゅうせい）
@@ -717,7 +808,7 @@
     const h2 = document.createElement("h2");
     h2.className = "page-name"; h2.textContent = g.name;
     const edit = document.createElement("button");
-    edit.className = "page-name-edit"; edit.textContent = "✏️"; edit.title = "なまえを なおす";
+    edit.className = "page-name-edit"; edit.textContent = "✏️"; edit.title = "名前を なおす";
     nameRow.appendChild(h2); nameRow.appendChild(edit);
     page.appendChild(nameRow);
 
@@ -734,10 +825,11 @@
     ng.addEventListener("click", () => { renameRow.hidden = true; nameRow.hidden = false; });
     ok.addEventListener("click", async () => {
       const v = inp.value.trim();
-      if (!v) { alert("なまえを いれてね"); return; }
+      if (!v) { say("名前(なまえ)を 入(い)れてね"); return; }
       if (v === g.name) { renameRow.hidden = true; nameRow.hidden = false; return; }
       await DB.renameGroup(g.name, v);
-      await DB.patchByName(v, { aiCategory: "" });
+      // なまえを かえたら、まえの むし（はな）の まめちしきは あわないので けす
+      await DB.patchByName(v, Object.assign({ aiCategory: "" }, detailsForName(v, {})));
       Covers.rename(g.name, v);
       await afterChange(v, true);
     });
@@ -750,7 +842,7 @@
 
     const mt = document.createElement("p");
     mt.className = "page-meta";
-    mt.textContent = `みつけた かず：${g.count}かい ・ はじめて：${fmtDate(g.firstDate)}`;
+    mt.textContent = `みつけた 回数(かいすう)：${g.count}回(かい) ・ はじめて：${fmtDate(g.firstDate)}`;
     page.appendChild(mt);
 
     // みつけた ばしょ
@@ -763,7 +855,7 @@
     }
 
     const gtitle = document.createElement("p");
-    gtitle.className = "page-gallery-title"; gtitle.textContent = "📸 とった しゃしん";
+    gtitle.className = "page-gallery-title"; gtitle.textContent = "📸 撮(と)った 写真(しゃしん)";
     page.appendChild(gtitle);
     const gal = document.createElement("div");
     gal.className = "page-gallery";
@@ -774,13 +866,13 @@
       // ひょうしに する（★を タップ）
       const cov = document.createElement("button");
       cov.className = "g-cover"; cov.textContent = c.date === g.cover.date ? "★" : "☆";
-      cov.title = "この しゃしんを カードの ひょうしに する";
+      cov.title = "この写真をカードの表紙にする";
       cov.addEventListener("click", (e) => { e.stopPropagation(); setCover(g.name, c.date); });
       cell.appendChild(cov);
-      const dl = document.createElement("button"); dl.className = "g-save"; dl.textContent = "⬇"; dl.title = "この しゃしんを たんまつに ほぞん";
+      const dl = document.createElement("button"); dl.className = "g-save"; dl.textContent = "⬇"; dl.title = "この写真を端末に保存";
       dl.addEventListener("click", (e) => { e.stopPropagation(); downloadCapture(c, g.name); });
       cell.appendChild(dl);
-      const del = document.createElement("button"); del.className = "g-del"; del.textContent = "×"; del.title = "けす";
+      const del = document.createElement("button"); del.className = "g-del"; del.textContent = "×"; del.title = "消す";
       del.addEventListener("click", (e) => { e.stopPropagation(); confirmDelete(c.id, g.name); });
       cell.appendChild(del);
       const dt = document.createElement("div"); dt.className = "g-date"; dt.textContent = fmtDate(c.date); cell.appendChild(dt);
@@ -789,7 +881,7 @@
     page.appendChild(gal);
 
     const again = document.createElement("button");
-    again.className = "page-again"; again.textContent = "📷 もういちど とる";
+    again.className = "page-again"; again.textContent = "📷 もう一度(いちど) 撮(と)る";
     again.addEventListener("click", () => openPicker("append", g.name));
     page.appendChild(again);
 
@@ -819,7 +911,7 @@
     // まめちしき
     if (g.trivia && g.trivia.length) {
       const h = document.createElement("p");
-      h.className = "info-head"; h.textContent = "💡 まめちしき";
+      h.className = "info-head"; h.textContent = "💡 豆知識(まめちしき)";
       box.appendChild(h);
       const ul = document.createElement("ul");
       ul.className = "info-trivia";
@@ -830,10 +922,10 @@
     }
 
     const rows = [
-      [hana ? "🌱 はえて いる ところ" : "🏠 すんで いる ところ", g.habitat || g.where],
-      [hana ? "🌸 さく きせつ" : "📅 みられる きせつ", g.season],
-      [hana ? "☀️ すきな ばしょ" : "🍽️ たべもの", g.food],
-      [hana ? "🪴 そだてかた" : "🧺 かいかた", g.care],
+      [hana ? "🌱 生(は)えて いる 場所(ばしょ)" : "🏠 住(す)んで いる 場所(ばしょ)", g.habitat || g.where],
+      [hana ? "🌸 咲(さ)く 季節(きせつ)" : "📅 見(み)られる 季節(きせつ)", g.season],
+      [hana ? "☀️ 好(す)きな 場所(ばしょ)" : "🍽️ 食(た)べもの", g.food],
+      [hana ? "🪴 育(そだ)て方(かた)" : "🧺 飼(か)い方(かた)", g.care],
     ];
     let any = false;
     for (const [label, val] of rows) {
@@ -851,7 +943,7 @@
     const btn = document.createElement("button");
     btn.className = "info-more";
     const enough = (g.trivia && g.trivia.length >= 2) && any;
-    btn.textContent = enough ? "🔄 まめちしきを もういちど しらべる" : "🤖 AIに くわしく きく";
+    btn.textContent = enough ? "🔄 豆知識(まめちしき)を もう一度(いちど) 調(しら)べる" : "🤖 AIに くわしく 聞(き)く";
     btn.addEventListener("click", () => fetchDetails(g.name, btn));
     box.appendChild(btn);
 
@@ -859,8 +951,8 @@
       const p = document.createElement("p");
       p.className = "info-empty";
       p.textContent = hana
-        ? "まだ くわしい ことが わからないよ。ボタンを おすと AIが しらべて くれます。"
-        : "まだ くわしい ことが わからないよ。ボタンを おすと AIが しらべて くれます。";
+        ? "まだ くわしい ことが わからないよ。ボタンを 押(お)すと AIが 調(しら)べて くれます。"
+        : "まだ くわしい ことが わからないよ。ボタンを 押(お)すと AIが 調(しら)べて くれます。";
       box.insertBefore(p, btn);
     }
     return box;
@@ -869,13 +961,14 @@
   // AIに くわしい じょうほうを きいて、その なまえ ぜんぶに かきこむ
   async function fetchDetails(name, btn) {
     const key = Settings.key;
-    if (!key) { alert("さきに ⚙️せってい で Gemini の APIキーを いれてね。"); return; }
+    if (!key) { say("さきに ⚙️設定(せってい)で Gemini の APIキーを 入(い)れてね。"); return; }
     const before = btn.textContent;
     btn.disabled = true;
-    btn.textContent = "🔎 AIが しらべているよ…";
+    btn.textContent = "🔎 AIが 調(しら)べて いるよ…";
     try {
       const d = await Gemini.details(name, key, Settings.model, Zukan.id);
       const patch = {
+        family: (d.family || "").trim(),
         trivia: Array.isArray(d.trivia) ? d.trivia.filter(Boolean).slice(0, 4) : [],
         habitat: d.habitat || "",
         season: d.season || "",
@@ -886,15 +979,15 @@
       await DB.patchByName(name, patch);
       await afterChange(name, true);
       sound.blip();
-      miniNote("💡 まめちしきが ふえたよ！");
+      miniNote("💡 豆知識(まめちしき)が 増(ふ)えたよ！");
     } catch (err) {
       btn.disabled = false;
       btn.textContent = before;
       const m = String(err.message || err);
-      if (m.startsWith("QUOTA_DAY")) alert("きょうの AIの ぶんは つかいきったみたい。あしたまで まってね。");
-      else if (m.startsWith("QUOTA")) alert("AIが こんでいるみたい。すこし まってから もういちど おしてね。");
-      else if (m.startsWith("BAD_KEY")) alert("APIキーが ちがうかも。⚙️せってい を たしかめてね。");
-      else alert("しらべられませんでした 😢\n〔" + m.slice(0, 120) + "〕");
+      if (m.startsWith("QUOTA_DAY")) say("今日(きょう)の AIの 分(ぶん)は 使(つか)いきったみたい。明日(あした)まで 待(ま)ってね。");
+      else if (m.startsWith("QUOTA")) say("AIが 混(こ)んで いるみたい。少(すこ)し 待(ま)ってから もう一度(いちど) 押(お)してね。");
+      else if (m.startsWith("BAD_KEY")) say("APIキーが 違(ちが)うかも。⚙️設定(せってい)を 確(たし)かめてね。");
+      else say("調(しら)べられませんでした 😢\n〔" + m.slice(0, 120) + "〕");
     }
   }
 
@@ -906,7 +999,7 @@
     Covers.set(name, Covers.get(name) === date ? 0 : date);
     sound.blip();
     await afterChange(name, true);
-    miniNote("★ ひょうしの しゃしんを かえたよ！");
+    miniNote("★ 表紙(ひょうし)の 写真(しゃしん)を 変(か)えたよ！");
   }
 
   // ★の かずを かえて ほぞん（おなじ なまえ ぜんぶ）
@@ -914,7 +1007,7 @@
     const g = groups.get(name);
     if (!g || g.rarity === v) return;
     try { await DB.patchByName(name, { rarity: v }); }
-    catch (e) { console.error(e); alert("★を かえられませんでした"); return; }
+    catch (e) { console.error(e); say("★を 変(か)えられませんでした"); return; }
     sound.blip();
     if (v === 3) { confetti(3); }
     await afterChange(name, true);
@@ -924,7 +1017,7 @@
   async function deleteGroup(name) {
     const g = groups.get(name);
     if (!g) return;
-    if (!confirm(`「${name}」を ずかんから けしますか？\n（しゃしん ${g.count}まいが きえます。もとに もどせません）`)) return;
+    if (!ask(`「${name}」を 図鑑(ずかん)から 消(け)しますか？\n（写真(しゃしん) ${g.count}枚(まい)が 消(き)えます。元(もと)に 戻(もど)せません）`)) return;
     $("#loading").hidden = false;
     try {
       for (const c of g.list.slice()) { await DB.remove(c.id); }
@@ -951,7 +1044,7 @@
   }
 
   function confirmDelete(id, name) {
-    if (!confirm("この しゃしんを けしても いい？")) return;
+    if (!ask("この 写真(しゃしん)を 消(け)しても いい？")) return;
     DB.remove(id).then(() => afterChange(name, true));
   }
 
@@ -983,7 +1076,7 @@
     if (!file) return;
     let blob;
     try { blob = await resizeImage(file, 1024, 0.8); }
-    catch (err) { alert("しゃしんを よみこめなかったよ。"); return; }
+    catch (err) { say("写真(しゃしん)を 読(よ)みこめなかったよ。"); return; }
 
     if (pendingMode === "append" && pendingAppendName) {
       const rec = { name: pendingAppendName, ...pickMeta(pendingAppendName), blob, date: Date.now() };
@@ -993,7 +1086,7 @@
       } catch (err) {
         $("#loading").hidden = true;
         console.error("save failed:", err);
-        alert("ほぞん できなかったよ 😢\n〔" + errText(err) + "〕");
+        say("保存(ほぞん)できなかったよ 😢\n〔" + errText(err) + "〕");
         return;
       }
       try { await afterChange(pendingAppendName, true); } catch (e) { console.error(e); }
@@ -1028,7 +1121,7 @@
     let left = sec;
     const draw = () => {
       const el = $("#think-sub");
-      if (el) el.textContent = `AIが こんでいるみたい…${left}びょう まってね（${attempt}かいめ）`;
+      if (el) el.textContent = `AIが 混(こ)んで いるみたい…${left}秒(びょう) 待(ま)ってね（${attempt}回目(かいめ)）`;
     };
     draw();
     clearInterval(onAiWait._t);
@@ -1078,17 +1171,19 @@
   // ---- けっか（AIすいそく＋なまえ しゅうせい）----
   function openResult(blob, ai, err) {
     const r = { name: "", kana: "", fact: "", where: "", rarity: 1, category: "", aiName: null, confidence: null,
-                trivia: [], habitat: "", season: "", food: "", care: "" };
+                family: "", trivia: [], habitat: "", season: "", food: "", care: "" };
     if (ai && ai.is_creature && ai.name) {
       r.name = ai.name; r.kana = ai.kana || ""; r.fact = ai.fact || ""; r.where = ai.where || "";
       r.rarity = clampR(ai.rarity); r.category = ai.category || ""; r.aiName = ai.name;
       r.confidence = typeof ai.confidence === "number" ? ai.confidence : null;
+      r.family = (ai.family || "").trim();
       r.trivia = Array.isArray(ai.trivia) ? ai.trivia.filter(Boolean) : [];
       r.habitat = ai.habitat || ""; r.season = ai.season || ""; r.food = ai.food || ""; r.care = ai.care || "";
     }
     const known = (Zukan.id === "hana") ? matchKnownFlower(r.name) : matchKnown(r.name);
     if (known) {
       r.kana = r.kana || known.kana; r.fact = r.fact || known.fact; r.where = r.where || known.where;
+      r.family = r.family || known.family || "";
       if (!r.trivia.length && known.trivia) r.trivia = known.trivia.slice();
       r.habitat = r.habitat || known.habitat || "";
       r.season = r.season || known.season || "";
@@ -1121,27 +1216,28 @@
 
     if (err === "NO_KEY") {
       note.classList.add("warn");
-      note.innerHTML = "AIキーが まだ ないよ。なまえを てで いれてね。<br><span class='r-note-sub'>⚙️ せってい で キーを いれると じどうで なまえが でます</span>";
+      note.innerHTML = "AIキーが まだ ないよ。名前(なまえ)を 手(て)で 入(い)れてね。<br><span class='r-note-sub'>⚙️設定(せってい)で キーを 入(い)れると 自動(じどう)で 名前(なまえ)が 出(で)ます</span>";
     } else if (err && err.startsWith("BAD_KEY")) {
-      note.classList.add("warn"); note.innerHTML = "APIキーが ちがうかも。⚙️ せってい を たしかめてね。<br>なまえは てで いれられます。" + detail(err);
+      note.classList.add("warn"); note.innerHTML = "APIキーが 違(ちが)うかも。⚙️設定(せってい)を 確(たし)かめてね。<br>名前(なまえ)は 手(て)で 入(い)れられます。" + detail(err);
     } else if (err && err.startsWith("QUOTA_DAY")) {
       note.classList.add("warn");
-      note.innerHTML = "きょうの AIの ぶんは つかいきったみたい。あしたまで まってね。<br><span class='r-note-sub'>Google がわの 1にちの じょうげん（むりょうわく）です。なまえは てで いれられます</span>" + detail(err);
+      note.innerHTML = "今日(きょう)の AIの 分(ぶん)は 使(つか)いきったみたい。明日(あした)まで 待(ま)ってね。<br><span class='r-note-sub'>Google 側(がわ)の 1日(にち)の 上限(じょうげん)（無料枠(むりょうわく)）です。名前(なまえ)は 手(て)で 入(い)れられます</span>" + detail(err);
     } else if (err && err.startsWith("QUOTA")) {
       note.classList.add("warn");
-      note.innerHTML = "AIが こんでいるみたい。すこし まってから もういちど おしてね。<br><span class='r-note-sub'>Google がわの 「1ぷんあたり」の じょうげんです（アプリの せいげんでは ありません）</span>" + detail(err);
+      note.innerHTML = "AIが 混(こ)んで いるみたい。少(すこ)し 待(ま)ってから もう一度(いちど) 押(お)してね。<br><span class='r-note-sub'>Google 側(がわ)の「1分(ぷん)あたり」の 上限(じょうげん)です（アプリの 制限(せいげん)では ありません）</span>" + detail(err);
     } else if (err === "NETWORK") {
-      note.classList.add("warn"); note.textContent = "ネットに つながらなかったよ。なまえを てで いれてね。";
+      note.classList.add("warn"); note.textContent = "ネットに つながらなかったよ。名前(なまえ)を 手(て)で 入(い)れてね。";
     } else if (err) {
-      note.classList.add("warn"); note.innerHTML = "AIが つかえなかったよ。なまえを てで いれてね。" + detail(err);
+      note.classList.add("warn"); note.innerHTML = "AIが 使(つか)えなかったよ。名前(なまえ)を 手(て)で 入(い)れてね。" + detail(err);
     } else if (ai && !ai.is_creature) {
       note.classList.add("warn"); note.textContent = Zukan.meta.notFound;
     } else if (ai) {
       const pct = r.confidence != null ? Math.round(r.confidence * 100) : null;
-      note.innerHTML = `🤖 AIの すいそく：<b>${escapeHtml(r.name)}</b>` + (pct != null ? `（じしん ${pct}%）` : "") + "<br><span class='r-note-sub'>ちがったら なまえを なおしてね</span>";
+      note.innerHTML = `🤖 AIの 予想(よそう)：<b>${escapeHtml(r.name)}</b>` + (pct != null ? `（自信(じしん) ${pct}%）` : "") + "<br><span class='r-note-sub'>違(ちが)ったら 名前(なまえ)を 直(なお)してね</span>";
     }
     fillPlaceSelect("");
     $("#result").showModal();
+    rubyifyDOM($("#result"));
     setTimeout(() => { if (!r.name) $("#r-name-input").focus(); }, 200);
     // GPSで ちかくの ばしょを じどう せんたく
     guessPlaceId().then((id) => { if (id && !$("#r-place").value) $("#r-place").value = id; });
@@ -1168,16 +1264,16 @@
     const known = (Zukan.id === "hana") ? matchKnownFlower(name) : matchKnown(name);
     if (known) {
       return {
-        where: known.where || "",
+        where: known.where || "", family: known.family || "",
         trivia: (known.trivia || []).slice(0, 4),
         habitat: known.habitat || "", season: known.season || "",
         food: known.food || "", care: known.care || "",
       };
     }
     const sameAsAi = r.aiName && _norm(name) === _norm(r.aiName);
-    if (!sameAsAi) return { where: "", trivia: [], habitat: "", season: "", food: "", care: "" };
+    if (!sameAsAi) return { where: "", family: "", trivia: [], habitat: "", season: "", food: "", care: "" };
     return {
-      where: r.where || "",
+      where: r.where || "", family: r.family || "",
       trivia: Array.isArray(r.trivia) ? r.trivia.slice(0, 4) : [],
       habitat: r.habitat || "", season: r.season || "",
       food: r.food || "", care: r.care || "",
@@ -1196,7 +1292,7 @@
 
   async function saveResult() {
     const name = $("#r-name-input").value.trim();
-    if (!name) { alert("なまえを いれてね"); $("#r-name-input").focus(); return; }
+    if (!name) { say("名前(なまえ)を 入(い)れてね"); $("#r-name-input").focus(); return; }
     const ill = illustFor(name);
     const r = pendingResolved || {};
     const rec = {
@@ -1228,7 +1324,7 @@
     } catch (err) {
       $("#loading").hidden = true;
       console.error("save failed:", err);
-      alert("ほぞん できなかったよ 😢\n〔" + errText(err) + "〕\nもう いちど「とうろく」を おしてね。");
+      say("保存(ほぞん)できなかったよ 😢\n〔" + errText(err) + "〕\nもう一度(いちど)「登録(とうろく)」を 押(お)してね。");
       $("#result").showModal(); // やりなおせる ように もどす
       return;
     }
@@ -1240,8 +1336,8 @@
   }
 
   function errText(err) {
-    if (!err) return "ふめいな エラー";
-    if (err.name === "QuotaExceededError") return "スマホの ほぞん ようりょうが いっぱいです";
+    if (!err) return "不明(ふめい)な エラー";
+    if (err.name === "QuotaExceededError") return "スマホの 保存容量(ほぞんようりょう)が いっぱいです";
     return (err.name ? err.name + ": " : "") + (err.message || String(err));
   }
 
@@ -1279,7 +1375,7 @@
     const g = groups.get(rec.name);
     const t = $("#toast");
     $("#toast-photo").src = urlFor(rec.blob);
-    $("#toast-text").textContent = `${rec.name}を また みつけたね！（${g ? g.count : ""}かいめ）`;
+    $("#toast-text").textContent = `${rec.name}を また みつけたね！（${g ? g.count : ""}回目(かいめ)）`;
     t.hidden = false; t.classList.add("show");
     sound.blip(); confetti(1);
     clearTimeout(miniCheer._t);
@@ -1335,6 +1431,7 @@
     $("#s-test-result").textContent = ""; $("#s-test-result").className = "s-test-result";
     $("#s-auto-backup").checked = autoBackupOn();
     $("#settings").showModal();
+    rubyifyDOM($("#settings"));
   }
   function saveSettings() {
     Settings.key = $("#s-key").value.trim();
@@ -1345,10 +1442,10 @@
     const key = $("#s-key").value.trim();
     const model = $("#s-model").value.trim() || Gemini.DEFAULT_MODEL;
     const out = $("#s-test-result");
-    if (!key) { out.textContent = "APIキーを いれてね"; out.className = "s-test-result warn"; return; }
-    out.textContent = "たしかめ中…"; out.className = "s-test-result";
-    try { await Gemini.test(key, model); out.textContent = "✓ せつぞく できたよ！"; out.className = "s-test-result ok"; }
-    catch (err) { out.textContent = "✕ " + (err.message || "しっぱい"); out.className = "s-test-result warn"; }
+    if (!key) { out.textContent = "APIキーを 入(い)れてね"; out.className = "s-test-result warn"; return; }
+    out.textContent = "確(たし)かめ中(ちゅう)…"; out.className = "s-test-result";
+    try { await Gemini.test(key, model); out.textContent = "✓ 接続(せつぞく)できたよ！"; out.className = "s-test-result ok"; }
+    catch (err) { out.textContent = "✕ " + (err.message || "失敗(しっぱい)"); out.className = "s-test-result warn"; }
   }
 
 
@@ -1356,33 +1453,42 @@
   async function reclassifyWithAI() {
     const out = $("#s-reclass-result");
     const key = Settings.key;
-    if (!key) { out.textContent = "さきに APIキーを いれてね"; out.className = "s-test-result warn"; return; }
+    if (!key) { out.textContent = "さきに APIキーを 入(い)れてね"; out.className = "s-test-result warn"; rubyifyDOM(out); return; }
     const names = [...groups.keys()];
-    if (!names.length) { out.textContent = `まだ ${Zukan.meta.one}が いないよ`; out.className = "s-test-result warn"; return; }
-    out.textContent = `AIが ${names.length}しゅるいを しらべているよ…`;
+    if (!names.length) { out.textContent = `まだ ${Zukan.meta.one}が いないよ`; out.className = "s-test-result warn"; rubyifyDOM(out); return; }
+    out.textContent = `AIが ${names.length}種類(しゅるい)を 調(しら)べて いるよ…`;
     out.className = "s-test-result";
+    rubyifyDOM(out);
     try {
       const map = await Gemini.classifyNames(names, key, Settings.model, Zukan.id);
       let changed = 0;
       for (const name of names) {
-        const label = map[name];
-        if (!label) continue;
-        const before = groups.get(name).category;
-        const after = categorize(name, label);
-        await DB.patchByName(name, { aiCategory: label });
-        if (after !== before) changed++;
+        const r = map[name];
+        if (!r) continue;
+        const g = groups.get(name);
+        const before = g ? g.category : "";
+        const beforeFam = g ? (g.family || "") : "";
+        const patch = {};
+        if (r.category) patch.aiCategory = r.category;
+        if (r.family) patch.family = r.family;
+        if (!Object.keys(patch).length) continue;
+        await DB.patchByName(name, patch);
+        const after = categorize(name, r.category || "");
+        if (after !== before || (r.family || "") !== beforeFam) changed++;
       }
       await reload(); renderProgress(); renderGrid(); renderPlaces();
       out.textContent = changed
-        ? `✓ ${changed}しゅるいの なかまわけを なおしたよ！`
-        : "✓ ぜんぶ あってたよ！";
+        ? `✓ ${changed}種類(しゅるい)の 仲間分(なかまわ)けを 直(なお)したよ！`
+        : "✓ ぜんぶ あって たよ！";
       out.className = "s-test-result ok";
+      rubyifyDOM(out);
       if (changed) { sound.blip(); }
     } catch (err) {
       out.textContent = "✕ " + (err.message || "できませんでした");
       out.className = "s-test-result warn";
     }
   }
+
 
 
 
@@ -1396,7 +1502,7 @@
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 4000);
       sound.blip();
-    } catch (e) { alert("ほぞん できませんでした"); }
+    } catch (e) { say("保存(ほぞん)できませんでした"); }
   }
 
   // バックアップの おすすめ（ながらく していない ときだけ）
@@ -1411,8 +1517,8 @@
     const need = n > 0 && (!last || Date.now() - last > BACKUP_EVERY);
     el.hidden = !need;
     el.textContent = last
-      ? "💾 まえの バックアップから じかんが たったよ。タップで ほぞん"
-      : "💾 だいじな しゃしんを まもろう！ タップで バックアップ";
+      ? "💾 前(まえ)の バックアップから 時間(じかん)が たったよ。タップで 保存(ほぞん)"
+      : "💾 大事(だいじ)な 写真(しゃしん)を 守(まも)ろう！ タップで バックアップ";
   }
 
   // ---- じどう バックアップ ----
@@ -1441,7 +1547,7 @@
       if (!count || sig === lastSig) return;                  // なにも かわって いない
       downloadBlob(blob, backupFileName());
       markBackedUp(sig);
-      miniNote(`💾 じどうで バックアップしたよ（しゃしん ${count}まい）`);
+      miniNote(`💾 自動(じどう)で バックアップしたよ（写真(しゃしん) ${count}枚(まい)）`);
     } catch (err) {
       console.warn("auto backup failed:", err);
     }
@@ -1465,7 +1571,7 @@
     return new Promise((res, rej) => {
       const r = new FileReader();
       r.onload = () => res(String(r.result));
-      r.onerror = () => rej(new Error("よみこみ しっぱい"));
+      r.onerror = () => rej(new Error("読みこみ失敗"));
       r.readAsDataURL(blob);
     });
   }
@@ -1513,12 +1619,12 @@
 
   async function exportBackup() {
     const out = $("#s-backup-result");
-    out.textContent = "バックアップを つくっているよ…"; out.className = "s-test-result";
+    out.textContent = "バックアップを 作(つく)って いるよ…"; out.className = "s-test-result";
     try {
       const { blob, count, sig } = await buildBackup();
       downloadBlob(blob, backupFileName());
       markBackedUp(sig);
-      out.textContent = `✓ ${count}まいの しゃしんを ほぞんしたよ！`;
+      out.textContent = `✓ ${count}枚(まい)の 写真(しゃしん)を 保存(ほぞん)したよ！`;
       out.className = "s-test-result ok";
     } catch (err) {
       console.error(err);
@@ -1529,7 +1635,7 @@
 
   async function importBackup(file) {
     const out = $("#s-backup-result");
-    out.textContent = "よみこんでいるよ…"; out.className = "s-test-result";
+    out.textContent = "読(よ)みこんで いるよ…"; out.className = "s-test-result";
     try {
       const data = JSON.parse(await file.text());
       if (!data || data.app !== "mushizukan") throw new Error("むしずかんの バックアップ ではないみたい");
@@ -1563,12 +1669,12 @@
       }
       if (addedPlaces) Places.all = cur;
       await reload(); renderProgress(); renderGrid(); renderPlaces();
-      out.textContent = `✓ しゃしん ${added}まい・ばしょ ${addedPlaces}かしょを もどしたよ！`;
+      out.textContent = `✓ 写真(しゃしん) ${added}枚(まい)・場所(ばしょ) ${addedPlaces}か所(しょ)を 戻(もど)したよ！`;
       out.className = "s-test-result ok";
       if (added) { sound.fanfare(2); confetti(2); }
     } catch (err) {
       console.error(err);
-      out.textContent = "✕ " + (err.message || "もどせませんでした");
+      out.textContent = "✕ " + (err.message || "戻(もど)せませんでした");
       out.className = "s-test-result warn";
     }
   }
@@ -1681,7 +1787,7 @@
 
   // リセット：open する まえに DBを けして きれいに やりなおす ため、URLに しるしを つけて さいよみこみ
   function resetData() {
-    if (!confirm("ぜんぶの きろく（しゃしん）を けして さいしょから やりなおしますか？\nもとに もどせません。")) return;
+    if (!ask("ぜんぶの 記録(きろく)（写真(しゃしん)）を 消(け)して 最初(さいしょ)から やり直(なお)しますか？\n元(もと)に 戻(もど)せません。")) return;
     location.href = location.pathname + "?reset=" + Date.now();
   }
 
@@ -1695,7 +1801,7 @@
 
     // リセット モード：DBを ひらく まえに けす（ハング中でも かくじつに けせる）
     if (/[?&]reset=/.test(location.search)) {
-      $("#progress-msg").textContent = "データを リセット中…";
+      $("#progress-msg").textContent = "データを リセット中(ちゅう)…";
       try { await DB.reset(); } catch (e) { console.error("reset:", e); }
       location.replace(location.pathname); // きれいな URLで ひらきなおし
       return;
@@ -1708,17 +1814,19 @@
       renderGrid();
     } catch (e) {
       console.error("load failed:", e);
-      $("#progress-msg").textContent = "データを よみこめませんでした 😢";
+      $("#progress-msg").textContent = "データを 読(よ)みこめませんでした 😢";
       try { renderGrid(); } catch (_) {}
       setTimeout(() => {
-        if (confirm(
-          "データを よみこめませんでした 😢\n〔" + errText(e) + "〕\n\n" +
-          "データを リセットして なおしますか？\n（これまでの しゃしんは きえますが、また あつめられます）"
+        if (ask(
+          "データを 読(よ)みこめませんでした 😢\n〔" + errText(e) + "〕\n\n" +
+          "データを リセットして 直(なお)しますか？\n（これまでの 写真(しゃしん)は 消(き)えますが、また 集(あつ)められます）"
         )) {
           location.href = location.pathname + "?reset=" + Date.now();
         }
       }, 150);
     }
+    rubyAll();
+    startRubyWatch();
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("./service-worker.js").catch(() => {});
     // データが かってに けされにくく なるように おねがいする
     try { navigator.storage && navigator.storage.persist && navigator.storage.persist().catch(() => {}); } catch (e) {}
