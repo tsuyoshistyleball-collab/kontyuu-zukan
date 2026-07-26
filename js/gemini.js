@@ -51,7 +51,33 @@ const Gemini = (() => {
     required: ["name", "is_creature", "confidence", "rarity", "fact"],
   };
 
-  async function identify(blob, key, model) {
+  // Google からの エラーを よみとく（429の りゆうと まちじかん）
+  function parseApiError(j) {
+    const e = (j && j.error) || {};
+    const out = { message: e.message || "", retry: 0, daily: false, quotaId: "" };
+    for (const d of e.details || []) {
+      const t = String(d["@type"] || "");
+      if (t.indexOf("RetryInfo") >= 0 && d.retryDelay) {
+        out.retry = parseFloat(String(d.retryDelay).replace(/[^0-9.]/g, "")) || 0;
+      }
+      if (t.indexOf("QuotaFailure") >= 0) {
+        for (const v of d.violations || []) {
+          const id = v.quotaId || "";
+          if (id) out.quotaId = id;
+          if (/PerDay/i.test(id)) out.daily = true;
+        }
+      }
+    }
+    if (/per day|perday|daily/i.test(out.message)) out.daily = true;
+    return out;
+  }
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  // ぶんあたりの せいげんは まてば なおるので、じどうで リトライする
+  const MAX_RETRY = 2;
+  const MAX_WAIT_S = 40;
+
+  async function identify(blob, key, model, onWait) {
     if (!key) throw new Error("NO_KEY");
     const b64 = await blobToBase64(blob);
     const body = {
@@ -70,25 +96,36 @@ const Gemini = (() => {
       },
     };
 
-    let resp;
-    try {
-      resp = await fetch(endpoint(model || DEFAULT_MODEL, key), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-    } catch (e) {
-      throw new Error("NETWORK");
-    }
-
-    if (!resp.ok) {
-      let msg = "API " + resp.status;
+    let resp = null;
+    for (let attempt = 0; ; attempt++) {
       try {
-        const j = await resp.json();
-        if (j.error && j.error.message) msg = j.error.message;
-      } catch (e) {}
+        resp = await fetch(endpoint(model || DEFAULT_MODEL, key), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+      } catch (e) {
+        throw new Error("NETWORK");
+      }
+      if (resp.ok) break;
+
+      let j = null;
+      try { j = await resp.json(); } catch (e) {}
+      const info = parseApiError(j);
+      const msg = info.message || "API " + resp.status;
+
       if (resp.status === 400 || resp.status === 403) throw new Error("BAD_KEY:" + msg);
-      if (resp.status === 429) throw new Error("QUOTA:" + msg);
+      if (resp.status === 429) {
+        const wait = Math.min(Math.max(info.retry || 6, 3), MAX_WAIT_S);
+        if (!info.daily && attempt < MAX_RETRY) {
+          if (typeof onWait === "function") onWait(Math.ceil(wait), attempt + 1);
+          await sleep(wait * 1000);
+          continue; // まってから もういちど
+        }
+        const tag = info.daily ? "QUOTA_DAY:" : "QUOTA:";
+        throw new Error(tag + (info.quotaId ? info.quotaId + " / " : "") + msg);
+      }
+      if (resp.status >= 500 && attempt < MAX_RETRY) { await sleep(2000 * (attempt + 1)); continue; }
       throw new Error("API:" + msg);
     }
 

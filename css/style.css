@@ -391,7 +391,7 @@ main { max-width: 760px; margin: 0 auto; }
 .r-note { text-align: center; font-weight: 700; font-size: 14px; margin: 12px 22px 0; color: var(--green-d);
   background: var(--paper2); border-radius: 14px; padding: 10px 14px; line-height: 1.55; }
 .r-note.warn { background: #fde7d3; color: #b26a00; }
-.r-note-sub { font-size: 12px; opacity: .85; }
+.r-note-sub { font-size: 12px; opacity: .85; overflow-wrap: anywhere; word-break: break-word; }
 .r-stars, .m-stars { font-size: 22px; letter-spacing: 2px; }
 .r-stars.s1, .m-stars.s1 { color: #8fbf6a; } .r-stars.s2, .m-stars.s2 { color: var(--honey-d); } .r-stars.s3, .m-stars.s3 { color: var(--terra); }
 .r-label { display: block; text-align: center; color: var(--ink-sub); font-weight: 800; font-size: 13px; margin: 12px 0 5px; }
@@ -411,6 +411,10 @@ main { max-width: 760px; margin: 0 auto; }
 .r-save { flex: 1; padding: 14px; border-radius: 16px; background: linear-gradient(180deg,#84c266,#4c8033);
   color: #fff; font-weight: 900; font-size: 18px; border: 3px solid #fff; box-shadow: 0 4px 0 #3a6427; }
 .r-save:active { transform: translateY(3px); box-shadow: 0 2px 0 #3a6427; }
+.r-retry { display: block; margin: 10px auto 0; padding: 11px 20px; border-radius: 14px;
+  background: linear-gradient(180deg,#ffd76b,#f0a93c); color: #6b4a12; font-weight: 900; font-size: 15px;
+  border: 3px solid #fff; box-shadow: 0 4px 0 #c9832a; }
+.r-retry:active { transform: translateY(3px); box-shadow: 0 1px 0 #c9832a; }
 
 /* ---------- せってい ---------- */
 .settings .m-close, .place-modal .m-close {
@@ -424,6 +428,7 @@ main { max-width: 760px; margin: 0 auto; }
 .s-input:focus { outline: none; border-color: var(--green); }
 .s-input.masked { -webkit-text-security: disc; text-security: disc; }
 .s-key-toggle { width: 50px; border-radius: 12px; background: var(--paper2); font-size: 18px; }
+.s-note { margin: 8px 2px 0; font-size: 12px; line-height: 1.65; color: #6b5636; font-weight: 600; }
 .s-test-btn { margin-top: 14px; width: 100%; padding: 12px; border-radius: 12px; background: var(--paper2); color: var(--green-d); font-weight: 800; }
 .s-test-result { text-align: center; font-weight: 800; font-size: 14px; min-height: 18px; margin: 8px 0 0; }
 .s-test-result.ok { color: var(--green-d); } .s-test-result.warn { color: #c0392b; }

@@ -109,6 +109,7 @@
     <div class="m-illust-wrap"><div id="r-illust" class="m-illust"></div></div>
     <div class="r-photo-wrap"><img id="r-photo" class="r-photo" alt="" /></div>
     <p id="r-note" class="r-note"></p>
+    <button id="r-retry" class="r-retry" type="button" hidden>🔄 もういちど AIに きく</button>
     <div class="m-stars-row">
       <div id="r-stars" class="r-stars star-pick" role="group" aria-label="レアど"></div>
       <span class="star-hint">タップで かえられるよ</span>
@@ -219,7 +220,14 @@
     </div>
 
     <label class="s-label">モデル</label>
-    <input id="s-model" class="s-input" type="text" placeholder="gemini-3-flash-preview" autocomplete="off" spellcheck="false" />
+    <input id="s-model" class="s-input" type="text" placeholder="gemini-3-flash-preview" autocomplete="off" spellcheck="false" list="s-model-list" />
+    <datalist id="s-model-list">
+      <option value="gemini-3-flash-preview"></option>
+      <option value="gemini-2.5-flash"></option>
+      <option value="gemini-2.5-flash-lite"></option>
+    </datalist>
+    <p class="s-note">「せいげん」が すぐ でる ときは、むりょうわくの じょうげんが ちいさい プレビュー版が げんいんかも。
+      <b>gemini-2.5-flash</b> や <b>gemini-2.5-flash-lite</b> に かえると なおる ことが あります。</p>
 
     <button id="s-test" class="s-test-btn">せつぞく テスト</button>
     <p id="s-test-result" class="s-test-result"></p>

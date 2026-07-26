@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v30";
+  const APP_VERSION = "v31";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -775,17 +775,36 @@
 
     // discovery
     pendingBlob = blob;
+    await askAI(blob);
+  }
+
+  // AIに しゃしんを みてもらう（けっか モーダルを ひらく）
+  async function askAI(blob) {
     const key = Settings.key;
     if (!key) { openResult(blob, null, "NO_KEY"); return; }
     startThinking(blob);
     try {
-      const ai = await Gemini.identify(blob, key, Settings.model);
+      const ai = await Gemini.identify(blob, key, Settings.model, onAiWait);
       stopThinking();
       openResult(blob, ai, null);
     } catch (err) {
       stopThinking();
       openResult(blob, null, String(err.message || err));
     }
+  }
+
+  // AIが こみあって いる とき（429）に まっている あいだの ひょうじ
+  function onAiWait(sec, attempt) {
+    clearInterval(startThinking._t);
+    let left = sec;
+    const draw = () => {
+      const el = $("#think-sub");
+      if (el) el.textContent = `AIが こんでいるみたい…${left}びょう まってね（${attempt}かいめ）`;
+    };
+    draw();
+    clearInterval(onAiWait._t);
+    onAiWait._t = setInterval(() => { left = Math.max(0, left - 1); draw(); }, 1000);
+    setTimeout(() => clearInterval(onAiWait._t), (sec + 2) * 1000);
   }
 
   // ---- とうろく中の えんしゅつ ----
@@ -812,6 +831,7 @@
   }
   function stopThinking() {
     clearInterval(startThinking._t);
+    clearInterval(onAiWait._t);
     $("#thinking").hidden = true;
   }
 
@@ -859,17 +879,29 @@
 
     const note = $("#r-note");
     note.className = "r-note";
+    const detail = (e) => {
+      const i = String(e).indexOf(":");
+      const raw = i >= 0 ? String(e).slice(i + 1).trim() : "";
+      return raw ? `<br><span class='r-note-sub'>〔${escapeHtml(raw.slice(0, 160))}〕</span>` : "";
+    };
+    // AIに もういちど きく ボタンは エラーの ときだけ だす
+    $("#r-retry").hidden = !(err && err !== "NO_KEY" && Settings.key);
+
     if (err === "NO_KEY") {
       note.classList.add("warn");
       note.innerHTML = "AIキーが まだ ないよ。なまえを てで いれてね。<br><span class='r-note-sub'>⚙️ せってい で キーを いれると じどうで なまえが でます</span>";
     } else if (err && err.startsWith("BAD_KEY")) {
-      note.classList.add("warn"); note.innerHTML = "APIキーが ちがうかも。⚙️ せってい を たしかめてね。<br>なまえは てで いれられます。";
+      note.classList.add("warn"); note.innerHTML = "APIキーが ちがうかも。⚙️ せってい を たしかめてね。<br>なまえは てで いれられます。" + detail(err);
+    } else if (err && err.startsWith("QUOTA_DAY")) {
+      note.classList.add("warn");
+      note.innerHTML = "きょうの AIの ぶんは つかいきったみたい。あしたまで まってね。<br><span class='r-note-sub'>Google がわの 1にちの じょうげん（むりょうわく）です。なまえは てで いれられます</span>" + detail(err);
     } else if (err && err.startsWith("QUOTA")) {
-      note.classList.add("warn"); note.textContent = "きょうは AIが つかいすぎかも。なまえを てで いれてね。";
+      note.classList.add("warn");
+      note.innerHTML = "AIが こんでいるみたい。すこし まってから もういちど おしてね。<br><span class='r-note-sub'>Google がわの 「1ぷんあたり」の じょうげんです（アプリの せいげんでは ありません）</span>" + detail(err);
     } else if (err === "NETWORK") {
       note.classList.add("warn"); note.textContent = "ネットに つながらなかったよ。なまえを てで いれてね。";
     } else if (err) {
-      note.classList.add("warn"); note.textContent = "AIが つかえなかったよ。なまえを てで いれてね。";
+      note.classList.add("warn"); note.innerHTML = "AIが つかえなかったよ。なまえを てで いれてね。" + detail(err);
     } else if (ai && !ai.is_creature) {
       note.classList.add("warn"); note.textContent = "むしが みつからなかったかも。なまえを いれてね。";
     } else if (ai) {
@@ -1255,6 +1287,12 @@
 
     $("#r-save").addEventListener("click", saveResult);
     $("#r-cancel").addEventListener("click", () => $("#result").close());
+    $("#r-retry").addEventListener("click", () => {
+      if (!pendingBlob) return;
+      const blob = pendingBlob;
+      $("#result").close();
+      askAI(blob);
+    });
     $("#r-name-input").addEventListener("input", (e) => onResultNameInput(e.target.value));
 
     $("#cel-ok").addEventListener("click", () => { const ov = $("#celebrate"); ov.classList.remove("show"); setTimeout(() => (ov.hidden = true), 300); });
