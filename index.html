@@ -382,13 +382,17 @@
     <div id="ar-fight" class="ar-fight" hidden>
       <!-- たいりょく バー（ひだり＝あいて／みぎ＝じぶん）-->
       <div class="ar-bars">
-        <div id="ar-foe-bar" class="ar-side foe"></div>
-        <div id="ar-me-bar" class="ar-side me"></div>
+        <div class="ar-side foe">
+          <div id="ar-foe-bar"></div>
+          <div id="ar-foe-team" class="ar-side-team foe"></div>
+        </div>
+        <div class="ar-side me">
+          <div id="ar-me-bar"></div>
+          <div id="ar-me-team" class="ar-side-team me"></div>
+        </div>
       </div>
 
       <!-- しぜんの なかの たたかいの ば（りょうがわに まちの なかま）-->
-      <div class="ar-arena-row">
-      <div id="ar-foe-team" class="ar-side-team foe"></div>
       <div id="ar-stage" class="ar-stage">
         <div class="ar-bg" aria-hidden="true">
           <span class="bg-leaf"></span><span class="bg-ray"></span><span class="bg-ground"></span>
@@ -403,14 +407,12 @@
         <div id="ar-center" class="ar-center" hidden><i class="ar-rays"></i><i class="ar-burst"></i><b></b></div>
         <div id="ar-flash" class="ar-flash" aria-hidden="true"></div>
       </div>
-      <div id="ar-me-team" class="ar-side-team me"></div>
-      </div>
 
       <p id="ar-msg" class="ar-msg">じゃんけんを えらんでね！</p>
       <div id="ar-hands" class="ar-hands">
-        <button class="ar-hand g" data-hand="グー"><span class="ah-face">✊</span><span class="ah-label">グー</span></button>
-        <button class="ar-hand c" data-hand="チョキ"><span class="ah-face">✌️</span><span class="ah-label">チョキ</span></button>
-        <button class="ar-hand p" data-hand="パー"><span class="ah-face">🖐️</span><span class="ah-label">パー</span></button>
+        <button class="ar-hand g" data-hand="グー" aria-label="グー"><span class="ah-face">✊</span><span class="ah-label">グー</span></button>
+        <button class="ar-hand c" data-hand="チョキ" aria-label="チョキ"><span class="ah-face">✌️</span><span class="ah-label">チョキ</span></button>
+        <button class="ar-hand p" data-hand="パー" aria-label="パー"><span class="ah-face">🖐️</span><span class="ah-label">パー</span></button>
       </div>
       <div id="ar-item-row" class="ar-item-row">
         <button id="ar-swap" class="ar-item swap">🔄 こうたい</button>

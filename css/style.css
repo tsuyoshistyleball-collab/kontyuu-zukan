@@ -1550,8 +1550,8 @@ rt {
   position: absolute; bottom: -2%; width: 56%; max-width: 230px; aspect-ratio: 1/1;
   transition: transform .18s ease; will-change: transform; z-index: 2;
 }
-.ar-ch.foe { left: -1%; }
-.ar-ch.me { right: -1%; }
+.ar-ch.foe { left: -4%; }
+.ar-ch.me { right: -4%; }
 .ar-ch::after {   /* じめんの かげ */
   content: ""; position: absolute; left: 19%; right: 19%; bottom: 13%; height: 20px; border-radius: 50%;
   background: radial-gradient(closest-side, rgba(0,0,0,.45), transparent 100%);
@@ -1631,15 +1631,10 @@ rt {
 @keyframes arWhite { 0% { filter: brightness(2.6) saturate(.2); } 50% { filter: none; } }
 
 /* はしっこの もちふだ（のこりの なかま）*/
-.ar-arena-row { display: flex; align-items: center; gap: 5px; }
-.ar-arena-row .ar-stage { flex: 1 1 auto; min-width: 0; }
-.ar-side-team {
-  flex: none; display: flex; flex-direction: column; gap: 7px;
-  padding: 6px 4px; border-radius: 13px; background: rgba(8,20,6,.55);
-  border: 2px solid rgba(255,255,255,.16);
-}
+.ar-side-team { display: flex; gap: 6px; margin-top: 7px; }
+.ar-side.me .ar-side-team { justify-content: flex-end; }
 .ar-side-team .stm {
-  position: relative; width: 38px; height: 38px; border-radius: 9px; overflow: hidden;
+  position: relative; width: 32px; height: 32px; flex: none; border-radius: 9px; overflow: hidden;
   border: 2px solid rgba(255,255,255,.75); background: var(--paper2);
   display: grid; place-items: center;
 }
@@ -1658,8 +1653,8 @@ rt {
   color: #ff8b6f; font-size: 20px; font-weight: 900; text-shadow: 0 1px 2px #000;
 }
 @media (max-width: 430px) {
-  .ar-side-team { gap: 5px; padding: 5px 3px; }
-  .ar-side-team .stm { width: 32px; height: 32px; }
+  .ar-side-team { gap: 5px; }
+  .ar-side-team .stm { width: 29px; height: 29px; }
 }
 @media (prefers-reduced-motion: reduce) { .ar-side-team .stm.now { animation: none; } }
 
@@ -1674,7 +1669,11 @@ rt {
 .ar-shown:empty { display: none; }
 .ar-shown.foe { left: 4%; }
 .ar-shown.me { right: 4%; border-color: #86bcff; }
-.ah-emo { grid-row: 1 / span 2; font-size: 34px; line-height: 1; }
+.ah-emo { grid-row: 1 / span 2; width: 40px; height: 40px; font-size: 34px; line-height: 1;
+  background-size: 100% 100%; background-repeat: no-repeat; }
+.ah-emo.hd-g { background-image: url("../img/hand-g.png"); }
+.ah-emo.hd-c { background-image: url("../img/hand-c.png"); }
+.ah-emo.hd-p { background-image: url("../img/hand-p.png"); }
 .ah-who { font-size: 10.5px; font-weight: 900; color: #fff; background: #d8412f;
   border-radius: 999px; padding: 0 7px; justify-self: start; white-space: nowrap; }
 .ar-shown.me .ah-who { background: #2a6fd8; }
@@ -1900,18 +1899,18 @@ rt {
   text-shadow: 0 2px 4px rgba(0,0,0,.5); }
 
 /* じゃんけん ボタン */
-.ar-hands { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 340px; margin: 2px auto 0; }
+.ar-hands { display: grid; grid-template-columns: repeat(3, 1fr); align-items: start; gap: 12px;
+  width: 100%; max-width: 340px; margin: 2px auto 0; }
 .ar-hand {
-  position: relative; aspect-ratio: 1/1; border-radius: 50%; border: 4px solid #fff; font-family: inherit;
-  display: grid; place-content: center; justify-items: center; gap: 2px;
-  box-shadow: 0 5px 0 rgba(0,0,0,.45), inset 0 -8px 14px rgba(0,0,0,.2);
+  position: relative; aspect-ratio: 1/1; border: 0; padding: 0; background: none; font-family: inherit;
+  background-size: 100% 100%; background-repeat: no-repeat; background-position: center;
+  filter: drop-shadow(0 5px 4px rgba(0,0,0,.55));
 }
-.ar-hand.g { background: radial-gradient(circle at 50% 28%, #ff9c8a, #d3372a 78%); }
-.ar-hand.c { background: radial-gradient(circle at 50% 28%, #ffe98d, #dfa50c 78%); }
-.ar-hand.p { background: radial-gradient(circle at 50% 28%, #9fc9ff, #2159c4 78%); }
-.ah-face { font-size: clamp(26px, 8vw, 34px); line-height: 1; }
-.ah-label { font-size: 12px; font-weight: 900; color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,.4); }
-.ar-hand:active { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0,0,0,.45), inset 0 -8px 14px rgba(0,0,0,.2); }
+.ar-hand.g { background-image: url("../img/hand-g.png"); }
+.ar-hand.c { background-image: url("../img/hand-c.png"); }
+.ar-hand.p { background-image: url("../img/hand-p.png"); }
+.ah-face, .ah-label { display: none; }
+.ar-hand:active { transform: translateY(3px) scale(.96); filter: drop-shadow(0 2px 3px rgba(0,0,0,.5)) brightness(1.1); }
 .ar-hand.fav::after {
   content: "とくい"; position: absolute; top: -11px; left: 50%; transform: translateX(-50%);
   background: #ffce2e; color: #5a3c07; font-size: 10px; font-weight: 900; padding: 1px 7px; border-radius: 999px;

@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v70";
+  const APP_VERSION = "v71";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -935,7 +935,7 @@
       `<div class="as-top"><span class="as-name">${escapeHtml(f.name)}${f.wild ? "（やせい）" : ""}</span>` +
         `<span class="as-atk">${HAND_EMOJI[f.hand] || "✊"} ${f.attack}</span></div>` +
       `<div class="as-bar${cls}"><i style="width:${pct}%"></i></div>` +
-      `<p class="as-hp">${arTeamDots(team, idx)}<span>${f.hp} / ${f.maxHp}</span></p>`
+      `<p class="as-hp"><span>${f.hp} / ${f.maxHp}</span></p>`
     );
   }
   function arPaintBars() {
@@ -987,7 +987,7 @@
   function arShowHand(sel, who, hand) {
     const el = $(sel);
     el.innerHTML =
-      `<span class="ah-emo">${HAND_EMOJI[hand] || "✊"}</span>` +
+      `<span class="ah-emo hd-${hand === "グー" ? "g" : hand === "チョキ" ? "c" : "p"}"></span>` +
       `<b class="ah-who">${who}</b><b class="ah-nm">${escapeHtml(hand)}</b>`;
     el.style.animation = "none"; void el.offsetWidth; el.style.animation = "";
   }
