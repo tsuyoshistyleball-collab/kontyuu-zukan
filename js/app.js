@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v42";
+  const APP_VERSION = "v43";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -1260,6 +1260,7 @@
     try {
       for (const c of g.list.slice()) { await DB.remove(c.id); }
     } catch (e) { console.error("delete group:", e); }
+    markDeleted(g.list.map((c) => capKey(c)));
     Covers.set(name, 0);
     $("#loading").hidden = true;
     await afterChange(name, true);
@@ -1275,6 +1276,9 @@
 
   function confirmDelete(id, name) {
     if (!ask("この 写真(しゃしん)を 消(け)しても いい？")) return;
+    const g = groups.get(name);
+    const rec = g && g.list.find((c) => c.id === id);
+    if (rec) markDeleted([capKey(rec)]);
     DB.remove(id).then(() => afterChange(name, true));
   }
 
@@ -1563,6 +1567,7 @@
     const leveledUp = levelOf(groups.size) > lvBefore;
     if (isNew) celebrate(rec, leveledUp); else miniCheer(rec);
     setTimeout(() => { maybeAutoBackup(); }, 1200);
+    if (gdAutoOn() && GDrive.wasSignedIn()) setTimeout(() => syncDrive({ quiet: true }), 2200);
   }
 
   function errText(err) {
@@ -1696,6 +1701,7 @@
     $("#s-model").value = Settings.model;
     $("#s-test-result").textContent = ""; $("#s-test-result").className = "s-test-result";
     $("#s-auto-backup").checked = autoBackupOn();
+    refreshGDriveUI();
     $("#settings").showModal();
     rubyifyDOM($("#settings"));
   }
@@ -1830,6 +1836,162 @@
       el.classList.remove("show");
       setTimeout(() => (el.hidden = true), 300);
     }, 3600);
+  }
+
+
+  /* ============================================================
+     Google ドライブと 同期(どうき)する
+     ・meta.json … きろく（なまえ・★・ばしょ・ひょうし・けした もの）
+     ・p_〜.jpg  … しゃしん 1まいずつ
+     まぜかたは「たしざん」。りょうほうに ある ものは のこす。
+     けした ものは meta.json の deleted に のこして、どの 端末でも きえる ように する。
+     ============================================================ */
+  const GD_META = "meta.json";
+  const GD_AUTO_KEY = "mz-gdrive-auto";
+  const GD_LAST_KEY = "mz-gdrive-last";
+  const DEL_KEY = "mz-deleted";
+  const gdAutoOn = () => { try { return localStorage.getItem(GD_AUTO_KEY) !== "0"; } catch (e) { return true; } };
+  const capKey = (c) => `${c.col || "mushi"}|${c.name}|${c.date}`;
+  const photoName = (c) => `p_${c.col || "mushi"}_${c.date}.jpg`;
+
+  function deletedKeys() { try { return JSON.parse(localStorage.getItem(DEL_KEY) || "[]"); } catch (e) { return []; } }
+  function markDeleted(keys) {
+    const set = new Set(deletedKeys());
+    for (const k of keys) set.add(k);
+    // ふえすぎない ように あたらしい 500けん だけ のこす
+    try { localStorage.setItem(DEL_KEY, JSON.stringify([...set].slice(-500))); } catch (e) {}
+  }
+
+  function gdSay(text, cls) {
+    const el = $("#gd-result");
+    if (!el) return;
+    el.textContent = text;
+    el.className = "s-test-result" + (cls ? " " + cls : "");
+    rubyifyDOM(el);
+  }
+
+  function refreshGDriveUI() {
+    const on = GDrive.wasSignedIn() && GDrive.configured();
+    const off = $("#gd-off"), onBox = $("#gd-on");
+    if (!off || !onBox) return;
+    off.hidden = on; onBox.hidden = !on;
+    const fold = $("#gd-fold");
+    if (fold && on) fold.open = true;   // つかって いる ときは ひらいて おく
+    const ci = $("#gd-client"); if (ci && !ci.value) ci.value = GDrive.clientId;
+    const au = $("#gd-auto"); if (au) au.checked = gdAutoOn();
+    const st = $("#gd-state");
+    if (st) {
+      let last = 0;
+      try { last = parseInt(localStorage.getItem(GD_LAST_KEY) || "0", 10) || 0; } catch (e) {}
+      st.textContent = last ? `✓ ログイン中(ちゅう) ・ さいご の 同期(どうき)：${fmtDate(last)}` : "✓ ログイン中(ちゅう)";
+      rubyifyDOM(st);
+    }
+  }
+
+  let gdSyncing = false;
+  async function syncDrive(opts) {
+    const quiet = opts && opts.quiet;
+    if (gdSyncing) return;
+    if (!GDrive.configured()) { if (!quiet) gdSay("さきに クライアントID を 入(い)れてね", "warn"); return; }
+    gdSyncing = true;
+    if (!quiet) gdSay("☁️ 同期中(どうきちゅう)…");
+    try {
+      await GDrive.silentSignIn();
+      if (!GDrive.signedIn()) await GDrive.signIn();
+
+      const remote = await GDrive.list();
+      const metaEntry = remote.get(GD_META);
+      const meta = metaEntry ? (await GDrive.downloadJSON(metaEntry.id)) : null;
+
+      // ---- けした ものの リスト（ローカル＋クラウド）----
+      const gone = new Set(deletedKeys());
+      for (const k of (meta && meta.deleted) || []) gone.add(k);
+
+      // ---- いまの ローカル ----
+      let localRows = await DB.getAllRaw();
+      const localMap = new Map(localRows.map((r) => [capKey(r), r]));
+
+      // ---- クラウド → こちら（ないものを もらう）----
+      let got = 0;
+      for (const rc of (meta && meta.captures) || []) {
+        const k = capKey(rc);
+        if (gone.has(k) || localMap.has(k)) continue;
+        const f = remote.get(rc.photo || photoName(rc));
+        if (!f) continue;
+        const blob = await GDrive.download(f.id);
+        const rec = Object.assign({}, rc);
+        delete rec.photo; delete rec.id;
+        rec.blob = blob;
+        await DB.add(rec);
+        localMap.set(k, rec);
+        got++;
+      }
+
+      // ---- けした ものを こちらからも 消(け)す ----
+      let removed = 0;
+      for (const r of localRows) {
+        if (gone.has(capKey(r))) { try { await DB.remove(r.id); removed++; } catch (e) {} }
+      }
+
+      // ---- ばしょ・ひょうし を まぜる ----
+      let places = Places.all.slice();
+      const byId = new Map(places.map((p) => [p.id, p]));
+      for (const rp of (meta && meta.places) || []) {
+        const cur = byId.get(rp.id);
+        if (!cur) { places.push(rp); byId.set(rp.id, rp); }
+        else if ((rp.last || 0) > (cur.last || 0)) Object.assign(cur, rp);
+      }
+      Places.all = places;
+      const covers = Object.assign({}, (meta && meta.covers) || {}, Covers.all);
+      try { localStorage.setItem("mz-covers", JSON.stringify(covers)); } catch (e) {}
+
+      // ---- こちら → クラウド（ない しゃしんを おくる）----
+      localRows = (await DB.getAllRaw()).filter((r) => !gone.has(capKey(r)));
+      let put = 0;
+      for (const r of localRows) {
+        const nm = photoName(r);
+        if (remote.has(nm)) continue;
+        let blob = r.blob;
+        if (!blob && r.imgData) blob = dataURLToBlob(r.imgData);
+        if (!blob) continue;
+        await GDrive.upload(nm, blob, blob.type || "image/jpeg");
+        remote.set(nm, { id: "new" });
+        put++;
+      }
+
+      // ---- meta.json を かきなおす ----
+      const caps = localRows.map((r) => {
+        const o = Object.assign({}, r);
+        delete o.blob; delete o.img; delete o.imgData; delete o.id;
+        o.col = o.col || "mushi";
+        o.photo = photoName(r);
+        return o;
+      });
+      const nextMeta = {
+        app: "mushizukan", v: 1, updatedAt: Date.now(),
+        captures: caps, places: Places.all, covers, deleted: [...gone].slice(-500),
+      };
+      const blob = new Blob([JSON.stringify(nextMeta)], { type: "application/json" });
+      await GDrive.upload(GD_META, blob, "application/json", metaEntry ? metaEntry.id : null);
+
+      try { localStorage.setItem(GD_LAST_KEY, String(Date.now())); } catch (e) {}
+      if (got || removed) { await reload(); renderProgress(); renderGrid(); renderPlaces(); }
+      refreshGDriveUI();
+      const msg = `✓ 同期(どうき)できたよ！（もらった ${got}まい・送(おく)った ${put}まい）`;
+      if (quiet) { if (got || put) miniNote("☁️ ドライブと 同期(どうき)したよ"); }
+      else gdSay(msg, "ok");
+    } catch (err) {
+      console.warn("drive sync:", err);
+      const m = String((err && err.message) || err);
+      if (!quiet) {
+        if (m === "NEED_SIGNIN" || m === "AUTH_TIMEOUT") gdSay("✕ ログインが 必要(ひつよう)です。もう一度(いちど) おしてね", "warn");
+        else if (m === "NO_CLIENT_ID") gdSay("✕ クライアントID を 入(い)れてね", "warn");
+        else if (m === "NO_GIS") gdSay("✕ ネットに つながらないと ログインできません", "warn");
+        else gdSay("✕ " + m.slice(0, 120), "warn");
+      }
+    } finally {
+      gdSyncing = false;
+    }
   }
 
   // ============ バックアップ（ほぞん / もどす）============
@@ -2003,6 +2165,23 @@
     $("#s-auto-backup").addEventListener("change", (e) => {
       try { localStorage.setItem(AUTO_KEY, e.target.checked ? "1" : "0"); } catch (err) {}
     });
+    $("#gd-client").addEventListener("change", (e) => { GDrive.clientId = e.target.value; refreshGDriveUI(); });
+    $("#gd-signin").addEventListener("click", async () => {
+      const v = $("#gd-client").value.trim();
+      if (v) GDrive.clientId = v;
+      if (!GDrive.configured()) { gdSay("さきに クライアントID を 入(い)れてね", "warn"); return; }
+      gdSay("Google の ログイン がめんを ひらきます…");
+      try { await GDrive.signIn(); refreshGDriveUI(); await syncDrive(); }
+      catch (err) { gdSay("✕ ログインできませんでした（" + String(err.message || err).slice(0, 60) + "）", "warn"); }
+    });
+    $("#gd-sync").addEventListener("click", () => syncDrive());
+    $("#gd-signout").addEventListener("click", () => {
+      GDrive.signOut(); refreshGDriveUI();
+      gdSay("ログアウトしました。しゃしんは この 端末(たんまつ)に のこって います。");
+    });
+    $("#gd-auto").addEventListener("change", (e) => {
+      try { localStorage.setItem(GD_AUTO_KEY, e.target.checked ? "1" : "0"); } catch (err) {}
+    });
     $("#s-export").addEventListener("click", exportBackup);
     $("#backup-hint").addEventListener("click", exportBackup);
     $("#s-import").addEventListener("click", () => $("#s-import-file").click());
@@ -2089,6 +2268,12 @@
     }
     rubyAll();
     startRubyWatch();
+    // まえに ログイン して いれば、そっと つないで 同期(どうき)する
+    if (GDrive.configured() && GDrive.wasSignedIn()) {
+      setTimeout(async () => {
+        if (await GDrive.silentSignIn()) { refreshGDriveUI(); if (gdAutoOn()) syncDrive({ quiet: true }); }
+      }, 1500);
+    }
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("./service-worker.js").catch(() => {});
     // データが かってに けされにくく なるように おねがいする
     try { navigator.storage && navigator.storage.persist && navigator.storage.persist().catch(() => {}); } catch (e) {}

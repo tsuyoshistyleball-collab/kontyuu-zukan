@@ -1199,3 +1199,17 @@ rt {
 @media (prefers-reduced-motion: reduce) {
   .page.is-anim { transition-duration: .25s; }
 }
+
+/* ---------- Google ドライブ ---------- */
+.s-backup-btn.cloud { background: linear-gradient(180deg,#7fb8f0,#3d7fc4); color: #fff; box-shadow: 0 4px 0 #2c5f96; }
+.gd-state { margin: 8px 0 0; font-size: 13px; font-weight: 800; color: var(--green-d); text-align: center; }
+/* たたんで おく せってい */
+.s-fold { margin-top: 4px; }
+.s-fold > summary {
+  list-style: none; cursor: pointer; padding: 11px 13px; border-radius: 14px;
+  background: var(--paper2); color: var(--green-d); font-weight: 800; font-size: 13.5px;
+  line-height: 1.7;
+}
+.s-fold > summary::-webkit-details-marker { display: none; }
+.s-fold > summary::after { content: " ▾"; opacity: .6; }
+.s-fold[open] > summary::after { content: " ▴"; }

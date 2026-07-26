@@ -1,5 +1,5 @@
 /* むしずかん — サービスワーカー（オフラインでも つかえる） */
-const CACHE = "mushizukan-v42";
+const CACHE = "mushizukan-v43";
 const ASSETS = [
   "./",
   "./index.html",
@@ -8,6 +8,7 @@ const ASSETS = [
   "./js/data.js",
   "./js/gemini.js",
   "./js/geo.js",
+  "./js/gdrive.js",
   "./js/db.js",
   "./js/app.js",
   "./manifest.webmanifest",
@@ -32,6 +33,8 @@ self.addEventListener("activate", (e) => {
 self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
+  // よその サイト（Google の ログインや API）は そのまま とおす
+  if (new URL(req.url).origin !== location.origin) return;
   // アプリの ファイルは キャッシュ ゆうせん、なければ ネット
   e.respondWith(
     caches.match(req).then((hit) => {
