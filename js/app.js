@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v65";
+  const APP_VERSION = "v66";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -2379,9 +2379,24 @@
           og.gain.exponentialRampToValueAtTime(0.0001, t + 0.36);
           o.connect(og); og.connect(c.destination);
           o.start(t + 0.02); o.stop(t + 0.42);
-          // パキッ：あたった しゅんかん
-          note(strong ? 1500 : 1150, 0, 0.07, "square", strong ? 0.1 : 0.07);
-          if (strong) note(1900, 0.06, 0.09, "square", 0.07);
+          // バシッ：たいこを たたいた ような しんの おと
+          const sm = this.noise(0.075, (x) => Math.pow(1 - x, 3));
+          const bpm2 = c.createBiquadFilter(); bpm2.type = "bandpass"; bpm2.Q.value = 1.8;
+          bpm2.frequency.value = strong ? 820 : 640;
+          const smg = c.createGain();
+          smg.gain.setValueAtTime(strong ? 0.3 : 0.22, t);
+          smg.gain.exponentialRampToValueAtTime(0.0001, t + 0.075);
+          sm.connect(bpm2); bpm2.connect(smg); smg.connect(c.destination);
+          sm.start(t); sm.stop(t + 0.1);
+          // たたいた ものの「ボンッ」という からだの おと
+          const bo = c.createOscillator(), bg = c.createGain();
+          bo.type = "sine";
+          bo.frequency.setValueAtTime(strong ? 380 : 320, t);
+          bo.frequency.exponentialRampToValueAtTime(strong ? 120 : 110, t + 0.09);
+          bg.gain.setValueAtTime(strong ? 0.22 : 0.16, t);
+          bg.gain.exponentialRampToValueAtTime(0.0001, t + 0.13);
+          bo.connect(bg); bg.connect(c.destination);
+          bo.start(t); bo.stop(t + 0.16);
         } catch (e) {}
       },
       // たおれた おと（よろよろ さがって、ドサッ）
