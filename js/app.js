@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v48";
+  const APP_VERSION = "v49";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -2298,6 +2298,7 @@
       e.target.value = "";
       if (f) importBackup(f);
     });
+    $("#s-update").addEventListener("click", forceUpdate);
     $("#s-reset").addEventListener("click", resetData);
     $("#s-key-toggle").addEventListener("click", () => {
       const masked = $("#s-key").classList.toggle("masked");
@@ -2338,6 +2339,66 @@
   function resetData() {
     if (!ask("ぜんぶの 記録(きろく)（写真(しゃしん)）を 消(け)して 最初(さいしょ)から やり直(なお)しますか？\n元(もと)に 戻(もど)せません。")) return;
     location.href = location.pathname + "?reset=" + Date.now();
+  }
+
+
+  /* ============================================================
+     アプリを あたらしく する しくみ
+     ・サービスワーカーの ファイルは かならず ネットから たしかめる
+     ・あたらしい ものが つかえるように なったら、じどうで よみこみ なおす
+       （なにか さぎょう中の ときは、おわるまで まつ）
+     ============================================================ */
+  let swReg = null;
+  let updateReady = false;
+
+  function busyNow() {
+    if ($$("dialog[open]").length) return true;
+    if (!$("#book").hidden) return true;
+    if (!$("#thinking").hidden) return true;
+    if (!$("#loading").hidden) return true;
+    if (!$("#picker").hidden) return true;
+    return false;
+  }
+
+  function reloadWhenFree() {
+    if (!busyNow()) { location.reload(); return; }
+    clearInterval(reloadWhenFree._t);
+    reloadWhenFree._t = setInterval(() => {
+      if (!busyNow()) { clearInterval(reloadWhenFree._t); location.reload(); }
+    }, 1500);
+  }
+
+  async function setupUpdater() {
+    if (!("serviceWorker" in navigator)) return;
+    // あたらしい ばんに かわったら よみこみ なおす（1かいだけ）
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (reloaded) return;
+      reloaded = true;
+      updateReady = true;
+      reloadWhenFree();
+    });
+    try {
+      swReg = await navigator.serviceWorker.register("./service-worker.js", { updateViaCache: "none" });
+    } catch (e) { return; }
+    // ひらいた とき・もどってきた ときに、あたらしい ばんが ないか みる
+    const check = () => { try { swReg && swReg.update(); } catch (e) {} };
+    setTimeout(check, 1200);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) check(); });
+    window.addEventListener("online", check);
+  }
+
+  // せってい の「さいしんに する」
+  async function forceUpdate() {
+    const out = $("#s-update-result");
+    if (out) { out.textContent = "たしかめて いるよ…"; out.className = "s-test-result"; rubyifyDOM(out); }
+    try {
+      if (swReg) {
+        await swReg.update();
+        if (swReg.waiting) swReg.waiting.postMessage("skip-waiting");
+      }
+    } catch (e) {}
+    setTimeout(() => location.reload(), 900);
   }
 
   async function start() {
@@ -2383,7 +2444,7 @@
         if (await GDrive.silentSignIn()) { refreshGDriveUI(); if (gdAutoOn()) syncDrive({ quiet: true }); }
       }, 1500);
     }
-    if ("serviceWorker" in navigator) navigator.serviceWorker.register("./service-worker.js").catch(() => {});
+    setupUpdater();
     // データが かってに けされにくく なるように おねがいする
     try { navigator.storage && navigator.storage.persist && navigator.storage.persist().catch(() => {}); } catch (e) {}
   }
