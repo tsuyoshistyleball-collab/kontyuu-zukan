@@ -1352,6 +1352,23 @@ rt {
     linear-gradient(180deg, #1e3d16 0%, #10230c 100%);
   color: #fff8ec;
 }
+.arena.fighting {
+  background:
+    linear-gradient(180deg, rgba(5,14,3,.62) 0%, rgba(5,14,3,.12) 20%,
+                            rgba(5,14,3,.10) 58%, rgba(5,14,3,.72) 100%),
+    url("../img/arena-bg.webp") center 46% / cover no-repeat,
+    #16300f;
+}
+.arena.fighting .ar-stage {
+  background: none; border: 0; box-shadow: none; border-radius: 0;
+  height: min(52vh, 420px);
+}
+.arena.fighting .ar-stage::after { display: none; }
+/* えが がめん いっぱいなので、くらくする まくや エフェクトも 画面ぜんたいに */
+.arena.fighting .ar-stage { overflow: visible; }
+.arena.fighting .ar-slash, .arena.fighting .ar-fx { overflow: visible; }
+.arena.fighting .ar-dim, .arena.fighting .ar-flash { position: fixed; inset: 0; }
+.arena.fighting .ar-side { background: rgba(5,16,3,.82); }
 .ar-close {
   position: absolute; top: calc(var(--safe-top) + 10px); right: 14px; z-index: 4;
   width: 42px; height: 42px; border-radius: 50%; background: var(--card); color: var(--ink);
@@ -1584,7 +1601,7 @@ rt {
   animation: arCharge .9s cubic-bezier(.3,.8,.4,1) both;
 }
 .ar-ch.charge img, .ar-ch.charge .svgbox {
-  filter: drop-shadow(0 0 16px rgba(255,214,90,1)) drop-shadow(0 0 34px rgba(255,150,40,.9)) brightness(1.25) saturate(1.3);
+  filter: drop-shadow(0 0 16px var(--mv, #ffd65a)) drop-shadow(0 0 34px var(--mv, #ff9628)) brightness(1.25) saturate(1.3);
 }
 @keyframes arCharge {
   0% { transform: scale(1); }
@@ -1594,7 +1611,7 @@ rt {
 }
 .ar-ch.charge::before {   /* ひかりの わ */
   content: ""; position: absolute; left: 8%; right: 8%; top: 14%; bottom: 6%; border-radius: 50%;
-  border: 4px solid rgba(255,222,120,.95); box-shadow: 0 0 22px rgba(255,214,90,.9) inset, 0 0 22px rgba(255,214,90,.9);
+  border: 4px solid var(--mv, #ffde78); box-shadow: 0 0 22px var(--mv, #ffd65a) inset, 0 0 22px var(--mv, #ffd65a);
   animation: arRing .9s ease-out infinite;
 }
 @keyframes arRing {
@@ -1648,7 +1665,7 @@ rt {
 
 /* だした て */
 .ar-shown {
-  position: absolute; top: 5%; z-index: 3; width: 40%; max-width: 150px;
+  position: absolute; top: 5%; z-index: 3; width: 47%; max-width: 168px;
   display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 7px;
   align-items: center; padding: 5px 9px 6px; border-radius: 14px;
   background: rgba(255,255,255,.95); box-shadow: 0 4px 0 rgba(0,0,0,.4); border: 3px solid #ff8a76;
@@ -1659,9 +1676,9 @@ rt {
 .ar-shown.me { right: 4%; border-color: #86bcff; }
 .ah-emo { grid-row: 1 / span 2; font-size: 34px; line-height: 1; }
 .ah-who { font-size: 10.5px; font-weight: 900; color: #fff; background: #d8412f;
-  border-radius: 999px; padding: 0 7px; justify-self: start; }
+  border-radius: 999px; padding: 0 7px; justify-self: start; white-space: nowrap; }
 .ar-shown.me .ah-who { background: #2a6fd8; }
-.ah-nm { font-size: 15px; font-weight: 900; color: var(--ink); line-height: 1.2; }
+.ah-nm { font-size: 15px; font-weight: 900; color: var(--ink); line-height: 1.2; white-space: nowrap; }
 .ar-shown.win {
   border-color: #ffce2e; background: #fffbe8; transform: scale(1.08);
   box-shadow: 0 4px 0 rgba(0,0,0,.4), 0 0 16px 4px rgba(255,206,46,.85);
@@ -1680,6 +1697,94 @@ rt {
   70% { transform: scale(1.12); opacity: 1; }
   100% { transform: scale(1); opacity: 1; }
 }
+
+/* ひっさつわざの エフェクト（ぞくせいごと）*/
+.ar-fx { position: absolute; inset: 0; z-index: 5; pointer-events: none; overflow: hidden; }
+.ar-fx i {
+  position: absolute; left: 50%; top: 58%; display: block;
+  --mv: #ffe14d;
+}
+.ar-fx.foe i { left: 27%; }
+.ar-fx.me i { left: 73%; }
+
+/* ほのお・どく：下から わきあがる */
+.ar-fx.mv-honoo i, .ar-fx.mv-doku i {
+  width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%;
+  background: radial-gradient(circle at 50% 65%, #fff 0%, var(--mv) 45%, rgba(0,0,0,0) 72%);
+  filter: blur(1px);
+  animation: fxUp .85s ease-out both;
+  animation-delay: calc(var(--i) * .07s);
+}
+.ar-fx.mv-doku i { filter: blur(.5px); }
+@keyframes fxUp {
+  0% { transform: translate(calc(var(--x) * 1px), 34px) scale(.3); opacity: 0; }
+  25% { opacity: 1; }
+  100% { transform: translate(calc(var(--x) * 2.2px), -78px) scale(1.5); opacity: 0; }
+}
+
+/* かみなり：ギザギザが ひかる */
+.ar-fx.mv-kaminari i {
+  width: 16px; height: 130px; margin: -78px 0 0 -8px;
+  background: linear-gradient(180deg, #fff, var(--mv));
+  clip-path: polygon(52% 0, 100% 42%, 62% 46%, 96% 100%, 8% 52%, 44% 47%, 0 22%);
+  filter: drop-shadow(0 0 10px var(--mv)) drop-shadow(0 0 22px var(--mv));
+  transform: rotate(calc(var(--a) * 1deg)) translateY(-10px);
+  animation: fxBolt .5s steps(1) both;
+  animation-delay: calc(var(--i) * .08s);
+}
+@keyframes fxBolt {
+  0%, 100% { opacity: 0; }
+  10%, 30%, 55% { opacity: 1; }
+  20%, 45%, 75% { opacity: .25; }
+}
+
+/* かぜ・ひかり・しょうげき：わが ひろがる */
+.ar-fx.mv-kaze i, .ar-fx.mv-hikari i, .ar-fx.mv-shougeki i {
+  width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%;
+  border: 5px solid var(--mv);
+  box-shadow: 0 0 16px var(--mv), inset 0 0 16px var(--mv);
+  animation: fxRing .7s ease-out both;
+  animation-delay: calc(var(--i) * .12s);
+}
+.ar-fx.mv-kaze i { border-color: transparent; border-top-color: var(--mv); border-right-color: var(--mv); }
+.ar-fx.mv-hikari i { border-width: 3px; }
+@keyframes fxRing {
+  0% { transform: scale(.15) rotate(0deg); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: scale(1.9) rotate(140deg); opacity: 0; }
+}
+
+/* こおり：とがった かけらが つきささる */
+.ar-fx.mv-koori i {
+  width: 22px; height: 62px; margin: -31px 0 0 -11px;
+  background: linear-gradient(180deg, #fff, var(--mv));
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  filter: drop-shadow(0 0 8px var(--mv));
+  transform-origin: 50% 120%;
+  animation: fxIn .6s cubic-bezier(.2,1.4,.4,1) both;
+  animation-delay: calc(var(--i) * .07s);
+}
+@keyframes fxIn {
+  0% { transform: rotate(calc(var(--a) * 1deg)) translateY(-150px) scale(.6); opacity: 0; }
+  35% { opacity: 1; }
+  100% { transform: rotate(calc(var(--a) * 1deg)) translateY(-18px) scale(1); opacity: 0; }
+}
+
+/* いわ：かたまりが とびちる */
+.ar-fx.mv-iwa i {
+  width: 26px; height: 22px; margin: -11px 0 0 -13px; border-radius: 6px;
+  background: linear-gradient(160deg, #fff6e6, var(--mv) 55%, rgba(0,0,0,.35));
+  box-shadow: 0 2px 4px rgba(0,0,0,.4);
+  animation: fxOut .7s cubic-bezier(.15,.7,.4,1) both;
+  animation-delay: calc(var(--i) * .05s);
+}
+@keyframes fxOut {
+  0% { transform: rotate(0deg) translate(0, 0) scale(.4); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: rotate(calc(var(--a) * 2deg)) translate(calc(var(--dx) * 1px), calc(var(--dy) * 1px)) scale(1.1); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) { .ar-fx i { animation: none !important; opacity: 0; } }
 
 /* まんなかの おおきい もじ */
 .ar-center { position: absolute; inset: 0; z-index: 6; display: grid; place-items: center; pointer-events: none; }
@@ -1747,8 +1852,8 @@ rt {
 }
 .ar-slash.super span {
   height: 26px;
-  background: linear-gradient(90deg, transparent 0%, rgba(255,240,180,.5) 10%, #fff6cf 30%, #ffd34d 50%, #fff6cf 70%, rgba(255,240,180,.5) 90%, transparent 100%);
-  filter: drop-shadow(0 0 14px rgba(255,235,140,1)) drop-shadow(0 0 34px rgba(255,170,40,1));
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,.5) 10%, #fff 28%, var(--mv, #ffd34d) 50%, #fff 72%, rgba(255,255,255,.5) 90%, transparent 100%);
+  filter: drop-shadow(0 0 14px var(--mv, #ffe14d)) drop-shadow(0 0 34px var(--mv, #ffaa28));
 }
 .ar-slash.super span:nth-child(4) { animation: arSlash1 .46s ease-out .33s both; }
 .ar-slash.super span:nth-child(5) { animation: arSlash2 .46s ease-out .42s both; }

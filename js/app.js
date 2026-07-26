@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v69";
+  const APP_VERSION = "v70";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -203,6 +203,47 @@
     return el;
   }
 
+  /* ひっさつわざ。AIが つけて くれれば それを、なければ 名前から つくる。*/
+  const MOVE_KINDS = ["きり", "ほのお", "かみなり", "かぜ", "こおり", "どく", "ひかり", "しょうげき", "いわ"];
+  const MOVE_KIND_EN = { "きり": "kiri", "ほのお": "honoo", "かみなり": "kaminari", "かぜ": "kaze",
+                         "こおり": "koori", "どく": "doku", "ひかり": "hikari", "しょうげき": "shougeki", "いわ": "iwa" };
+  const MOVE_COLOR = { "きり": "#ffe14d", "ほのお": "#ff7a2f", "かみなり": "#ffe64a", "かぜ": "#8ef0c8",
+                       "こおり": "#8fdcff", "どく": "#c07df0", "ひかり": "#fff2a8", "しょうげき": "#ffd36b", "いわ": "#d8a86a" };
+  const MOVE_TAIL = ["アタック", "クラッシュ", "スラッシュ", "ストーム", "ブレイク", "スパーク", "ダイブ", "キック"];
+  function normKind(k) {
+    const t = String(k || "").trim();
+    if (MOVE_KINDS.includes(t)) return t;
+    const map = { "斬": "きり", "切": "きり", "炎": "ほのお", "火": "ほのお", "雷": "かみなり", "風": "かぜ",
+                  "氷": "こおり", "毒": "どく", "光": "ひかり", "衝撃": "しょうげき", "岩": "いわ" };
+    for (const key in map) if (t.indexOf(key) >= 0) return map[key];
+    return "";
+  }
+  const okColor = (c) => (/^#[0-9a-fA-F]{6}$/.test(String(c || "").trim()) ? String(c).trim() : "");
+  function autoMove(name, rarity) {
+    const h = nameHash(name);
+    const kind = MOVE_KINDS[h % MOVE_KINDS.length];
+    const head = plain(name).replace(/[^\u3040-\u30FF\u4E00-\u9FFFa-zA-Z]/g, "").slice(0, 4) || "むし";
+    return {
+      move: head + MOVE_TAIL[(h >> 5) % MOVE_TAIL.length],
+      moveKind: kind,
+      moveColor: MOVE_COLOR[kind],
+      moveCry: "",
+    };
+  }
+  function moveFor(name, rarity, src) {
+    const auto = autoMove(name, rarity);
+    const nm = String((src && src.move) || (src && src.move_name) || "").trim().slice(0, 14);
+    const kind = normKind((src && src.moveKind) || (src && src.move_kind));
+    const col = okColor((src && src.moveColor) || (src && src.move_color));
+    const cry = String((src && src.moveCry) || (src && src.move_cry) || "").trim().slice(0, 40);
+    return {
+      move: nm || auto.move,
+      moveKind: kind || auto.moveKind,
+      moveColor: col || MOVE_COLOR[kind] || auto.moveColor,
+      moveCry: cry,
+    };
+  }
+
   function statsFor(name, rarity, src) {
     const a = clampPower(src && src.attack);
     const d = clampPower(src && src.defense);
@@ -219,10 +260,11 @@
     return k
       ? { svg: k.svg, color: k.color, knownId: k.id, kana: k.kana, fact: k.fact, where: k.where, rarity: k.stars,
           family: k.family || "", trivia: k.trivia || [], habitat: k.habitat || "", season: k.season || "", food: k.food || "", size: k.size || "", care: k.care || "",
-          attack: k.attack || 0, defense: k.defense || 0, hand: k.hand || "" }
+          attack: k.attack || 0, defense: k.defense || 0, hand: k.hand || "",
+          move: k.move || "", moveKind: k.moveKind || "", moveColor: k.moveColor || "", moveCry: k.moveCry || "" }
       : { svg: gen.svg, color: gen.color, knownId: null, kana: "", fact: "", where: "", rarity: 1,
           family: "", trivia: [], habitat: "", season: "", food: "", size: "", care: "",
-          attack: 0, defense: 0, hand: "" };
+          attack: 0, defense: 0, hand: "", move: "", moveKind: "", moveColor: "", moveCry: "" };
   }
 
   /* ★3までだった ころの データを ★5の めもりに あわせる（1かいだけ）。
@@ -288,6 +330,8 @@
       g.size = pick("size") || "";
       const st = statsFor(g.name, g.rarity, { attack: pick("attack"), defense: pick("defense"), hand: pick("hand") });
       g.attack = st.attack; g.defense = st.defense; g.hand = st.hand;
+      const mv = moveFor(g.name, g.rarity, { move: pick("move"), moveKind: pick("moveKind"), moveColor: pick("moveColor"), moveCry: pick("moveCry") });
+      g.move = mv.move; g.moveKind = mv.moveKind; g.moveColor = mv.moveColor; g.moveCry = mv.moveCry;
       g.care = pick("care") || "";
       g.where = pick("where") || "";
       g.hasDetails = !!(g.trivia.length || g.habitat || g.care);
@@ -858,6 +902,7 @@
   function arFighterFromGroup(g) {
     return {
       name: g.name, hand: g.hand, attack: g.attack, defense: g.defense,
+      move: g.move, moveKind: g.moveKind, moveColor: g.moveColor, moveCry: g.moveCry,
       rarity: g.rarity, photo: g.cover && g.cover.blob ? urlFor(g.cover.blob) : "",
       svg: illustFor(g.name).svg, wild: false,
     };
@@ -867,7 +912,9 @@
     const list = (Zukan.id === "hana" ? FLOWERS : INSECTS).filter((k) => k.name !== exclude);
     const k = list[Math.floor(Math.random() * list.length)] || (Zukan.id === "hana" ? FLOWERS[0] : INSECTS[0]);
     const st = statsFor(k.name, k.stars, k);
+    const mv = moveFor(k.name, k.stars, k);
     return { name: k.name, hand: st.hand, attack: st.attack, defense: st.defense,
+             move: mv.move, moveKind: mv.moveKind, moveColor: mv.moveColor, moveCry: mv.moveCry,
              rarity: clampR(k.stars), photo: "", svg: k.svg, wild: true };
   }
 
@@ -945,11 +992,29 @@
     el.style.animation = "none"; void el.offsetWidth; el.style.animation = "";
   }
   // ざんげき（やられた ほうの うえに はしる）
-  function arSlash(side, super_) {
+  function arSlash(side, super_, color) {
     const el = $("#ar-slash");
     el.className = "ar-slash " + side + (super_ ? " super" : "");
+    el.style.setProperty("--mv", color || "#ffd34d");
     el.innerHTML = "<span></span>".repeat(super_ ? 5 : 3);
     setTimeout(() => { if (el.className.indexOf(side) >= 0) el.innerHTML = ""; }, 700);
+  }
+  /* ひっさつわざの エフェクト。ぞくせいごとに かたちを かえる。
+     つぶ（i）に すきな むきや ずれを もたせて、まいかい すこし ちがう 見た目に。*/
+  function arFx(side, kind, color) {
+    const el = $("#ar-fx");
+    const en = MOVE_KIND_EN[kind] || "kiri";
+    el.className = "ar-fx " + side + " mv-" + en;
+    const n = en === "iwa" ? 10 : en === "honoo" || en === "doku" ? 12 : en === "kaminari" ? 4 : en === "koori" ? 7 : 4;
+    let html = "";
+    for (let i = 0; i < n; i++) {
+      const a = en === "koori" ? -70 + (140 / Math.max(1, n - 1)) * i : Math.round(Math.random() * 360);
+      const dx = Math.round((Math.random() - 0.5) * 260);
+      const dy = Math.round(-40 - Math.random() * 110);
+      html += `<i style="--i:${i};--a:${a};--x:${Math.round((Math.random() - 0.5) * 60)};--dx:${dx};--dy:${dy};--mv:${color}"></i>`;
+    }
+    el.innerHTML = html;
+    setTimeout(() => { if (el.className.indexOf("mv-" + en) >= 0) el.innerHTML = ""; }, 1200);
   }
   function arQuake() {
     const st = $("#ar-stage");
@@ -957,10 +1022,11 @@
     setTimeout(() => st.classList.remove("quake"), 700);
   }
   // とくいわざの ため（くらくして、こうげきする ほうが 金いろに ひかる）
-  async function arCharge(attEl) {
+  async function arCharge(attEl, att) {
     $("#ar-dim").hidden = false;
+    attEl.style.setProperty("--mv", att.moveColor || "#ffd64a");
     attEl.classList.add("charge");
-    arCenter("とくいわざ！", "super");
+    arCenter(att.move || "とくいわざ！", "super");
     sound.charge();
     if (navigator.vibrate) navigator.vibrate([0, 30, 60, 30, 60, 60]);
     await arSleep(1000);
@@ -977,6 +1043,7 @@
     if (groups.size === 0) return;
     document.body.classList.add("noscroll");
     $("#arena").hidden = false;
+    $("#arena").classList.remove("fighting");
     $("#ar-fight").hidden = true;
     $("#ar-pick").hidden = false;
     const rec = arRecord();
@@ -1067,6 +1134,7 @@
   function closeArena() {
     bgm.stop();
     $("#arena").hidden = true;
+    $("#arena").classList.remove("fighting");
     document.body.classList.remove("noscroll");
   }
 
@@ -1085,6 +1153,7 @@
     arMe = arMyTeam[0]; arFoe = arFoeTeam[0];
     arOver = false; arBusy = false;
     bgm.start();
+    $("#arena").classList.add("fighting");
     $("#ar-pick").hidden = true;
     $("#ar-fight").hidden = false;
     $("#ar-end").hidden = true;
@@ -1096,6 +1165,7 @@
     arHideCenter();
     $$("#arena .ar-ch").forEach((el) => el.classList.remove("ko", "hit", "lunge", "enter"));
     $("#ar-slash").innerHTML = "";
+    $("#ar-fx").innerHTML = "";
     arItemPaint();
     arSwapPaint();
     $("#ar-swap-sheet").hidden = true;
@@ -1161,14 +1231,16 @@
 
     // つっこむ → ぶつかる
     $("#ar-msg").textContent = boosted
-      ? `${att.name}の とくいわざ！`
+      ? (att.moveCry || `${att.name}の ひっさつわざ！ ${att.move}！`)
       : (iWin ? arPick(AR_CRY) : arPick(AR_OW));
-    if (boosted) await arCharge(attEl);      // ためて…
+    if (boosted) await arCharge(attEl, att);      // ためて…
     attEl.classList.add("lunge");
     await arSleep(220);
     arFlash();
-    arSlash(iWin ? "foe" : "me", boosted);
-    arCenter(boosted ? arPick(AR_SUPER) : arPick(AR_BAM), boosted ? "super" : "");
+    const side = iWin ? "foe" : "me";
+    if (boosted) arFx(side, att.moveKind, att.moveColor || "#ffd64a");
+    arSlash(side, boosted, att.moveColor);
+    arCenter(boosted ? (att.move || arPick(AR_SUPER)) : arPick(AR_BAM), boosted ? "super" : "");
     defEl.classList.add("hit");
     sound.hit(boosted);
     if (boosted) { arQuake(); if (iWin) confetti(3); }
@@ -1858,6 +1930,7 @@
         size: (d.size || "").trim(),
         care: d.care || "",
         ...statsFor(name, (groups.get(name) || {}).rarity, d),
+        ...moveFor(name, (groups.get(name) || {}).rarity, d),
       };
       if (d.fact) patch.fact = d.fact;
       await DB.patchByName(name, patch);
@@ -2061,6 +2134,8 @@
       r.trivia = Array.isArray(ai.trivia) ? ai.trivia.filter(Boolean) : [];
       r.habitat = ai.habitat || ""; r.season = ai.season || ""; r.food = ai.food || ""; r.size = ai.size || ""; r.care = ai.care || "";
       r.attack = ai.attack || 0; r.defense = ai.defense || 0; r.hand = ai.hand || "";
+      r.move = ai.move_name || ""; r.moveKind = ai.move_kind || "";
+      r.moveColor = ai.move_color || ""; r.moveCry = ai.move_cry || "";
     }
     const known = (Zukan.id === "hana") ? matchKnownFlower(r.name) : matchKnown(r.name);
     if (known) {
@@ -2074,6 +2149,8 @@
       r.attack = r.attack || known.attack || 0;
       r.defense = r.defense || known.defense || 0;
       r.hand = r.hand || known.hand || "";
+      r.move = r.move || known.move || ""; r.moveKind = r.moveKind || known.moveKind || "";
+      r.moveColor = r.moveColor || known.moveColor || ""; r.moveCry = r.moveCry || known.moveCry || "";
       r.care = r.care || known.care || "";
       if (!(ai && ai.is_creature)) r.rarity = known.stars;
     }
@@ -2171,14 +2248,18 @@
         habitat: known.habitat || "", season: known.season || "",
         food: known.food || "", size: known.size || "", care: known.care || "",
         ...statsFor(name, known.stars, known),
+        ...moveFor(name, known.stars, known),
       };
     }
     const sameAsAi = r.aiName && _norm(name) === _norm(r.aiName);
     if (!sameAsAi) {
       const g0 = groups.get(name);
-      const keep = g0 ? { attack: g0.attack, defense: g0.defense, hand: g0.hand } : null;
+      const keep = g0
+        ? { attack: g0.attack, defense: g0.defense, hand: g0.hand,
+            move: g0.move, moveKind: g0.moveKind, moveColor: g0.moveColor, moveCry: g0.moveCry }
+        : null;
       return Object.assign({ where: "", family: "", trivia: [], habitat: "", season: "", food: "", size: "", care: "" },
-        keep || statsFor(name, pendingRarity, null));
+        keep || Object.assign(statsFor(name, pendingRarity, null), moveFor(name, pendingRarity, null)));
     }
     return {
       where: r.where || "", family: r.family || "",
@@ -2186,6 +2267,7 @@
       habitat: r.habitat || "", season: r.season || "",
       food: r.food || "", size: r.size || "", care: r.care || "",
       ...statsFor(name, pendingRarity, r),
+      ...moveFor(name, pendingRarity, r),
     };
   }
 
