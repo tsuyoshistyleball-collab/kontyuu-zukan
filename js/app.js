@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v44";
+  const APP_VERSION = "v45";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -758,13 +758,15 @@
     const els = pageEls();
     if (!els.length) return;
     bookIdx = Math.max(0, Math.min(els.length - 1, i));
+    const keepLive = !!(opts && opts.keepLive);
     els.forEach((el, k) => {
-      el.classList.remove("is-show", "is-top", "is-under", "is-live");
+      el.classList.remove("is-show", "is-top", "is-under");
+      if (!keepLive) el.classList.remove("is-live");
       clearFlipPaint(el);
       // まえ・いま・つぎ の 3まいは ならべて おく（めくり はじめの カクつき ふうじ）
-      if (Math.abs(k - bookIdx) <= 1) el.classList.add("is-live");
+      if (!keepLive && Math.abs(k - bookIdx) <= 1) el.classList.add("is-live");
       if (k === bookIdx) {
-        el.classList.add("is-show", "is-top");
+        el.classList.add("is-live", "is-show", "is-top");
         if (!opts || !opts.keepScroll) { const inr = el.querySelector(".page-inner"); if (inr) inr.scrollTop = 0; }
       }
     });
@@ -790,22 +792,27 @@
      まいフレーム さわるのは transform と opacity だけ（グラデーションは かえない）。
      こうすると スマホでも カクつかない。*/
   const FLIP_MS = 620;
-  function bowOf(t) { return Math.sin(Math.min(1, Math.max(0, t)) * Math.PI); }
+  // 45°で いちばん しなり、90°で ぴったり まっすぐに もどる。
+  // （90°で かみは よこを むいて きえる ので、そこで ふくらんで いると パッと きえて みえる）
+  function bowOf(t) {
+    const x = Math.min(1, Math.max(0, t));
+    return x < 0.5 ? Math.sin(x * 2 * Math.PI) : 0;
+  }
 
   function paintFlip(el, under, deg) {
     const t = Math.min(1, Math.abs(deg) / 180);
     const b = bowOf(t);
     el.style.transform =
-      `rotateY(${deg.toFixed(2)}deg) skewY(${(-5.2 * b).toFixed(2)}deg) ` +
-      `scaleY(${(1 - 0.095 * b).toFixed(4)}) rotate(${(-1.6 * b).toFixed(2)}deg)`;
+      `rotateY(${deg.toFixed(2)}deg) skewY(${(-2.4 * b).toFixed(2)}deg) ` +
+      `scaleY(${(1 - 0.026 * b).toFixed(4)}) rotate(${(-0.7 * b).toFixed(2)}deg)`;
 
     const sh = el.querySelector(".pg-shade");
-    if (sh) sh.style.opacity = (0.55 * t + 0.45 * b).toFixed(3);
+    if (sh) sh.style.opacity = (0.78 * b).toFixed(3);
     const gl = el.querySelector(".pg-gloss");
     if (gl) {
       gl.style.opacity = "1";
       const i = gl.firstElementChild;
-      if (i) i.style.transform = `translateX(${(-70 + 315 * t).toFixed(1)}%)`;
+      if (i) i.style.transform = `translateX(${(-70 + 480 * Math.min(t, 0.5)).toFixed(1)}%)`;
     }
     const cast = under && under.querySelector(".pg-cast");
     if (cast) {
@@ -854,15 +861,35 @@
     under.classList.add(dir > 0 ? "cast-out" : "cast-in");
     sound.page();
 
+    let done = false;
     const fin = () => {
+      if (done) return; done = true;
       turning.removeEventListener("animationend", fin);
       clearTimeout(tmo);
-      $("#book-track").classList.remove("flipping");
-      flipping = false;
-      showBookPage(to, { keepScroll: true });
+      finishFlip(to);
     };
     turning.addEventListener("animationend", fin);
     const tmo = setTimeout(fin, ms + 260);
+  }
+
+  /* めくり おわりの かたづけ。
+     ・まず あたらしい ページを おもてに する（この フレームで きりかわる）
+     ・ならべて おく ページの いれかえ（display の きりかえ）は あとまわし
+       …こうしないと、めくった すぐ あとに おもい フレームが きて チカッと する */
+  function finishFlip(to) {
+    showBookPage(to, { keepScroll: true, keepLive: true });
+    requestAnimationFrame(() => {
+      $("#book-track").classList.remove("flipping");
+      flipping = false;
+      clearTimeout(finishFlip._t);
+      finishFlip._t = setTimeout(() => {
+        if (flipping) return;
+        pageEls().forEach((el, k) => {
+          if (Math.abs(k - bookIdx) <= 1) el.classList.add("is-live");
+          else el.classList.remove("is-live");
+        });
+      }, 280);
+    });
   }
 
   // はじ の ページで めくろうと した ときの ちいさな はねかえり
@@ -951,12 +978,12 @@
       const ca = un && un.querySelector(".pg-cast");
       if (ca) ca.style.transition = `opacity ${ms}ms ${eased}, transform ${ms}ms ${eased}`;
       requestAnimationFrame(() => paintFlip(el, un, endDeg));
+      let ended = false;
       const fin = () => {
+        if (ended) return; ended = true;
         clearTimeout(tmo);
         el.removeEventListener("transitionend", fin);
-        $("#book-track").classList.remove("flipping");
-        flipping = false;
-        showBookPage(go ? to : bookIdx, { keepScroll: true });
+        finishFlip(go ? to : bookIdx);
       };
       el.addEventListener("transitionend", fin);
       const tmo = setTimeout(fin, ms + 240);
