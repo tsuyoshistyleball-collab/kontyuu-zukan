@@ -1496,6 +1496,28 @@ rt {
 .ar-ch.enter.me { animation: arEnterR .5s ease-out; }
 @keyframes arEnterL { 0% { transform: translateX(-70%); opacity: 0; } 100% { transform: none; opacity: 1; } }
 @keyframes arEnterR { 0% { transform: translateX(70%); opacity: 0; } 100% { transform: none; opacity: 1; } }
+.ar-ch.ko.foe { animation: arKOl 1s cubic-bezier(.3,.7,.5,1) forwards; }
+.ar-ch.ko.me { animation: arKOr 1s cubic-bezier(.3,.7,.5,1) forwards; }
+@keyframes arKOl {
+  0% { transform: none; filter: none; }
+  15% { transform: translate(6%, -7%) rotate(8deg); filter: brightness(1.8); }
+  100% { transform: translate(-6%, 14%) rotate(82deg); filter: grayscale(.9) brightness(.6); opacity: .6; }
+}
+@keyframes arKOr {
+  0% { transform: none; filter: none; }
+  15% { transform: translate(-6%, -7%) rotate(-8deg); filter: brightness(1.8); }
+  100% { transform: translate(6%, 14%) rotate(-82deg); filter: grayscale(.9) brightness(.6); opacity: .6; }
+}
+.ar-ch.ko::before {   /* もうもうと たつ ほこり */
+  content: ""; position: absolute; left: -2%; right: -2%; bottom: 6%; height: 34px; border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(226,212,182,.9), rgba(226,212,182,0) 100%);
+  animation: arDust .9s ease-out forwards;
+}
+@keyframes arDust {
+  0% { transform: scale(.25); opacity: 0; }
+  25% { opacity: .95; }
+  100% { transform: scale(2); opacity: 0; }
+}
 .ar-ch.hit { animation: arShake .34s ease; }
 @keyframes arShake {
   0% { transform: translateX(0); }
@@ -1571,6 +1593,49 @@ rt {
   0% { transform: scale(.3) rotate(0deg); opacity: .95; }
   100% { transform: scale(1.25) rotate(28deg); opacity: .35; }
 }
+/* ざんげき（きった あと）*/
+.ar-slash { position: absolute; inset: 0; z-index: 4; pointer-events: none; overflow: hidden; }
+.ar-slash span {
+  position: absolute; top: 60%; left: 50%; width: 78%; height: 18px; margin: -9px 0 0 -39%;
+  border-radius: 999px; opacity: 0; transform-origin: center;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,.35) 10%, #fff 34%, #fff 66%, rgba(255,255,255,.35) 90%, transparent 100%);
+  filter: drop-shadow(0 0 12px rgba(255,255,255,1)) drop-shadow(0 0 26px rgba(255,214,90,.95));
+}
+.ar-slash.foe span { margin-left: -64%; }
+.ar-slash.me span { margin-left: -14%; }
+.ar-slash span:nth-child(1) { animation: arSlash1 .46s ease-out both; }
+.ar-slash span:nth-child(2) { animation: arSlash2 .46s ease-out .11s both; }
+.ar-slash span:nth-child(3) { animation: arSlash3 .46s ease-out .22s both; }
+@keyframes arSlash1 {
+  0% { opacity: 0; transform: rotate(-38deg) scale(.06, .4); }
+  22% { opacity: 1; }
+  78% { opacity: 1; transform: rotate(-38deg) scale(1, 1); }
+  100% { opacity: 0; transform: rotate(-38deg) scale(1.08, .5); }
+}
+@keyframes arSlash2 {
+  0% { opacity: 0; transform: rotate(26deg) scale(.06, .4); }
+  22% { opacity: 1; }
+  78% { opacity: 1; transform: rotate(26deg) scale(.94, 1); }
+  100% { opacity: 0; transform: rotate(26deg) scale(1, .5); }
+}
+@keyframes arSlash3 {
+  0% { opacity: 0; transform: rotate(-70deg) scale(.06, .4); }
+  22% { opacity: .95; }
+  78% { opacity: .95; transform: rotate(-70deg) scale(.72, .9); }
+  100% { opacity: 0; transform: rotate(-70deg) scale(.8, .45); }
+}
+
+/* たおれた ときの ゆれ */
+.ar-stage.quake { animation: arQuake .55s ease; }
+@keyframes arQuake {
+  0%, 100% { transform: none; }
+  12% { transform: translate(-5px, 4px); }
+  30% { transform: translate(6px, -4px); }
+  50% { transform: translate(-4px, 3px); }
+  72% { transform: translate(3px, -2px); }
+  88% { transform: translate(-2px, 1px); }
+}
+
 .ar-flash { position: absolute; inset: 0; z-index: 5; background: #fff; opacity: 0; pointer-events: none; }
 .ar-flash.on { animation: arFlash .22s ease-out; }
 @keyframes arFlash { 0% { opacity: .8; } 100% { opacity: 0; } }
@@ -1643,5 +1708,5 @@ rt {
   .ar-stage { height: min(46vh, 380px); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .ar-ch, .ar-center b, .ar-burst, .ar-flash.on, .ar-ch.hit img { animation: none !important; transition: none !important; }
+  .ar-ch, .ar-center b, .ar-burst, .ar-flash.on, .ar-ch.hit img, .ar-slash span, .ar-stage.quake { animation: none !important; transition: none !important; }
 }

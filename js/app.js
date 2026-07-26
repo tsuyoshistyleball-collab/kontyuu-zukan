@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v59";
+  const APP_VERSION = "v60";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -921,6 +921,18 @@
       `<b class="ah-who">${who}</b><b class="ah-nm">${escapeHtml(hand)}</b>`;
     el.style.animation = "none"; void el.offsetWidth; el.style.animation = "";
   }
+  // ざんげき（やられた ほうの うえに はしる）
+  function arSlash(side) {
+    const el = $("#ar-slash");
+    el.className = "ar-slash " + side;
+    el.innerHTML = "<span></span><span></span><span></span>";
+    setTimeout(() => { if (el.className.indexOf(side) >= 0) el.innerHTML = ""; }, 700);
+  }
+  function arQuake() {
+    const st = $("#ar-stage");
+    st.classList.remove("quake"); void st.offsetWidth; st.classList.add("quake");
+    setTimeout(() => st.classList.remove("quake"), 700);
+  }
   function arFlash() {
     const el = $("#ar-flash");
     el.classList.remove("on"); void el.offsetWidth; el.classList.add("on");
@@ -1012,6 +1024,8 @@
     $("#ar-me-hand").innerHTML = "";
     $("#ar-msg").textContent = "じゃんけんを えらんでね！";
     arHideCenter();
+    $$("#arena .ar-ch").forEach((el) => el.classList.remove("ko", "hit", "lunge", "enter"));
+    $("#ar-slash").innerHTML = "";
     arItemPaint();
     arSwapPaint();
     $("#ar-swap-sheet").hidden = true;
@@ -1078,6 +1092,7 @@
     attEl.classList.add("lunge");
     await arSleep(220);
     arFlash();
+    arSlash(iWin ? "foe" : "me");
     arCenter(boosted ? "とくいわざ！" : arPick(AR_BAM));
     defEl.classList.add("hit");
     sound.blip();
@@ -1103,10 +1118,15 @@
   async function arDown(meDown) {
     const team = meDown ? arMyTeam : arFoeTeam;
     const cur = meDown ? arMe : arFoe;
+    const downEl = meDown ? $("#ar-me") : $("#ar-foe");
+    downEl.classList.remove("hit");
+    downEl.classList.add("ko");
+    arQuake();
     arCenter("たおれた…", "bad");
     $("#ar-msg").textContent = `${cur.name}は たおれた！`;
     sound.blip();
-    await arSleep(1200);
+    if (navigator.vibrate) navigator.vibrate([0, 130, 70, 200]);
+    await arSleep(1600);
     arHideCenter();
 
     const rest = team.map((f, i) => i).filter((i) => team[i].hp > 0);
@@ -1118,6 +1138,7 @@
       if (rest.length > 1) { const c = await arOpenSwap(true); if (c >= 0) idx = c; }
       arMyIdx = idx; arMe = arMyTeam[idx];
     } else { arFoeIdx = idx; arFoe = arFoeTeam[idx]; }
+    downEl.classList.remove("ko");
     arPaintFighters();
     arPaintBars();
     arSwapPaint();
