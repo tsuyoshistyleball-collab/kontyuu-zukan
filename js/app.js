@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v43";
+  const APP_VERSION = "v44";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -2061,6 +2061,42 @@
     }
   }
 
+  /* バックアップを ほかの アプリへ わたす（Google ドライブ・LINE・メール など）。
+     スマホなら 1タップで クラウドに あずけられる ので、機種変更(きしゅへんこう)の ときに らく。*/
+  function canShareFiles() {
+    try {
+      if (!navigator.canShare || !navigator.share) return false;
+      const f = new File(["{}"], "t.json", { type: "application/json" });
+      return navigator.canShare({ files: [f] });
+    } catch (e) { return false; }
+  }
+
+  async function shareBackup() {
+    const out = $("#s-backup-result");
+    out.textContent = "バックアップを 作(つく)って いるよ…"; out.className = "s-test-result"; rubyifyDOM(out);
+    try {
+      const { blob, count, sig } = await buildBackup();
+      const file = new File([blob], backupFileName(), { type: "application/json" });
+      if (canShareFiles()) {
+        await navigator.share({ files: [file], title: "むしずかんの バックアップ" });
+        markBackedUp(sig);
+        out.textContent = `✓ ${count}枚(まい)の 写真(しゃしん)を 送(おく)ったよ！`;
+        out.className = "s-test-result ok";
+      } else {
+        downloadBlob(blob, backupFileName());
+        markBackedUp(sig);
+        out.textContent = `✓ ${count}枚(まい)を この 端末(たんまつ)に 保存(ほぞん)したよ`;
+        out.className = "s-test-result ok";
+      }
+      rubyifyDOM(out);
+    } catch (err) {
+      if (err && (err.name === "AbortError" || err.name === "NotAllowedError")) { out.textContent = ""; return; }
+      console.error(err);
+      out.textContent = "✕ " + ((err && err.message) || "できませんでした");
+      out.className = "s-test-result warn";
+    }
+  }
+
   async function importBackup(file) {
     const out = $("#s-backup-result");
     out.textContent = "読(よ)みこんで いるよ…"; out.className = "s-test-result";
@@ -2182,6 +2218,8 @@
     $("#gd-auto").addEventListener("change", (e) => {
       try { localStorage.setItem(GD_AUTO_KEY, e.target.checked ? "1" : "0"); } catch (err) {}
     });
+    if (canShareFiles()) $("#s-share").hidden = false;
+    $("#s-share").addEventListener("click", shareBackup);
     $("#s-export").addEventListener("click", exportBackup);
     $("#backup-hint").addEventListener("click", exportBackup);
     $("#s-import").addEventListener("click", () => $("#s-import-file").click());

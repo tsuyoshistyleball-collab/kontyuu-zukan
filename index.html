@@ -265,8 +265,18 @@
       <span class="s-toggle-box" aria-hidden="true"></span>
       <span class="s-toggle-text">自動(じどう)で バックアップする<br><small>登録(とうろく)した あと、6時間(じかん)に 1回(かい)くらい ファイルを 保存(ほぞん)します</small></span>
     </label>
+    <button id="s-share" class="s-backup-btn share" hidden>📤 バックアップを ほかへ 送(おく)る</button>
     <button id="s-export" class="s-backup-btn save">💾 今(いま) バックアップを 保存(ほぞん)</button>
     <button id="s-import" class="s-backup-btn load">📂 バックアップから 戻(もど)す</button>
+    <div class="s-help handover">
+      <p>📱 <b>機種変更(きしゅへんこう)の とき</b></p>
+      <ol>
+        <li>今(いま)の スマホで <b>「📤 バックアップを ほかへ 送(おく)る」</b> を タップ</li>
+        <li>Google ドライブ・LINE・メール など、好(す)きな ところへ 送(おく)る</li>
+        <li>新(あたら)しい スマホで この アプリを 開(ひら)き、<b>「📂 バックアップから 戻(もど)す」</b> で その ファイルを えらぶ</li>
+      </ol>
+      <p class="s-note">写真(しゃしん)・場所(ばしょ)・★・表紙(ひょうし)まで、そのまま 引(ひ)きつがれます。</p>
+    </div>
     <input id="s-import-file" type="file" accept="application/json,.json" hidden />
     <p id="s-backup-result" class="s-test-result"></p>
 
