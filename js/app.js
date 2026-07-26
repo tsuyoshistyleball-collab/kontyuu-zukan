@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v39";
+  const APP_VERSION = "v40";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -760,8 +760,7 @@
     bookIdx = Math.max(0, Math.min(els.length - 1, i));
     els.forEach((el, k) => {
       el.classList.remove("is-show", "is-top", "is-under", "is-anim");
-      el.style.transform = "";
-      el.style.boxShadow = "";
+      clearFlipPaint(el);
       if (k === bookIdx) {
         el.classList.add("is-show", "is-top");
         if (!opts || !opts.keepScroll) { const inr = el.querySelector(".page-inner"); if (inr) inr.scrollTop = 0; }
@@ -785,6 +784,68 @@
     return `0 8px 22px rgba(0,0,0,${0.35 + 0.25 * t}), inset ${7 + 26 * t}px 0 ${12 + 30 * t}px -6px rgba(90,65,35,${0.35 + 0.35 * t})`;
   }
 
+  /* かみが そって めくれる ように みせる。
+     ・rotateY で まわす
+     ・skewY と scaleY で すこし そらせる（ぺらぺらの かみ っぽさ）
+     ・おもてに かげと つやの グラデーションを のせる
+     ・したの ページには うえの かみの かげを おとす */
+  function paintFlip(el, under, deg) {
+    const t = Math.min(1, Math.abs(deg) / 180);
+    const bow = Math.sin(t * Math.PI);                 // 0 → 1 → 0（まんなかで いちばん そる）
+    el.style.transform =
+      `rotateY(${deg.toFixed(2)}deg) skewY(${(-bow * 2.4).toFixed(2)}deg) scaleY(${(1 - bow * 0.04).toFixed(4)})`;
+    el.style.boxShadow = flipShadow(deg);
+
+    const sh = el.querySelector(".pg-shade");
+    if (sh) {
+      const dark = 0.34 * bow + 0.10 * t;
+      const hl = 0.40 * bow;
+      const pos = 26 + 48 * t;                          // ひかりの おびが すべって いく
+      sh.style.opacity = "1";
+      sh.style.backgroundImage =
+        `linear-gradient(101deg,` +
+        ` rgba(58,38,14,${dark.toFixed(3)}) 0%,` +
+        ` rgba(58,38,14,${(dark * 0.42).toFixed(3)}) 16%,` +
+        ` rgba(255,252,240,${hl.toFixed(3)}) ${pos.toFixed(1)}%,` +
+        ` rgba(58,38,14,${(dark * 0.3).toFixed(3)}) 100%)`;
+    }
+
+    const cast = under && under.querySelector(".pg-cast");
+    if (cast) {
+      const w = Math.max(0, Math.cos((deg * Math.PI) / 180)) * 100;   // かげの はば（％）
+      const a = 0.34 * (1 - t);
+      cast.style.opacity = "1";
+      cast.style.backgroundImage =
+        `linear-gradient(90deg,` +
+        ` rgba(38,24,4,${a.toFixed(3)}) 0%,` +
+        ` rgba(38,24,4,${(a * 0.5).toFixed(3)}) ${Math.max(2, w * 0.65).toFixed(1)}%,` +
+        ` rgba(38,24,4,0) ${Math.max(5, w).toFixed(1)}%)`;
+    }
+  }
+
+  function clearFlipPaint(el) {
+    el.style.transform = "";
+    el.style.boxShadow = "";
+    const sh = el.querySelector(".pg-shade"); if (sh) { sh.style.opacity = "0"; sh.style.backgroundImage = ""; }
+    const ca = el.querySelector(".pg-cast");  if (ca) { ca.style.opacity = "0"; ca.style.backgroundImage = ""; }
+  }
+
+  const _easeFlip = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+  const _reduce = () => !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+
+  // from° から to° まで、かみが そりながら まわる
+  function animateFlip(el, under, from, to, done) {
+    const ms = _reduce() ? 240 : 640;
+    const t0 = performance.now();
+    const step = (now) => {
+      const k = Math.min(1, (now - t0) / ms);
+      paintFlip(el, under, from + (to - from) * _easeFlip(k));
+      if (k < 1) requestAnimationFrame(step);
+      else done();
+    };
+    requestAnimationFrame(step);
+  }
+
   function bookNav(dir) {
     if (flipping) return;
     const els = pageEls();
@@ -797,27 +858,19 @@
 
     under.classList.add("is-show", "is-under");
     turning.classList.add("is-show", "is-top");
-    turning.style.transition = "none";
-    turning.style.transform = `rotateY(${dir > 0 ? 0 : -180}deg)`;
-    turning.style.boxShadow = flipShadow(dir > 0 ? 0 : 180);
+    turning.classList.remove("is-anim");
     const toInner = (dir > 0 ? nxt : cur).querySelector(".page-inner");
     if (toInner) toInner.scrollTop = 0;
-    void turning.offsetWidth;                  // レイアウトを かくてい させる
+    $("#book-track").classList.add("flipping");
 
+    const from = dir > 0 ? 0 : -180, till = dir > 0 ? -180 : 0;
+    paintFlip(turning, under, from);
     sound.page();
-    turning.classList.add("is-anim");
-    turning.style.transition = "";
-    turning.style.transform = `rotateY(${dir > 0 ? -180 : 0}deg)`;
-    turning.style.boxShadow = flipShadow(dir > 0 ? 180 : 0);
-
-    const done = () => {
-      turning.removeEventListener("transitionend", done);
-      clearTimeout(tmo);
+    animateFlip(turning, under, from, till, () => {
+      $("#book-track").classList.remove("flipping");
       flipping = false;
       showBookPage(to, { keepScroll: true });
-    };
-    turning.addEventListener("transitionend", done);
-    const tmo = setTimeout(done, 800);         // ねんの ため
+    });
   }
 
   // はじ の ページで めくろうと した ときの ちいさな はねかえり
@@ -833,11 +886,11 @@
   function wireBookDrag() {
     const stage = $("#book-stage");
     let sx = 0, sy = 0, active = false, decided = false, dir = 0;
-    let turning = null, w = 1, moved = 0, pid = null, t0 = 0;
+    let turning = null, underEl = null, w = 1, moved = 0, pid = null, t0 = 0;
 
     const reset = () => {
       if (pid != null) { try { stage.releasePointerCapture(pid); } catch (e) {} }
-      active = false; decided = false; dir = 0; turning = null; pid = null;
+      active = false; decided = false; dir = 0; turning = null; underEl = null; pid = null;
     };
 
     stage.addEventListener("pointerdown", (e) => {
@@ -865,8 +918,8 @@
         const to = bookIdx + dir;
         if (to < 0 || to >= els.length) { reset(); return; }
         turning = dir > 0 ? els[bookIdx] : els[to];
-        const under = dir > 0 ? els[to] : els[bookIdx];
-        under.classList.add("is-show", "is-under");
+        underEl = dir > 0 ? els[to] : els[bookIdx];
+        underEl.classList.add("is-show", "is-under");
         turning.classList.add("is-show", "is-top");
         turning.classList.remove("is-anim");
         $("#book-track").classList.add("flipping");
@@ -875,8 +928,7 @@
       }
       const p = Math.max(0, Math.min(1, Math.abs(dx) / w));
       const deg = dir > 0 ? -180 * p : -180 * (1 - p);
-      turning.style.transform = `rotateY(${deg}deg)`;
-      turning.style.boxShadow = flipShadow(deg);
+      paintFlip(turning, underEl, deg);
       if (e.cancelable) e.preventDefault();
     }, { passive: false });
 
@@ -887,23 +939,17 @@
       const p = Math.min(1, Math.abs(dx) / w);
       const speed = Math.abs(dx) / Math.max(1, performance.now() - t0);   // px/ms
       const go = p > 0.24 || speed > 0.5;      // すこしでも いきおいが あれば めくる
-      const el = turning, d = dir, to = bookIdx + dir;
+      const el = turning, un = underEl, d = dir, to = bookIdx + dir;
       swallowClick = moved > 10;
-      el.classList.add("is-anim");
+      const curDeg = d > 0 ? -180 * p : -180 * (1 - p);
       const endDeg = d > 0 ? (go ? -180 : 0) : (go ? 0 : -180);
-      el.style.transform = `rotateY(${endDeg}deg)`;
-      el.style.boxShadow = flipShadow(endDeg);
       flipping = true;
       if (go) sound.page();
-      const fin = () => {
-        el.removeEventListener("transitionend", fin);
-        clearTimeout(tmo);
+      animateFlip(el, un, curDeg, endDeg, () => {
         $("#book-track").classList.remove("flipping");
         flipping = false;
         showBookPage(go ? to : bookIdx, { keepScroll: true });
-      };
-      el.addEventListener("transitionend", fin);
-      const tmo = setTimeout(fin, 800);
+      });
       reset();
     };
     stage.addEventListener("pointerup", end);
@@ -934,6 +980,14 @@
       holo.setAttribute("aria-hidden", "true");
       page.appendChild(holo);
     }
+
+    // めくる ときの かげ（この かみ）と、うえの かみから おちる かげ
+    const shade = document.createElement("div");
+    shade.className = "pg-shade"; shade.setAttribute("aria-hidden", "true");
+    page.appendChild(shade);
+    const cast = document.createElement("div");
+    cast.className = "pg-cast"; cast.setAttribute("aria-hidden", "true");
+    page.appendChild(cast);
 
     // なかみ（ここだけ たてに スクロール する）
     const inner = document.createElement("div");

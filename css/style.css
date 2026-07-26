@@ -380,7 +380,14 @@ main { max-width: 760px; margin: 0 auto; }
 }
 .page.is-under { z-index: 1; }
 .page.is-top   { z-index: 3; }
-.page.is-anim  { transition: transform .55s cubic-bezier(.36,.05,.3,1); }
+.page.is-anim  { transition: transform .3s cubic-bezier(.36,.05,.3,1); }
+/* めくる ときの かげ／つや（JSで グラデーションを うごかす）*/
+.pg-shade, .pg-cast {
+  position: absolute; inset: 0; z-index: 4; pointer-events: none;
+  border-radius: inherit; opacity: 0;
+  mix-blend-mode: multiply;
+}
+.pg-shade { mix-blend-mode: normal; }
 /* ページの こぐち（めくる とき ぶあつく みえる）*/
 .page::after {
   content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
