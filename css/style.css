@@ -1681,10 +1681,21 @@ rt {
 .ar-ch.me img, .ar-ch.me .svgbox { transform: scaleX(-1); }
 .ar-ch.lunge.foe { transform: translateX(16%) scale(1.07); }
 .ar-ch.lunge.me { transform: translateX(-16%) scale(1.07); }
-.ar-ch.enter.foe { animation: arEnterL .5s ease-out; }
-.ar-ch.enter.me { animation: arEnterR .5s ease-out; }
-@keyframes arEnterL { 0% { transform: translateX(-70%); opacity: 0; } 100% { transform: none; opacity: 1; } }
-@keyframes arEnterR { 0% { transform: translateX(70%); opacity: 0; } 100% { transform: none; opacity: 1; } }
+.ar-ch.pre { opacity: 0; }
+.ar-ch.enter.foe { animation: arEnterL .62s cubic-bezier(.2,1.4,.35,1) both; }
+.ar-ch.enter.me { animation: arEnterR .62s cubic-bezier(.2,1.4,.35,1) both; }
+@keyframes arEnterL {
+  0%   { transform: translateX(-110%) scale(.8); opacity: 0; }
+  55%  { transform: translateX(6%) scale(1.06); opacity: 1; }
+  75%  { transform: translateX(-3%) scale(.98); }
+  100% { transform: none; opacity: 1; }
+}
+@keyframes arEnterR {
+  0%   { transform: translateX(110%) scale(.8); opacity: 0; }
+  55%  { transform: translateX(-6%) scale(1.06); opacity: 1; }
+  75%  { transform: translateX(3%) scale(.98); }
+  100% { transform: none; opacity: 1; }
+}
 .ar-ch.ko.foe { animation: arKOl 1s cubic-bezier(.3,.7,.5,1) forwards; }
 .ar-ch.ko.me { animation: arKOr 1s cubic-bezier(.3,.7,.5,1) forwards; }
 @keyframes arKOl {

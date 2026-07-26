@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v79";
+  const APP_VERSION = "v80";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -1235,9 +1235,71 @@
     $$("#ar-hands .ar-hand").forEach((b) => b.classList.toggle("fav", b.dataset.hand === arMe.hand));
     arPaintFighters();
     arBuildSideTeams();
-    $("#ar-foe-bar").dataset.name = ""; $("#ar-me-bar").dataset.name = "";   // さいしょは いっぱいで だす
+    $("#ar-foe-bar").dataset.name = ""; $("#ar-me-bar").dataset.name = "";
     arPaintBars();
     rubyifyDOM($("#arena"));
+    arIntro();                       // とうじょう → HPが たまる
+  }
+
+  /* たたかいの はじまり：ふたりが とうじょうして、HPが たまる */
+  function arZeroBars() {
+    for (const box of [$("#ar-foe-bar"), $("#ar-me-bar")]) {
+      const f = box === $("#ar-foe-bar") ? arFoe : arMe;
+      box.dataset.hp = "0";
+      const fill = box.querySelector(".as-bar i");
+      const num = box.querySelector(".as-hp span");
+      const bar = box.querySelector(".as-bar");
+      if (fill) fill.style.width = "0%";
+      if (num) num.textContent = `0 / ${f.maxHp}`;
+      if (bar) bar.classList.remove("low", "crit");
+    }
+  }
+  async function arIntro() {
+    arBusy = true;
+    const foeEl = $("#ar-foe"), meEl = $("#ar-me");
+    $("#ar-hands").hidden = true;
+    $("#ar-item-row").hidden = true;
+    foeEl.classList.add("pre"); meEl.classList.add("pre");
+    arZeroBars();
+    $("#ar-msg").textContent = "たたかいの じゅんび…";
+    await arSleep(350);
+
+    // あいての とうじょう
+    foeEl.classList.remove("pre");
+    foeEl.classList.remove("enter"); void foeEl.offsetWidth; foeEl.classList.add("enter");
+    arCenter(`あいては ${arFoe.name}！`);
+    $("#ar-msg").textContent = `${arFoe.name}が あらわれた！`;
+    sound.blip();
+    if (navigator.vibrate) navigator.vibrate(40);
+    await arSleep(1000);
+
+    // じぶんの とうじょう
+    meEl.classList.remove("pre");
+    meEl.classList.remove("enter"); void meEl.offsetWidth; meEl.classList.add("enter");
+    arCenter(`いけっ！ ${arMe.name}！`);
+    $("#ar-msg").textContent = `${arMe.name}、しゅつじん！`;
+    sound.blip();
+    if (navigator.vibrate) navigator.vibrate(40);
+    await arSleep(1000);
+    arHideCenter();
+    foeEl.classList.remove("enter"); meEl.classList.remove("enter");
+
+    // たいりょくが たまる
+    $("#ar-msg").textContent = "たいりょく MAX！";
+    arPaintBars();
+    sound.fill();
+    await arSleep(1000);
+
+    // かいし！
+    arCenter("しょうぶ かいし！");
+    sound.fanfare(3);
+    if (navigator.vibrate) navigator.vibrate([0, 60, 40, 60]);
+    await arSleep(950);
+    arHideCenter();
+    $("#ar-hands").hidden = false;
+    $("#ar-item-row").hidden = false;
+    $("#ar-msg").textContent = "じゃんけんを えらんでね！";
+    arBusy = false;
   }
 
   const AR_CRY = ["ガンガン いくぜ！", "それっ！", "くらえー！", "とりゃー！", "いっけー！"];
@@ -2858,6 +2920,11 @@
             o.start(st); o.stop(st + 0.16);
           }
         } catch (e) {}
+      },
+      // たいりょくが たまる おと（ピピピピ…と あがる）
+      fill() {
+        if (!on) return;
+        try { for (let i = 0; i < 10; i++) note(440 + i * 62, i * 0.075, 0.12, "square", 0.07); } catch (e) {}
       },
       // かいふくの おと（きらきら あがる）
       heal() {
