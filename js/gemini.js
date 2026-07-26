@@ -35,6 +35,12 @@ const Gemini = (() => {
       "- rarity: めずらしさ 1〜3（1=よく みる、2=ときどき、3=めずらしい）",
       "- fact: その むしの おもしろい ひとこと（やさしい ひらがな、みじかく）",
       "- where: どこで みつかるか（やさしい ひらがな、みじかく）",
+      "- trivia: まめちしき を 3つ（はいれつ。それぞれ 1ぶん・やさしい ひらがな・4さいが「へぇ！」と おもう ないよう）",
+      "- habitat: すんで いる ところ（くわしく 1〜2ぶん。にほんの どこに いるか、どんな ばしょが すきか）",
+      "- season: みられる きせつと じかんたい（れい: 6がつ〜8がつ の よる）",
+      "- food: たべもの（やさしい ひらがな、みじかく）",
+      "- care: かいかた。おうちで かえる なら えさ・いれもの・きを つける ことを みじかく。",
+      "  かうのが むずかしい むしは「かうのは むずかしいよ。みたら そっと にがして あげてね」の ように かいて ください。",
       "- category: なかまわけ。つぎの どれか ひとつ： こうちゅう / ちょう・が / とんぼ / せみ / ばった・かまきり / はち・あり / くも / かたつむり / みずのむし / かえる・いきもの / そのほか",
       "いきものが いない ときは name を からっぽ、is_creature を false にして ください。",
     ].join("\n"),
@@ -50,6 +56,13 @@ const Gemini = (() => {
       "- rarity: めずらしさ 1〜3（1=よく みる、2=ときどき、3=めずらしい）",
       "- fact: その おはなの おもしろい ひとこと（やさしい ひらがな、みじかく）",
       "- where: どこで みつかるか・いつ さくか（やさしい ひらがな、みじかく）",
+      "- trivia: まめちしき を 3つ（はいれつ。それぞれ 1ぶん・やさしい ひらがな・4さいが「へぇ！」と おもう ないよう）",
+      "- habitat: はえて いる ところ（くわしく 1〜2ぶん。にほんの どこに はえるか、ひなた/ひかげ など）",
+      "- season: はなが さく きせつ（れい: 3がつ〜5がつ）",
+      "- food: そだつのに すきな もの（ひあたり・みず・つち など、みじかく）",
+      "- care: そだてかた。たねや なえから そだてる ほうほうを みじかく。",
+      "  そだてるのが むずかしい ときは「そだてるのは むずかしいよ。そとで みて たのしもう」の ように かいて ください。",
+      "  さわると あぶない しょくぶつは、そのことも かいて ください。",
       "- category: なかまわけ。つぎの どれか ひとつ： きの おはな / みちばたの おはな / にわの おはな / はっぱ・くさ / み・たね・どんぐり / きのこ / そのほか",
       "しょくぶつが ない ときは name を からっぽ、is_creature を false にして ください。",
     ].join("\n"),
@@ -67,9 +80,80 @@ const Gemini = (() => {
       fact: { type: "STRING" },
       where: { type: "STRING" },
       category: { type: "STRING" },
+      trivia: { type: "ARRAY", items: { type: "STRING" } },
+      habitat: { type: "STRING" },
+      season: { type: "STRING" },
+      food: { type: "STRING" },
+      care: { type: "STRING" },
     },
     required: ["name", "is_creature", "confidence", "rarity", "fact"],
   };
+
+  /* なまえだけ わかって いる ものを、あとから くわしく しらべる（もじだけ・やすい）*/
+  const DETAIL_SCHEMA = {
+    type: "OBJECT",
+    properties: {
+      fact: { type: "STRING" },
+      trivia: { type: "ARRAY", items: { type: "STRING" } },
+      habitat: { type: "STRING" },
+      season: { type: "STRING" },
+      food: { type: "STRING" },
+      care: { type: "STRING" },
+    },
+    required: ["trivia", "habitat", "season", "care"],
+  };
+
+  const DETAIL_PROMPT = {
+    mushi: (name) => [
+      "あなたは こども向けの こんちゅう ずかんの アシスタントです。",
+      `「${name}」に ついて、4さいの こどもが よめる やさしい ひらがな で おしえて ください。`,
+      "つぎの JSON だけを かえして ください：",
+      "- fact: おもしろい ひとこと（みじかく）",
+      "- trivia: まめちしき を 3つ（はいれつ。それぞれ 1ぶん）",
+      "- habitat: すんで いる ところ（くわしく 1〜2ぶん）",
+      "- season: みられる きせつと じかんたい",
+      "- food: たべもの（みじかく）",
+      "- care: かいかた。かうのが むずかしい ときは「かうのは むずかしいよ。そっと にがして あげてね」の ように かいて ください。",
+    ].join("\n"),
+    hana: (name) => [
+      "あなたは こども向けの しょくぶつ ずかんの アシスタントです。",
+      `「${name}」に ついて、4さいの こどもが よめる やさしい ひらがな で おしえて ください。`,
+      "つぎの JSON だけを かえして ください：",
+      "- fact: おもしろい ひとこと（みじかく）",
+      "- trivia: まめちしき を 3つ（はいれつ。それぞれ 1ぶん）",
+      "- habitat: はえて いる ところ（くわしく 1〜2ぶん）",
+      "- season: はなが さく きせつ",
+      "- food: そだつのに すきな もの（ひあたり・みず・つち など）",
+      "- care: そだてかた。むずかしい ときは「そだてるのは むずかしいよ。そとで みて たのしもう」の ように かいて ください。",
+      "さわると あぶない しょくぶつは、care に そのことも かいて ください。",
+    ].join("\n"),
+  };
+
+  async function details(name, key, model, kind) {
+    if (!key) throw new Error("NO_KEY");
+    if (!name) throw new Error("NO_NAME");
+    const make = DETAIL_PROMPT[kind === "hana" ? "hana" : "mushi"];
+    const resp = await fetch(endpoint(model || DEFAULT_MODEL, key), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: make(name) }] }],
+        generationConfig: { responseMimeType: "application/json", responseSchema: DETAIL_SCHEMA, temperature: 0.3 },
+      }),
+    });
+    if (!resp.ok) {
+      let j = null;
+      try { j = await resp.json(); } catch (e) {}
+      const info = parseApiError(j);
+      const msg = info.message || "API " + resp.status;
+      if (resp.status === 400 || resp.status === 403) throw new Error("BAD_KEY:" + msg);
+      if (resp.status === 429) throw new Error((info.daily ? "QUOTA_DAY:" : "QUOTA:") + msg);
+      throw new Error("API:" + msg);
+    }
+    const data = await resp.json();
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    try { return JSON.parse(text); } catch (e) { return {}; }
+  }
 
   // Google からの エラーを よみとく（429の りゆうと まちじかん）
   function parseApiError(j) {
@@ -244,5 +328,5 @@ const Gemini = (() => {
     return out;
   }
 
-  return { identify, test, classifyNames, DEFAULT_MODEL, OUTDATED_MODELS };
+  return { identify, test, classifyNames, details, DEFAULT_MODEL, OUTDATED_MODELS };
 })();

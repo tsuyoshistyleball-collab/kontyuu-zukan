@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v34";
+  const APP_VERSION = "v35";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -87,8 +87,10 @@
     const k = hana ? matchKnownFlower(name) : matchKnown(name);
     const gen = hana ? GENERIC_FLOWER : GENERIC_BUG;
     return k
-      ? { svg: k.svg, color: k.color, knownId: k.id, kana: k.kana, fact: k.fact, where: k.where, rarity: k.stars }
-      : { svg: gen.svg, color: gen.color, knownId: null, kana: "", fact: "", where: "", rarity: 1 };
+      ? { svg: k.svg, color: k.color, knownId: k.id, kana: k.kana, fact: k.fact, where: k.where, rarity: k.stars,
+          trivia: k.trivia || [], habitat: k.habitat || "", season: k.season || "", food: k.food || "", care: k.care || "" }
+      : { svg: gen.svg, color: gen.color, knownId: null, kana: "", fact: "", where: "", rarity: 1,
+          trivia: [], habitat: "", season: "", food: "", care: "" };
   }
 
   // ---- データ ----
@@ -109,10 +111,26 @@
       const cd = Covers.get(g.name);
       g.cover = (cd && g.list.find((c) => c.date === cd)) || g.latest;
       const rep = g.latest;
-      const k = matchKnown(g.name);
+      const k = (Zukan.id === "hana") ? matchKnownFlower(g.name) : matchKnown(g.name);
       g.rarity = clampR(rep.rarity || (k ? k.stars : 1));
       g.kana = rep.kana || (k ? k.kana : "");
       g.fact = rep.fact || (k ? k.fact : "");
+      // くわしい じょうほうは、もっている しゃしんの どれかに あれば つかう
+      const pick = (key) => {
+        for (let i = g.list.length - 1; i >= 0; i--) {
+          const v = g.list[i][key];
+          if (Array.isArray(v) ? v.length : v) return v;
+        }
+        return (k && k[key]) || (Array.isArray(g.list[0] && g.list[0][key]) ? [] : "");
+      };
+      g.trivia = pick("trivia") || [];
+      if (!Array.isArray(g.trivia)) g.trivia = [];
+      g.habitat = pick("habitat") || "";
+      g.season = pick("season") || "";
+      g.food = pick("food") || "";
+      g.care = pick("care") || "";
+      g.where = pick("where") || "";
+      g.hasDetails = !!(g.trivia.length || g.habitat || g.care);
       // なかまわけは そのつど けいさん（ルールを なおしたら むかしの ぶんも なおる）
       g.category = categorize(g.name, rep.aiCategory || rep.category);
     }
@@ -719,6 +737,9 @@
     if (g.kana) { const k = document.createElement("p"); k.className = "page-kana"; k.textContent = g.kana; page.appendChild(k); }
     if (g.fact) { const f = document.createElement("p"); f.className = "page-fact"; f.textContent = g.fact; page.appendChild(f); }
 
+    // ---- くわしい じょうほう（まめちしき / すみか / そだてかた）----
+    page.appendChild(buildInfoBlock(g));
+
     const mt = document.createElement("p");
     mt.className = "page-meta";
     mt.textContent = `みつけた かず：${g.count}かい ・ はじめて：${fmtDate(g.firstDate)}`;
@@ -780,6 +801,94 @@
     return page;
   }
 
+
+  // ---- くわしい じょうほうの ブロック ----
+  function buildInfoBlock(g) {
+    const hana = Zukan.id === "hana";
+    const box = document.createElement("div");
+    box.className = "page-info";
+
+    // まめちしき
+    if (g.trivia && g.trivia.length) {
+      const h = document.createElement("p");
+      h.className = "info-head"; h.textContent = "💡 まめちしき";
+      box.appendChild(h);
+      const ul = document.createElement("ul");
+      ul.className = "info-trivia";
+      for (const t of g.trivia.slice(0, 4)) {
+        const li = document.createElement("li"); li.textContent = t; ul.appendChild(li);
+      }
+      box.appendChild(ul);
+    }
+
+    const rows = [
+      [hana ? "🌱 はえて いる ところ" : "🏠 すんで いる ところ", g.habitat || g.where],
+      [hana ? "🌸 さく きせつ" : "📅 みられる きせつ", g.season],
+      [hana ? "☀️ すきな ばしょ" : "🍽️ たべもの", g.food],
+      [hana ? "🪴 そだてかた" : "🧺 かいかた", g.care],
+    ];
+    let any = false;
+    for (const [label, val] of rows) {
+      if (!val) continue;
+      any = true;
+      const row = document.createElement("div");
+      row.className = "info-row";
+      const l = document.createElement("span"); l.className = "info-label"; l.textContent = label;
+      const v = document.createElement("span"); v.className = "info-val"; v.textContent = val;
+      row.appendChild(l); row.appendChild(v);
+      box.appendChild(row);
+    }
+
+    // AIに くわしく きく ボタン
+    const btn = document.createElement("button");
+    btn.className = "info-more";
+    const enough = (g.trivia && g.trivia.length >= 2) && any;
+    btn.textContent = enough ? "🔄 まめちしきを もういちど しらべる" : "🤖 AIに くわしく きく";
+    btn.addEventListener("click", () => fetchDetails(g.name, btn));
+    box.appendChild(btn);
+
+    if (!g.trivia.length && !any) {
+      const p = document.createElement("p");
+      p.className = "info-empty";
+      p.textContent = hana
+        ? "まだ くわしい ことが わからないよ。ボタンを おすと AIが しらべて くれます。"
+        : "まだ くわしい ことが わからないよ。ボタンを おすと AIが しらべて くれます。";
+      box.insertBefore(p, btn);
+    }
+    return box;
+  }
+
+  // AIに くわしい じょうほうを きいて、その なまえ ぜんぶに かきこむ
+  async function fetchDetails(name, btn) {
+    const key = Settings.key;
+    if (!key) { alert("さきに ⚙️せってい で Gemini の APIキーを いれてね。"); return; }
+    const before = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "🔎 AIが しらべているよ…";
+    try {
+      const d = await Gemini.details(name, key, Settings.model, Zukan.id);
+      const patch = {
+        trivia: Array.isArray(d.trivia) ? d.trivia.filter(Boolean).slice(0, 4) : [],
+        habitat: d.habitat || "",
+        season: d.season || "",
+        food: d.food || "",
+        care: d.care || "",
+      };
+      if (d.fact) patch.fact = d.fact;
+      await DB.patchByName(name, patch);
+      await afterChange(name, true);
+      sound.blip();
+      miniNote("💡 まめちしきが ふえたよ！");
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = before;
+      const m = String(err.message || err);
+      if (m.startsWith("QUOTA_DAY")) alert("きょうの AIの ぶんは つかいきったみたい。あしたまで まってね。");
+      else if (m.startsWith("QUOTA")) alert("AIが こんでいるみたい。すこし まってから もういちど おしてね。");
+      else if (m.startsWith("BAD_KEY")) alert("APIキーが ちがうかも。⚙️せってい を たしかめてね。");
+      else alert("しらべられませんでした 😢\n〔" + m.slice(0, 120) + "〕");
+    }
+  }
 
   // カードの ひょうしに する しゃしんを えらぶ
   async function setCover(name, date) {
@@ -960,15 +1069,23 @@
 
   // ---- けっか（AIすいそく＋なまえ しゅうせい）----
   function openResult(blob, ai, err) {
-    const r = { name: "", kana: "", fact: "", where: "", rarity: 1, category: "", aiName: null, confidence: null };
+    const r = { name: "", kana: "", fact: "", where: "", rarity: 1, category: "", aiName: null, confidence: null,
+                trivia: [], habitat: "", season: "", food: "", care: "" };
     if (ai && ai.is_creature && ai.name) {
       r.name = ai.name; r.kana = ai.kana || ""; r.fact = ai.fact || ""; r.where = ai.where || "";
       r.rarity = clampR(ai.rarity); r.category = ai.category || ""; r.aiName = ai.name;
       r.confidence = typeof ai.confidence === "number" ? ai.confidence : null;
+      r.trivia = Array.isArray(ai.trivia) ? ai.trivia.filter(Boolean) : [];
+      r.habitat = ai.habitat || ""; r.season = ai.season || ""; r.food = ai.food || ""; r.care = ai.care || "";
     }
-    const known = matchKnown(r.name);
+    const known = (Zukan.id === "hana") ? matchKnownFlower(r.name) : matchKnown(r.name);
     if (known) {
       r.kana = r.kana || known.kana; r.fact = r.fact || known.fact; r.where = r.where || known.where;
+      if (!r.trivia.length && known.trivia) r.trivia = known.trivia.slice();
+      r.habitat = r.habitat || known.habitat || "";
+      r.season = r.season || known.season || "";
+      r.food = r.food || known.food || "";
+      r.care = r.care || known.care || "";
       if (!(ai && ai.is_creature)) r.rarity = known.stars;
     }
     pendingResolved = r;
@@ -1037,6 +1154,28 @@
     $("#result").style.setProperty("--c", ill.color);
   }
 
+  /* くわしい じょうほうは「なまえが あって いる とき」だけ つかう。
+     AIが すいそくした なまえを てで なおした ばあいは、その むしの ものでは ない ので すてる。*/
+  function detailsForName(name, r) {
+    const known = (Zukan.id === "hana") ? matchKnownFlower(name) : matchKnown(name);
+    if (known) {
+      return {
+        where: known.where || "",
+        trivia: (known.trivia || []).slice(0, 4),
+        habitat: known.habitat || "", season: known.season || "",
+        food: known.food || "", care: known.care || "",
+      };
+    }
+    const sameAsAi = r.aiName && _norm(name) === _norm(r.aiName);
+    if (!sameAsAi) return { where: "", trivia: [], habitat: "", season: "", food: "", care: "" };
+    return {
+      where: r.where || "",
+      trivia: Array.isArray(r.trivia) ? r.trivia.slice(0, 4) : [],
+      habitat: r.habitat || "", season: r.season || "",
+      food: r.food || "", care: r.care || "",
+    };
+  }
+
   // なまえを なおしたら、ずかんの むしと あえば レアど表示も こうしん
   function onResultNameInput(name) {
     updateResultIllust(name);
@@ -1054,14 +1193,15 @@
     const r = pendingResolved || {};
     const rec = {
       name,
-      kana: r.kana || ill.kana || "",
-      fact: r.fact || ill.fact || "",
+      kana: ill.kana || ((r.aiName && _norm(name) === _norm(r.aiName)) ? r.kana : "") || "",
+      fact: ill.fact || ((r.aiName && _norm(name) === _norm(r.aiName)) ? r.fact : "") || "",
       rarity: clampR(pendingRarity),
       color: ill.color, knownId: ill.knownId,
       category: categorize(name, r.category),
       aiCategory: (r.aiName && name === r.aiName) ? (r.category || "") : "",
       aiName: r.aiName || null,
       confidence: r.confidence != null ? r.confidence : null,
+      ...detailsForName(name, r),
       blob: pendingBlob, date: Date.now(),
     };
     const selPlace = $("#r-place").value;

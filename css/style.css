@@ -1001,3 +1001,31 @@ body[data-zukan="hana"] {
     radial-gradient(rgba(180,110,140,.07) 1.4px, transparent 1.5px),
     linear-gradient(180deg, #fff7f8 0%, #fdeef2 60%, #fbe6ec 100%);
 }
+
+/* ---------- くわしい じょうほう（まめちしき・すみか・そだてかた）---------- */
+.page-info {
+  margin: 14px 14px 4px; padding: 13px 15px; border-radius: 18px;
+  background: rgba(255,255,255,.62); border: 2px dashed var(--frame);
+  text-align: left; position: relative; z-index: 3;
+}
+.info-head { margin: 0 0 6px; font-size: 14px; font-weight: 900; color: var(--green-d); }
+.info-trivia { margin: 0 0 10px; padding-left: 20px; }
+.info-trivia li { font-size: 13.5px; font-weight: 700; color: var(--ink); line-height: 1.65; margin: 4px 0; }
+.info-trivia li::marker { color: var(--honey-d); }
+.info-row { display: flex; gap: 8px; align-items: flex-start; margin: 7px 0; }
+.info-label { flex: none; min-width: 104px; font-size: 12px; font-weight: 900; color: var(--green-d); line-height: 1.6; }
+.info-val { flex: 1 1 auto; font-size: 13px; font-weight: 700; color: var(--ink); line-height: 1.65; }
+.info-empty { margin: 2px 0 10px; font-size: 12.5px; font-weight: 700; color: var(--ink-sub); line-height: 1.6; }
+.info-more {
+  display: block; width: 100%; margin-top: 10px; padding: 10px; border-radius: 13px;
+  background: var(--paper2); color: var(--green-d); font-weight: 800; font-size: 13px;
+  border: 2px solid #fff; box-shadow: 0 3px 0 var(--frame-d); font-family: inherit;
+}
+.info-more:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--frame-d); }
+.info-more:disabled { opacity: .7; box-shadow: none; transform: none; }
+
+@media (min-width: 620px) {
+  .info-label { min-width: 120px; font-size: 13px; }
+  .info-val { font-size: 14px; }
+  .info-trivia li { font-size: 14.5px; }
+}
