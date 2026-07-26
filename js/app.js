@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v38";
+  const APP_VERSION = "v39";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -764,7 +764,7 @@
       el.style.boxShadow = "";
       if (k === bookIdx) {
         el.classList.add("is-show", "is-top");
-        if (!opts || !opts.keepScroll) el.scrollTop = 0;
+        if (!opts || !opts.keepScroll) { const inr = el.querySelector(".page-inner"); if (inr) inr.scrollTop = 0; }
       }
     });
     updateBookCounter();
@@ -800,7 +800,8 @@
     turning.style.transition = "none";
     turning.style.transform = `rotateY(${dir > 0 ? 0 : -180}deg)`;
     turning.style.boxShadow = flipShadow(dir > 0 ? 0 : 180);
-    if (dir > 0) nxt.scrollTop = 0; else cur.scrollTop = 0;
+    const toInner = (dir > 0 ? nxt : cur).querySelector(".page-inner");
+    if (toInner) toInner.scrollTop = 0;
     void turning.offsetWidth;                  // レイアウトを かくてい させる
 
     sound.page();
@@ -831,49 +832,63 @@
   /* ---- ゆびで ドラッグして めくる ---- */
   function wireBookDrag() {
     const stage = $("#book-stage");
-    let sx = 0, sy = 0, active = false, decided = false, dir = 0, turning = null, under = null, w = 1;
+    let sx = 0, sy = 0, active = false, decided = false, dir = 0;
+    let turning = null, w = 1, moved = 0, pid = null, t0 = 0;
 
-    const reset = () => { active = false; decided = false; dir = 0; turning = null; under = null; };
+    const reset = () => {
+      if (pid != null) { try { stage.releasePointerCapture(pid); } catch (e) {} }
+      active = false; decided = false; dir = 0; turning = null; pid = null;
+    };
 
     stage.addEventListener("pointerdown", (e) => {
-      if (flipping || e.pointerType === "mouse" && e.button !== 0) return;
-      if (e.target.closest("button, input, select, .page-gallery")) return;
-      sx = e.clientX; sy = e.clientY; active = true; decided = false;
+      if (flipping) return;
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      if (e.target.closest("button, input, select, textarea, a")) return;
+      sx = e.clientX; sy = e.clientY; active = true; decided = false; moved = 0;
+      pid = e.pointerId; t0 = performance.now();
       w = stage.clientWidth || 1;
     });
 
     stage.addEventListener("pointermove", (e) => {
       if (!active || flipping) return;
       const dx = e.clientX - sx, dy = e.clientY - sy;
+      moved = Math.abs(dx);
       if (!decided) {
-        if (Math.abs(dx) < 14 && Math.abs(dy) < 14) return;
-        if (Math.abs(dx) < Math.abs(dy)) { reset(); return; }   // たてスクロール
+        // よこの うごきが たての 1.1ばい を こえたら「めくる」と はんだん
+        if (Math.abs(dx) < 8) return;
+        if (Math.abs(dx) < Math.abs(dy) * 1.1) {
+          if (Math.abs(dy) > 12) { reset(); }      // たてスクロール なので やめる
+          return;
+        }
         const els = pageEls();
         dir = dx < 0 ? 1 : -1;
         const to = bookIdx + dir;
         if (to < 0 || to >= els.length) { reset(); return; }
         turning = dir > 0 ? els[bookIdx] : els[to];
-        under   = dir > 0 ? els[to] : els[bookIdx];
+        const under = dir > 0 ? els[to] : els[bookIdx];
         under.classList.add("is-show", "is-under");
         turning.classList.add("is-show", "is-top");
         turning.classList.remove("is-anim");
         $("#book-track").classList.add("flipping");
+        try { stage.setPointerCapture(e.pointerId); } catch (err) {}
         decided = true;
       }
       const p = Math.max(0, Math.min(1, Math.abs(dx) / w));
       const deg = dir > 0 ? -180 * p : -180 * (1 - p);
       turning.style.transform = `rotateY(${deg}deg)`;
       turning.style.boxShadow = flipShadow(deg);
-      e.preventDefault();
-    });
+      if (e.cancelable) e.preventDefault();
+    }, { passive: false });
 
     const end = (e) => {
       if (!active) return;
       const dx = (e.clientX || 0) - sx;
       if (!decided) { reset(); return; }
       const p = Math.min(1, Math.abs(dx) / w);
-      const go = p > 0.3;
+      const speed = Math.abs(dx) / Math.max(1, performance.now() - t0);   // px/ms
+      const go = p > 0.24 || speed > 0.5;      // すこしでも いきおいが あれば めくる
       const el = turning, d = dir, to = bookIdx + dir;
+      swallowClick = moved > 10;
       el.classList.add("is-anim");
       const endDeg = d > 0 ? (go ? -180 : 0) : (go ? 0 : -180);
       el.style.transform = `rotateY(${endDeg}deg)`;
@@ -893,24 +908,39 @@
     };
     stage.addEventListener("pointerup", end);
     stage.addEventListener("pointercancel", end);
-    stage.addEventListener("pointerleave", end);
+
+    // ドラッグの あと、ゆびを はなした ところの ボタンが おされない ように
+    stage.addEventListener("click", (e) => {
+      if (!swallowClick) return;
+      swallowClick = false;
+      e.stopPropagation(); e.preventDefault();
+    }, true);
   }
+  let swallowClick = false;
 
   function buildPage(g) {
     const ill = illustFor(g.name);
     const meta = categoryMeta(g.category);
-    const page = document.createElement("section");
+    let page = document.createElement("section");
     page.className = "page r" + g.rarity;
     page.dataset.name = g.name;
     page.style.setProperty("--c", ill.color);
 
     // ★3は ページぜんたいを キラキラ（ホロ）に
+    // ホロと キラキラは スクロールしない「かみ」の うえに おく（とちゅうで きれない ように）
     if (g.rarity === 3) {
       const holo = document.createElement("div");
       holo.className = "page-holo";
       holo.setAttribute("aria-hidden", "true");
       page.appendChild(holo);
     }
+
+    // なかみ（ここだけ たてに スクロール する）
+    const inner = document.createElement("div");
+    inner.className = "page-inner";
+    page.appendChild(inner);
+    const _pg = page;
+    page = inner;   // これいこう appendChild は なかみに はいる
 
     const cat = document.createElement("div");
     cat.className = "page-cat";
@@ -1029,6 +1059,7 @@
     del.addEventListener("click", () => deleteGroup(g.name));
     page.appendChild(del);
 
+    page = _pg;   // かみ（そと）に もどす
     if (g.rarity === 3) {
       const sp = document.createElement("div");
       sp.className = "page-sparkles";
@@ -1552,18 +1583,40 @@
       toggle() { on = !on; localStorage.setItem("mz-sound", on ? "on" : "off"); if (on) this.blip(); return on; },
       fanfare(p) { if (!on) return; try { [523, 659, 784, 1047].forEach((f, i) => note(f, i * 0.12, 0.5, "triangle", 0.16)); if (clampR(p) >= 3) note(1319, 0.5, 0.7, "triangle", 0.16); } catch (e) {} },
       blip() { if (!on) return; try { note(880, 0, 0.16, "triangle", 0.12); note(1175, 0.08, 0.16, "triangle", 0.12); } catch (e) {} },
-      // かみを めくる「シャッ」という おと（ホワイトノイズ）
+      // かみを めくる おと（ノイズを フィルターで うごかして「シャラッ」）
       page() {
         if (!on) return;
         try {
-          const c = ac(), dur = 0.3, buf = c.createBuffer(1, c.sampleRate * dur, c.sampleRate);
+          const c = ac(), t = c.currentTime, dur = 0.42;
+          const buf = c.createBuffer(1, Math.ceil(c.sampleRate * dur), c.sampleRate);
           const d = buf.getChannelData(0);
-          for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2.2);
+          for (let i = 0; i < d.length; i++) {
+            const x = i / d.length;
+            // はじめは しずか → まんなかで いちばん おおきく → すっと きえる
+            const env = Math.pow(Math.sin(Math.PI * Math.min(1, x * 1.15)), 1.6);
+            d[i] = (Math.random() * 2 - 1) * env;
+          }
           const src = c.createBufferSource(); src.buffer = buf;
-          const bp = c.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 2600; bp.Q.value = 0.7;
-          const g = c.createGain(); g.gain.value = 0.16;
-          src.connect(bp); bp.connect(g); g.connect(c.destination);
-          src.start();
+          const bp = c.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 0.9;
+          bp.frequency.setValueAtTime(900, t);
+          bp.frequency.exponentialRampToValueAtTime(3800, t + 0.16);
+          bp.frequency.exponentialRampToValueAtTime(1100, t + dur);
+          const hp = c.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 480;
+          const g = c.createGain();
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.linearRampToValueAtTime(0.13, t + 0.05);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+          src.connect(bp); bp.connect(hp); hp.connect(g); g.connect(c.destination);
+          src.start(t); src.stop(t + dur + 0.02);
+          // さいごに かみが「ぱさっ」と おちる ひくい おと
+          const o = c.createOscillator(), og = c.createGain();
+          o.type = "sine"; o.frequency.setValueAtTime(160, t + 0.3);
+          o.frequency.exponentialRampToValueAtTime(70, t + 0.42);
+          og.gain.setValueAtTime(0.0001, t + 0.3);
+          og.gain.linearRampToValueAtTime(0.05, t + 0.33);
+          og.gain.exponentialRampToValueAtTime(0.0001, t + 0.46);
+          o.connect(og); og.connect(c.destination);
+          o.start(t + 0.3); o.stop(t + 0.5);
         } catch (e) {}
       },
     };
