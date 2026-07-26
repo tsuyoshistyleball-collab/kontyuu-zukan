@@ -338,7 +338,8 @@ main { max-width: 760px; margin: 0 auto; }
 /* ページが めくれる ぶたい */
 .book-stage {
   position: absolute; inset: 12px 17px 12px 26px; z-index: 3;
-  perspective: 1700px; perspective-origin: 0% 50%;
+  perspective: 2300px; perspective-origin: 0% 50%;
+  touch-action: pan-y;
 }
 .book-track { position: absolute; inset: 0; transform-style: preserve-3d; }
 
@@ -368,7 +369,9 @@ main { max-width: 760px; margin: 0 auto; }
   transform: rotateY(0deg);
   display: none;
 }
-.page.is-show { display: block; }
+/* となりの ページは あらかじめ ならべて おく（めくる しゅんかんの カクつきを ふせぐ）*/
+.page.is-live { display: block; visibility: hidden; }
+.page.is-show { display: block; visibility: visible; }
 /* なかみ（ここだけ たてに スクロール）*/
 .page-inner {
   position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden;
@@ -380,14 +383,73 @@ main { max-width: 760px; margin: 0 auto; }
 }
 .page.is-under { z-index: 1; }
 .page.is-top   { z-index: 3; }
-.page.is-anim  { transition: transform .3s cubic-bezier(.36,.05,.3,1); }
-/* めくる ときの かげ／つや（JSで グラデーションを うごかす）*/
-.pg-shade, .pg-cast {
+.page.is-anim  { transition: transform .34s cubic-bezier(.36,.05,.3,1); }
+
+/* めくる ときの かげと つや。
+   グラデーションは かえずに、opacity と transform だけ うごかす（カクつかない）*/
+.pg-shade, .pg-cast, .pg-gloss {
   position: absolute; inset: 0; z-index: 4; pointer-events: none;
   border-radius: inherit; opacity: 0;
-  mix-blend-mode: multiply;
 }
-.pg-shade { mix-blend-mode: normal; }
+/* GPUの そうは「いま つかう 3まい」だけに する（メモリの むだづかいを ふせぐ）*/
+.page.is-live { will-change: transform; }
+.page.is-live .pg-shade, .page.is-live .pg-cast,
+.page.is-live .pg-gloss, .page.is-live .pg-gloss > i { will-change: opacity, transform; }
+.pg-shade {                     /* せぼね がわの くらがり */
+  background: linear-gradient(90deg,
+    rgba(58,38,14,.55) 0%, rgba(58,38,14,.30) 12%, rgba(58,38,14,.10) 34%, rgba(58,38,14,0) 62%);
+}
+.pg-gloss { overflow: hidden; }  /* ひかりの おび（なかの i を よこに うごかす）*/
+.pg-gloss > i {
+  position: absolute; top: -12%; bottom: -12%; left: 0; width: 58%;
+  background: radial-gradient(60% 130% at 50% 50%, rgba(255,253,244,.75) 0%, rgba(255,253,244,.38) 45%, rgba(255,253,244,0) 100%);
+  transform: translateX(-70%);
+}
+.pg-cast {                      /* うえの かみが おとす かげ */
+  background: linear-gradient(90deg,
+    rgba(38,24,4,.44) 0%, rgba(38,24,4,.24) 38%, rgba(38,24,4,.07) 68%, rgba(38,24,4,0) 100%);
+  transform-origin: left center;
+}
+
+/* ボタンで めくる ときは CSSアニメーション（コンポジタで うごくので なめらか）*/
+.page.flip-next { animation: flipNext var(--fms,.62s) cubic-bezier(.36,.05,.3,1) forwards; }
+.page.flip-prev { animation: flipPrev var(--fms,.62s) cubic-bezier(.36,.05,.3,1) forwards; }
+.page.flip-next .pg-shade { animation: shadeUp   var(--fms,.62s) cubic-bezier(.36,.05,.3,1) forwards; }
+.page.flip-prev .pg-shade { animation: shadeDown var(--fms,.62s) cubic-bezier(.36,.05,.3,1) forwards; }
+.page.flip-next .pg-gloss, .page.flip-prev .pg-gloss { opacity: 1; }
+.page.flip-next .pg-gloss > i { animation: glossNext var(--fms,.62s) cubic-bezier(.36,.05,.3,1) forwards; }
+.page.flip-prev .pg-gloss > i { animation: glossPrev var(--fms,.62s) cubic-bezier(.36,.05,.3,1) forwards; }
+.page.cast-out .pg-cast { animation: castOut var(--fms,.62s) cubic-bezier(.36,.05,.3,1) forwards; }
+.page.cast-in  .pg-cast { animation: castIn  var(--fms,.62s) cubic-bezier(.36,.05,.3,1) forwards; }
+
+/* かみが しなる：まんなかほど ゆがみ・たてに ちぢみ・すこし かたむく */
+@keyframes flipNext {
+  0%   { transform: rotateY(0deg)    skewY(0deg)   scaleY(1)   rotate(0deg); }
+  25%  { transform: rotateY(-45deg)  skewY(-3.6deg) scaleY(.938) rotate(-1.1deg); }
+  50%  { transform: rotateY(-90deg)  skewY(-5.2deg) scaleY(.905) rotate(-1.6deg); }
+  75%  { transform: rotateY(-135deg) skewY(-3.6deg) scaleY(.938) rotate(-1.1deg); }
+  100% { transform: rotateY(-180deg) skewY(0deg)   scaleY(1)   rotate(0deg); }
+}
+@keyframes flipPrev {
+  0%   { transform: rotateY(-180deg) skewY(0deg)   scaleY(1)   rotate(0deg); }
+  25%  { transform: rotateY(-135deg) skewY(-3.6deg) scaleY(.938) rotate(-1.1deg); }
+  50%  { transform: rotateY(-90deg)  skewY(-5.2deg) scaleY(.905) rotate(-1.6deg); }
+  75%  { transform: rotateY(-45deg)  skewY(-3.6deg) scaleY(.938) rotate(-1.1deg); }
+  100% { transform: rotateY(0deg)    skewY(0deg)   scaleY(1)   rotate(0deg); }
+}
+@keyframes shadeUp   { 0% { opacity: 0 } 55% { opacity: 1 } 100% { opacity: .55 } }
+@keyframes shadeDown { 0% { opacity: .55 } 45% { opacity: 1 } 100% { opacity: 0 } }
+@keyframes glossNext { 0% { transform: translateX(-70%) } 100% { transform: translateX(245%) } }
+@keyframes glossPrev { 0% { transform: translateX(245%) } 100% { transform: translateX(-70%) } }
+@keyframes castOut { 0% { opacity: 1; transform: scaleX(1) } 100% { opacity: 0; transform: scaleX(.05) } }
+@keyframes castIn  { 0% { opacity: 0; transform: scaleX(.05) } 100% { opacity: 1; transform: scaleX(1) } }
+
+/* めくって いる あいだは キラキラの アニメを とめる（なめらかに するため）*/
+.book-track.flipping .page-holo::before,
+.book-track.flipping .page-holo::after,
+.book-track.flipping .page-sparkles::before,
+.book-track.flipping .page-sparkles span,
+.book-track.flipping .page.r3::before { animation-play-state: paused; }
 /* ページの こぐち（めくる とき ぶあつく みえる）*/
 .page::after {
   content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;

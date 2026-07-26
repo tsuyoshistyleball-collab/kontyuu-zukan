@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v40";
+  const APP_VERSION = "v41";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -759,8 +759,10 @@
     if (!els.length) return;
     bookIdx = Math.max(0, Math.min(els.length - 1, i));
     els.forEach((el, k) => {
-      el.classList.remove("is-show", "is-top", "is-under", "is-anim");
+      el.classList.remove("is-show", "is-top", "is-under", "is-live");
       clearFlipPaint(el);
+      // まえ・いま・つぎ の 3まいは ならべて おく（めくり はじめの カクつき ふうじ）
+      if (Math.abs(k - bookIdx) <= 1) el.classList.add("is-live");
       if (k === bookIdx) {
         el.classList.add("is-show", "is-top");
         if (!opts || !opts.keepScroll) { const inr = el.querySelector(".page-inner"); if (inr) inr.scrollTop = 0; }
@@ -784,67 +786,48 @@
     return `0 8px 22px rgba(0,0,0,${0.35 + 0.25 * t}), inset ${7 + 26 * t}px 0 ${12 + 30 * t}px -6px rgba(90,65,35,${0.35 + 0.35 * t})`;
   }
 
-  /* かみが そって めくれる ように みせる。
-     ・rotateY で まわす
-     ・skewY と scaleY で すこし そらせる（ぺらぺらの かみ っぽさ）
-     ・おもてに かげと つやの グラデーションを のせる
-     ・したの ページには うえの かみの かげを おとす */
+  /* かみが しなって めくれる ように みせる。
+     まいフレーム さわるのは transform と opacity だけ（グラデーションは かえない）。
+     こうすると スマホでも カクつかない。*/
+  const FLIP_MS = 620;
+  function bowOf(t) { return Math.sin(Math.min(1, Math.max(0, t)) * Math.PI); }
+
   function paintFlip(el, under, deg) {
     const t = Math.min(1, Math.abs(deg) / 180);
-    const bow = Math.sin(t * Math.PI);                 // 0 → 1 → 0（まんなかで いちばん そる）
+    const b = bowOf(t);
     el.style.transform =
-      `rotateY(${deg.toFixed(2)}deg) skewY(${(-bow * 2.4).toFixed(2)}deg) scaleY(${(1 - bow * 0.04).toFixed(4)})`;
-    el.style.boxShadow = flipShadow(deg);
+      `rotateY(${deg.toFixed(2)}deg) skewY(${(-5.2 * b).toFixed(2)}deg) ` +
+      `scaleY(${(1 - 0.095 * b).toFixed(4)}) rotate(${(-1.6 * b).toFixed(2)}deg)`;
 
     const sh = el.querySelector(".pg-shade");
-    if (sh) {
-      const dark = 0.34 * bow + 0.10 * t;
-      const hl = 0.40 * bow;
-      const pos = 26 + 48 * t;                          // ひかりの おびが すべって いく
-      sh.style.opacity = "1";
-      sh.style.backgroundImage =
-        `linear-gradient(101deg,` +
-        ` rgba(58,38,14,${dark.toFixed(3)}) 0%,` +
-        ` rgba(58,38,14,${(dark * 0.42).toFixed(3)}) 16%,` +
-        ` rgba(255,252,240,${hl.toFixed(3)}) ${pos.toFixed(1)}%,` +
-        ` rgba(58,38,14,${(dark * 0.3).toFixed(3)}) 100%)`;
+    if (sh) sh.style.opacity = (0.55 * t + 0.45 * b).toFixed(3);
+    const gl = el.querySelector(".pg-gloss");
+    if (gl) {
+      gl.style.opacity = "1";
+      const i = gl.firstElementChild;
+      if (i) i.style.transform = `translateX(${(-70 + 315 * t).toFixed(1)}%)`;
     }
-
     const cast = under && under.querySelector(".pg-cast");
     if (cast) {
-      const w = Math.max(0, Math.cos((deg * Math.PI) / 180)) * 100;   // かげの はば（％）
-      const a = 0.34 * (1 - t);
-      cast.style.opacity = "1";
-      cast.style.backgroundImage =
-        `linear-gradient(90deg,` +
-        ` rgba(38,24,4,${a.toFixed(3)}) 0%,` +
-        ` rgba(38,24,4,${(a * 0.5).toFixed(3)}) ${Math.max(2, w * 0.65).toFixed(1)}%,` +
-        ` rgba(38,24,4,0) ${Math.max(5, w).toFixed(1)}%)`;
+      const w = Math.max(0.05, Math.cos((deg * Math.PI) / 180));
+      cast.style.opacity = (1 - t).toFixed(3);
+      cast.style.transform = `scaleX(${w.toFixed(3)})`;
     }
   }
 
   function clearFlipPaint(el) {
     el.style.transform = "";
-    el.style.boxShadow = "";
-    const sh = el.querySelector(".pg-shade"); if (sh) { sh.style.opacity = "0"; sh.style.backgroundImage = ""; }
-    const ca = el.querySelector(".pg-cast");  if (ca) { ca.style.opacity = "0"; ca.style.backgroundImage = ""; }
+    el.style.transition = "";
+    el.classList.remove("flip-next", "flip-prev", "cast-out", "cast-in", "is-anim");
+    for (const q of [".pg-shade", ".pg-gloss", ".pg-cast"]) {
+      const n = el.querySelector(q);
+      if (n) { n.style.opacity = ""; n.style.transform = ""; n.style.transition = ""; }
+    }
+    const gi = el.querySelector(".pg-gloss > i");
+    if (gi) gi.style.transform = "";
   }
 
-  const _easeFlip = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
   const _reduce = () => !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-
-  // from° から to° まで、かみが そりながら まわる
-  function animateFlip(el, under, from, to, done) {
-    const ms = _reduce() ? 240 : 640;
-    const t0 = performance.now();
-    const step = (now) => {
-      const k = Math.min(1, (now - t0) / ms);
-      paintFlip(el, under, from + (to - from) * _easeFlip(k));
-      if (k < 1) requestAnimationFrame(step);
-      else done();
-    };
-    requestAnimationFrame(step);
-  }
 
   function bookNav(dir) {
     if (flipping) return;
@@ -853,40 +836,52 @@
     if (to < 0 || to >= els.length) { bounceBook(dir); return; }
     flipping = true;
     const cur = els[bookIdx], nxt = els[to];
-    const turning = dir > 0 ? cur : nxt;      // まわる のは どちらの かみか
+    const turning = dir > 0 ? cur : nxt;
     const under   = dir > 0 ? nxt : cur;
+    const ms = _reduce() ? 260 : FLIP_MS;
 
-    under.classList.add("is-show", "is-under");
-    turning.classList.add("is-show", "is-top");
-    turning.classList.remove("is-anim");
+    clearFlipPaint(turning); clearFlipPaint(under);
+    under.classList.add("is-live", "is-show", "is-under");
+    turning.classList.add("is-live", "is-show", "is-top");
     const toInner = (dir > 0 ? nxt : cur).querySelector(".page-inner");
     if (toInner) toInner.scrollTop = 0;
     $("#book-track").classList.add("flipping");
 
-    const from = dir > 0 ? 0 : -180, till = dir > 0 ? -180 : 0;
-    paintFlip(turning, under, from);
+    turning.style.setProperty("--fms", ms + "ms");
+    under.style.setProperty("--fms", ms + "ms");
+    void turning.offsetWidth;
+    turning.classList.add(dir > 0 ? "flip-next" : "flip-prev");
+    under.classList.add(dir > 0 ? "cast-out" : "cast-in");
     sound.page();
-    animateFlip(turning, under, from, till, () => {
+
+    const fin = () => {
+      turning.removeEventListener("animationend", fin);
+      clearTimeout(tmo);
       $("#book-track").classList.remove("flipping");
       flipping = false;
       showBookPage(to, { keepScroll: true });
-    });
+    };
+    turning.addEventListener("animationend", fin);
+    const tmo = setTimeout(fin, ms + 260);
   }
 
   // はじ の ページで めくろうと した ときの ちいさな はねかえり
   function bounceBook(dir) {
     const el = pageEls()[bookIdx];
     if (!el) return;
-    el.classList.add("is-anim");
-    el.style.transform = `rotateY(${dir > 0 ? -7 : 7}deg)`;
-    setTimeout(() => { el.style.transform = "rotateY(0deg)"; }, 150);
+    el.style.transition = "transform .16s ease-out";
+    el.style.transform = `rotateY(${dir > 0 ? -8 : 8}deg)`;
+    setTimeout(() => {
+      el.style.transform = "rotateY(0deg)";
+      setTimeout(() => { el.style.transition = ""; el.style.transform = ""; }, 200);
+    }, 160);
   }
 
   /* ---- ゆびで ドラッグして めくる ---- */
   function wireBookDrag() {
     const stage = $("#book-stage");
     let sx = 0, sy = 0, active = false, decided = false, dir = 0;
-    let turning = null, underEl = null, w = 1, moved = 0, pid = null, t0 = 0;
+    let turning = null, underEl = null, w = 1, moved = 0, pid = null, t0 = 0, onCtrl = false;
 
     const reset = () => {
       if (pid != null) { try { stage.releasePointerCapture(pid); } catch (e) {} }
@@ -896,7 +891,9 @@
     stage.addEventListener("pointerdown", (e) => {
       if (flipping) return;
       if (e.pointerType === "mouse" && e.button !== 0) return;
-      if (e.target.closest("button, input, select, textarea, a")) return;
+      if (e.target.closest("input, select, textarea")) return;
+      // ボタンの うえからでも めくれる（ただし すこし おおきく うごかしたら）
+      onCtrl = !!e.target.closest("button, a");
       sx = e.clientX; sy = e.clientY; active = true; decided = false; moved = 0;
       pid = e.pointerId; t0 = performance.now();
       w = stage.clientWidth || 1;
@@ -908,9 +905,9 @@
       moved = Math.abs(dx);
       if (!decided) {
         // よこの うごきが たての 1.1ばい を こえたら「めくる」と はんだん
-        if (Math.abs(dx) < 8) return;
-        if (Math.abs(dx) < Math.abs(dy) * 1.1) {
-          if (Math.abs(dy) > 12) { reset(); }      // たてスクロール なので やめる
+        if (Math.abs(dx) < (onCtrl ? 13 : 6)) return;
+        if (Math.abs(dx) < Math.abs(dy) * 0.9) {
+          if (Math.abs(dy) > 10) { reset(); }      // たてスクロール なので やめる
           return;
         }
         const els = pageEls();
@@ -919,9 +916,9 @@
         if (to < 0 || to >= els.length) { reset(); return; }
         turning = dir > 0 ? els[bookIdx] : els[to];
         underEl = dir > 0 ? els[to] : els[bookIdx];
-        underEl.classList.add("is-show", "is-under");
-        turning.classList.add("is-show", "is-top");
-        turning.classList.remove("is-anim");
+        clearFlipPaint(turning); clearFlipPaint(underEl);
+        underEl.classList.add("is-live", "is-show", "is-under");
+        turning.classList.add("is-live", "is-show", "is-top");
         $("#book-track").classList.add("flipping");
         try { stage.setPointerCapture(e.pointerId); } catch (err) {}
         decided = true;
@@ -938,18 +935,31 @@
       if (!decided) { reset(); return; }
       const p = Math.min(1, Math.abs(dx) / w);
       const speed = Math.abs(dx) / Math.max(1, performance.now() - t0);   // px/ms
-      const go = p > 0.24 || speed > 0.5;      // すこしでも いきおいが あれば めくる
+      const go = p > 0.18 || speed > 0.32;     // すこしでも いきおいが あれば めくる
       const el = turning, un = underEl, d = dir, to = bookIdx + dir;
       swallowClick = moved > 10;
-      const curDeg = d > 0 ? -180 * p : -180 * (1 - p);
       const endDeg = d > 0 ? (go ? -180 : 0) : (go ? 0 : -180);
+      const ms = Math.round((_reduce() ? 200 : 380) * Math.max(0.35, 1 - p));
       flipping = true;
       if (go) sound.page();
-      animateFlip(el, un, curDeg, endDeg, () => {
+      // のこりは CSSトランジションで（コンポジタで うごくので なめらか）
+      const eased = "cubic-bezier(.22,.61,.36,1)";
+      el.style.transition = `transform ${ms}ms ${eased}`;
+      for (const q of [".pg-shade", ".pg-gloss > i"]) {
+        const n = el.querySelector(q); if (n) n.style.transition = `opacity ${ms}ms ${eased}, transform ${ms}ms ${eased}`;
+      }
+      const ca = un && un.querySelector(".pg-cast");
+      if (ca) ca.style.transition = `opacity ${ms}ms ${eased}, transform ${ms}ms ${eased}`;
+      requestAnimationFrame(() => paintFlip(el, un, endDeg));
+      const fin = () => {
+        clearTimeout(tmo);
+        el.removeEventListener("transitionend", fin);
         $("#book-track").classList.remove("flipping");
         flipping = false;
         showBookPage(go ? to : bookIdx, { keepScroll: true });
-      });
+      };
+      el.addEventListener("transitionend", fin);
+      const tmo = setTimeout(fin, ms + 240);
       reset();
     };
     stage.addEventListener("pointerup", end);
@@ -985,6 +995,10 @@
     const shade = document.createElement("div");
     shade.className = "pg-shade"; shade.setAttribute("aria-hidden", "true");
     page.appendChild(shade);
+    const gloss = document.createElement("div");
+    gloss.className = "pg-gloss"; gloss.setAttribute("aria-hidden", "true");
+    gloss.innerHTML = "<i></i>";
+    page.appendChild(gloss);
     const cast = document.createElement("div");
     cast.className = "pg-cast"; cast.setAttribute("aria-hidden", "true");
     page.appendChild(cast);
