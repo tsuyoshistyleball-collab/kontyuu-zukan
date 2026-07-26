@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v76";
+  const APP_VERSION = "v77";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -955,14 +955,21 @@
     rubyifyDOM($("#ar-foe-bar")); rubyifyDOM($("#ar-me-bar"));
   }
   // はしっこの もちふだ（チームの のこり）
-  function arSideTeamHTML(team, idx) {
-    return team.map((f, i) =>
-      `<span class="stm${i === idx ? " now" : ""}${f.hp <= 0 ? " dead" : ""}" title="${escapeHtml(f.name)}">` +
-      (f.photo ? `<img src="${f.photo}" alt="">` : f.svg) + `</span>`).join("");
+  function arSideTeamHTML(team, idx, mine) {
+    return team.map((f, i) => {
+      const cls = `stm${i === idx ? " now" : ""}${f.hp <= 0 ? " dead" : ""}`;
+      const pic = (f.photo ? `<img src="${f.photo}" alt="">` : f.svg) +
+                  (mine && i !== idx && f.hp > 0 ? `<i class="stm-swap">🔄</i>` : "");
+      // じぶんの なかまは タップで こうたい できる
+      return mine
+        ? `<button type="button" class="${cls}" data-i="${i}" title="${escapeHtml(f.name)}"` +
+          `${i === idx || f.hp <= 0 ? " disabled" : ""}>${pic}</button>`
+        : `<span class="${cls}" title="${escapeHtml(f.name)}">${pic}</span>`;
+    }).join("");
   }
   function arBuildSideTeams() {
-    $("#ar-foe-team").innerHTML = arSideTeamHTML(arFoeTeam, arFoeIdx);
-    $("#ar-me-team").innerHTML = arSideTeamHTML(arMyTeam, arMyIdx);
+    $("#ar-foe-team").innerHTML = arSideTeamHTML(arFoeTeam, arFoeIdx, false);
+    $("#ar-me-team").innerHTML = arSideTeamHTML(arMyTeam, arMyIdx, true);
   }
   // クラスだけ つけかえる（しゃしんを よみなおさない）
   function arSyncSideTeams() {
@@ -973,6 +980,9 @@
       for (let i = 0; i < team.length; i++) {
         items[i].classList.toggle("now", i === idx);
         items[i].classList.toggle("dead", team[i].hp <= 0);
+        if (items[i].tagName === "BUTTON") items[i].disabled = (i === idx || team[i].hp <= 0);
+        const mark = items[i].querySelector(".stm-swap");
+        if (mark) mark.hidden = (i === idx || team[i].hp <= 0);
       }
     }
   }
@@ -3460,6 +3470,16 @@
       arStart(arMyTeam.length ? arMyTeam.map((f) => f.name) : arSel.slice()));
     $("#ar-item").addEventListener("click", arUseItem);
     $("#ar-chest").addEventListener("click", () => { if (arChestDone) arChestDone(); });
+    // まっている なかまの しゃしんを タップ → こうたい
+    $("#ar-me-team").addEventListener("click", async (e) => {
+      const b = e.target.closest(".stm");
+      if (!b || b.disabled || arBusy || arOver) return;
+      const i = +b.dataset.i;
+      if (!(i >= 0) || !arMyTeam[i] || arMyTeam[i].hp <= 0 || i === arMyIdx) return;
+      arBusy = true;
+      await arSwapTo(i);
+      arBusy = false;
+    });
     const bgmBtn = $("#ar-bgm");
     const paintBgm = () => {
       bgmBtn.textContent = bgm.on ? "🎵" : "🔇";
