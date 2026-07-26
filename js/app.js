@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v62";
+  const APP_VERSION = "v63";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -2682,7 +2682,14 @@
       sig: `${items.length}|${newest}|${Places.all.length}`,
     };
   }
-  const backupFileName = () => `mushizukan-backup-${toDateInput(Date.now())}.json`;
+  /* ファイル名は 時刻(じこく)まで 入れる。
+     おなじ 名前だと ブラウザが「もう一度 ダウンロードしますか？」と
+     きいて きて、あそびの じゃまに なる ため。*/
+  function backupFileName() {
+    const d = new Date();
+    const p2 = (n) => String(n).padStart(2, "0");
+    return `mushizukan-backup-${toDateInput(d.getTime())}-${p2(d.getHours())}${p2(d.getMinutes())}.json`;
+  }
   function downloadBlob(blob, filename) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
