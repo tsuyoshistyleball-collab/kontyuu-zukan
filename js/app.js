@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v46";
+  const APP_VERSION = "v47";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -1486,7 +1486,7 @@
     $("#r-fact").textContent = r.fact || "";
     $("#r-hint").textContent = r.where ? "🔍 " + r.where : "";
     $("#r-hint").hidden = !r.where;
-    pendingRarity = clampR(r.rarity);
+    pendingRarity = rarityFor(r.name, r.rarity);
     rarityTouched = false;
     drawResultStars();
 
@@ -1566,13 +1566,27 @@
     };
   }
 
+  /* ★の きめかた（うえから じゅんばんに）
+     1) この がめんで てで えらんだ  … それが さいゆうせん
+     2) もう ずかんに いる むし      … そのときの ★を そのまま つかう
+                                       （てで なおした ★が AIに うわがき されない）
+     3) ずかんに ある きまった むし  … きまった ★
+     4) AIの すいそく（1〜5）
+     5) わからなければ ★1 */
+  function rarityFor(name, aiRarity) {
+    const g = groups.get(name);
+    if (g) return clampR(g.rarity);
+    const ill = illustFor(name);
+    if (ill.knownId) return clampR(ill.rarity);
+    return clampR(aiRarity || 1);
+  }
+
   // なまえを なおしたら、ずかんの むしと あえば レアど表示も こうしん
   function onResultNameInput(name) {
     updateResultIllust(name);
-    const ill = illustFor(name);
     const r = pendingResolved || {};
     if (rarityTouched) return;   // てで えらんだ ★は そのまま
-    pendingRarity = clampR(ill.knownId ? ill.rarity : (r.rarity || 1));
+    pendingRarity = rarityFor(name, r.rarity);
     drawResultStars();
   }
 
