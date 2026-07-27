@@ -37,7 +37,7 @@
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 [hidden] { display: none !important; }
-html, body { margin: 0; padding: 0; }
+html, body { margin: 0; padding: 0; overflow-x: hidden; }   /* 横に はみ出して ずれない ように */
 body {
   font-family: var(--font);
   color: var(--ink);
@@ -274,8 +274,8 @@ main { max-width: 760px; margin: 0 auto; }
 .cat-count { margin-left: auto; background: var(--green); color: #fff; font-weight: 800; font-size: 13px; padding: 3px 12px; border-radius: 999px; box-shadow: 0 2px 0 var(--green-d); }
 
 /* ---------- グリッド / カード（絵本の フレーム）---------- */
-.grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; padding: 0 14px; }
-@media (min-width: 520px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding: 0 14px; }
+@media (min-width: 520px) { .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .foot-space { height: 120px; }
 .app-ver {
   position: absolute; z-index: 21;
@@ -898,7 +898,7 @@ body.noscroll .card::before, body.noscroll .r5-aura, body.noscroll .r5-shine::af
 }
 /* ★5だけの にじいろ オーラ（カードの うしろで ぐるぐる まわる）*/
 .r5-aura {
-  position: absolute; inset: -9px; z-index: -1; border-radius: 26px; pointer-events: none;
+  position: absolute; inset: -6px; z-index: -1; border-radius: 26px; pointer-events: none;
   background: conic-gradient(from 0deg, #ff5f6d, #ffb347, #ffe14d, #5fd97a, #4dc4ff, #b47cff, #ff5f6d);
   filter: blur(9px); opacity: .95;
   animation: r5Spin 2.6s linear infinite;
@@ -940,7 +940,11 @@ body.noscroll .card::before, body.noscroll .r5-aura, body.noscroll .r5-shine::af
 .size-btn.active { background: linear-gradient(180deg, #ffe28c, var(--honey)); color: #6a4b00; box-shadow: 0 3px 0 var(--honey-d); }
 .s-divider { height: 0; border-top: 2px dashed var(--frame); margin: 18px 0 4px; }
 
-#sections .grid { grid-template-columns: repeat(var(--cols, 2), 1fr); }
+/* minmax(0,1fr) に しないと、カードの 中みの はばで 横に はみ出す */
+#sections .grid { grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); }
+#sections .card { min-width: 0; }
+#sections .card .battle { flex-wrap: wrap; max-width: 100%; }
+#sections .card .card-name { max-width: 100%; }
 #sections[data-cols="4"] .grid, #sections[data-cols="5"] .grid { gap: 8px; padding: 0 10px; }
 #sections[data-cols="4"] .card, #sections[data-cols="5"] .card { border-radius: 15px; padding: 6px 4px 8px; gap: 4px; }
 #sections[data-cols="4"] .card::after, #sections[data-cols="5"] .card::after { inset: 3px; border-radius: 11px; border-width: 1.5px; }
