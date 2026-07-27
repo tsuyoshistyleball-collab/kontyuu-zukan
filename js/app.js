@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v86";
+  const APP_VERSION = "v87";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -2077,6 +2077,14 @@
     renameRow.appendChild(inp); renameRow.appendChild(ok); renameRow.appendChild(ng);
     page.appendChild(renameRow);
 
+    // 🤖 しゃしんを もういちど AIに みてもらう（なまえ＋まめちしき）
+    const reask = document.createElement("button");
+    reask.className = "page-reask";
+    reask.textContent = "🤖 写真(しゃしん)から 名前(なまえ)を 聞(き)きなおす";
+    reask.hidden = !(Settings.key && g.cover && g.cover.blob);
+    reask.addEventListener("click", () => reAskName(g, reask));
+    page.appendChild(reask);
+
     edit.addEventListener("click", () => { nameRow.hidden = true; renameRow.hidden = false; inp.focus(); inp.select(); });
     ng.addEventListener("click", () => { renameRow.hidden = true; nameRow.hidden = false; });
     ok.addEventListener("click", async () => {
@@ -2216,6 +2224,78 @@
       box.insertBefore(p, btn);
     }
     return box;
+  }
+
+  /* AIの こたえ（identify）から、ずかんに かきこむ ないようを つくる。
+     なまえも まめちしきも いっしょに あたらしく する。*/
+  function patchFromAI(name, ai) {
+    const rar = rarityFor(name, ai.rarity);
+    return Object.assign({
+      name,
+      kana: ai.kana || "",
+      fact: ai.fact || "",
+      where: ai.where || "",
+      rarity: rar,
+      category: ai.category || "",
+      aiCategory: ai.category || "",
+      aiName: ai.name || name,
+      confidence: typeof ai.confidence === "number" ? ai.confidence : null,
+      family: String(ai.family || "").trim(),
+      trivia: Array.isArray(ai.trivia) ? ai.trivia.filter(Boolean).slice(0, 4) : [],
+      habitat: ai.habitat || "", season: ai.season || "",
+      food: ai.food || "", size: ai.size || "", care: ai.care || "",
+    }, statsFor(name, rar, ai), moveFor(name, rar, ai));
+  }
+
+  /* ずかんの ページから「もういちど AIに みてもらう」。
+     なまえが かわったら まめちしきも まとめて 入れかえる。*/
+  async function reAskName(g, btn) {
+    if (!Settings.key) { say("⚙️設定(せってい)で AIの キーを 入(い)れてね"); return; }
+    const blob = g.cover && g.cover.blob;
+    if (!blob) { say("写真(しゃしん)が ないよ"); return; }
+    const before = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "🤖 AIに 聞(き)いて いるよ…";
+    rubyifyDOM(btn);
+    try {
+      const ai = await Gemini.identify(blob, Settings.key, Settings.model, null, Zukan.id);
+      if (!ai || !ai.is_creature || !ai.name) {
+        say("うまく わからなかったよ 😢\nべつの 写真(しゃしん)で ためしてみてね。");
+        return;
+      }
+      const newName = String(ai.name).trim().slice(0, 24);
+      const pct = typeof ai.confidence === "number" ? Math.round(ai.confidence * 100) : null;
+      if (newName === g.name) {
+        await DB.patchByName(g.name, patchFromAI(g.name, ai));
+        await afterChange(g.name, true);
+        sound.blip();
+        miniNote(`🤖 AIも「${g.name}」だと 言(い)って いるよ！ 豆知識(まめちしき)を 新(あたら)しくしたよ`);
+        return;
+      }
+      const okToChange = ask(
+        `AIは この 写真(しゃしん)を「${newName}」だと 思(おも)って いるよ` +
+        (pct != null ? `（自信(じしん) ${pct}%）` : "") + "。\n" +
+        `「${g.name}」から 変(か)えますか？\n（豆知識(まめちしき)も 新(あたら)しく なります）`);
+      if (!okToChange) return;
+      await DB.renameGroup(g.name, newName);
+      await DB.patchByName(newName, patchFromAI(newName, ai));
+      Covers.rename(g.name, newName);
+      await afterChange(newName, true);
+      sound.blip(); confetti(1);
+      miniNote(`🤖 「${newName}」に 直(なお)したよ！`);
+    } catch (err) {
+      const m = String(err.message || err);
+      if (m.startsWith("QUOTA_DAY")) say("今日(きょう)の AIの 分(ぶん)は 使(つか)いきったみたい。明日(あした)まで 待(ま)ってね。");
+      else if (m.startsWith("BUSY")) say("いま AIが とても 混(こ)んで います。\n少(すこ)し 待(ま)ってから もう一度(いちど) 押(お)してね。");
+      else if (m.startsWith("QUOTA")) say("AIが 混(こ)んで いるみたい。少(すこ)し 待(ま)ってから もう一度(いちど) 押(お)してね。");
+      else if (m.startsWith("BAD_KEY")) say("APIキーが 違(ちが)うかも。⚙️設定(せってい)を 確(たし)かめてね。");
+      else if (m === "NETWORK") say("ネットに つながらなかったよ。");
+      else say("聞(き)けませんでした 😢\n〔" + m.slice(0, 120) + "〕");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = before;
+      rubyifyDOM(btn);
+    }
   }
 
   // AIに くわしい じょうほうを きいて、その なまえ ぜんぶに かきこむ
