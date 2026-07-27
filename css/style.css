@@ -1082,8 +1082,15 @@ body.noscroll .card::before, body.noscroll .r5-aura, body.noscroll .r5-shine::af
 .level-badge.lv7 { background: linear-gradient(90deg,#ff6b6b,#ffa94d,#ffe14d,#5fd97a,#4dc4ff,#b47cff); background-size: 300% 100%;
   color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.35); box-shadow: 0 2px 0 #a05ad0, 0 0 16px rgba(255,200,120,.9);
   animation: holoSweep 4s linear infinite; }
-.level-title { font-size: 12.5px; font-weight: 800; opacity: .97; text-shadow: 0 1px 0 rgba(70,110,40,.35);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* しょうごう（虫博士 など）は まるっこい タイトル フォントで かわいく */
+.level-title {
+  font-family: "MushiTitle", var(--font);
+  font-size: 16px; font-weight: 400; letter-spacing: .02em; opacity: 1;
+  color: #fffdf2;
+  text-shadow: 0 2px 0 rgba(38,90,30,.55), 0 0 10px rgba(255,255,255,.35);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.level-title rt { font-family: var(--font); font-weight: 800; }
 .level-next { flex-shrink: 0; font-size: 11.5px; font-weight: 900; opacity: .95; min-width: 34px; text-align: right; }
 
 /* おいわいの レベルアップ おび */
@@ -1094,7 +1101,8 @@ body.noscroll .card::before, body.noscroll .r5-aura, body.noscroll .r5-shine::af
   color: #fff; font-weight: 900; font-size: 17px; text-align: center;
   text-shadow: 0 2px 3px rgba(0,0,0,.35); box-shadow: 0 4px 12px rgba(70,50,30,.3);
 }
-.cel-level-title { display: block; font-size: 13px; margin-top: 2px; opacity: .97; }
+.cel-level-title { display: block; font-family: "MushiTitle", var(--font);
+  font-size: 17px; font-weight: 400; margin-top: 3px; opacity: 1; letter-spacing: .02em; }
 
 /* ============================================================
    いった ばしょ（🗺️）
