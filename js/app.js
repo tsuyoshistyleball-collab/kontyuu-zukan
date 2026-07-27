@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v90";
+  const APP_VERSION = "v91";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -2455,14 +2455,57 @@
     }
 
     // discovery
-    if (addingShot) {                 // 「写真を たす」から きた とき
+    const fromCamera = e.target && e.target.id === "file-camera";
+    if (addingShot) {                 // 「写真を たす」から きた とき → すぐ AIへ
       addingShot = false;
       pendingShots = pendingShots.concat(blobs).slice(0, MAX_SHOTS);
-    } else {
-      pendingShots = blobs;
+      pendingBlob = pendingShots[0];
+      await askAI(pendingShots);
+      return;
     }
+    if (collecting) {                 // カメラで「もう1枚」
+      collecting = false;
+      pendingShots = pendingShots.concat(blobs).slice(0, MAX_SHOTS);
+      pendingBlob = pendingShots[0];
+      openShotsSheet();
+      return;
+    }
+    pendingShots = blobs;
     pendingBlob = pendingShots[0];
+    if (fromCamera) { openShotsSheet(); return; }   // カメラは「これで 登録する」まで まつ
     await askAI(pendingShots);
+  }
+
+  /* カメラで とった あとの かくにん がめん。
+     もう1枚 たすか、これで とうろくに すすむかを えらべる。*/
+  let collecting = false;
+  function openShotsSheet() {
+    drawShotsList();
+    $("#shots-more").hidden = pendingShots.length >= MAX_SHOTS;
+    $("#shots-sheet").hidden = false;
+    rubyifyDOM($("#shots-sheet"));
+  }
+  function closeShotsSheet() { $("#shots-sheet").hidden = true; }
+  function drawShotsList() {
+    const box = $("#shots-list");
+    box.innerHTML = "";
+    pendingShots.forEach((b, i) => {
+      const cell = document.createElement("div");
+      cell.className = "shot-cell";
+      cell.innerHTML = `<img src="${urlFor(b)}" alt=""><i>${i + 1}</i>`;
+      if (pendingShots.length > 1) {
+        const del = document.createElement("button");
+        del.type = "button"; del.textContent = "✕"; del.setAttribute("aria-label", "この写真を はずす");
+        del.addEventListener("click", () => {
+          pendingShots.splice(i, 1);
+          pendingBlob = pendingShots[0];
+          drawShotsList();
+          $("#shots-more").hidden = pendingShots.length >= MAX_SHOTS;
+        });
+        cell.appendChild(del);
+      }
+      box.appendChild(cell);
+    });
   }
 
   // 「写真(しゃしん)を たして もう一度 きく」を おした あとか
@@ -3814,6 +3857,9 @@
     $("#zukan-cancel").addEventListener("click", closeZukanSheet);
     $("#zukan-sheet").addEventListener("click", (e) => { if (e.target.id === "zukan-sheet") closeZukanSheet(); });
     $("#pick-camera").addEventListener("click", () => { closePicker(); $("#file-camera").click(); });
+    $("#shots-more").addEventListener("click", () => { collecting = true; closeShotsSheet(); $("#file-camera").click(); });
+    $("#shots-go").addEventListener("click", () => { closeShotsSheet(); askAI(pendingShots); });
+    $("#shots-cancel").addEventListener("click", () => { collecting = false; pendingShots = []; pendingBlob = null; closeShotsSheet(); });
     $("#pick-file").addEventListener("click", () => { closePicker(); $("#file-gallery").click(); });
     $("#pick-cancel").addEventListener("click", closePicker);
     $("#picker").addEventListener("click", (e) => { if (e.target.id === "picker") closePicker(); });

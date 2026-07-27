@@ -91,6 +91,18 @@
       <button id="pick-cancel" class="sheet-btn cancel">やめる</button>
     </div>
   </div>
+  <!-- とった しゃしんの かくにん（カメラの とき）-->
+  <div id="shots-sheet" class="sheet" hidden>
+    <div class="sheet-card">
+      <p class="sheet-title">この 写真(しゃしん)で いい？</p>
+      <div id="shots-list" class="shots-list"></div>
+      <p class="shots-hint">ちがう 向(む)きから もう1枚(まい) 撮(と)ると、AIが よく 当(あ)てられるよ（3枚(まい)まで）</p>
+      <button id="shots-more" class="sheet-btn cam">📷 もう1枚(まい) 撮(と)る</button>
+      <button id="shots-go" class="sheet-btn file">✓ これで 登録(とうろく)する</button>
+      <button id="shots-cancel" class="sheet-btn cancel">やめる</button>
+    </div>
+  </div>
+
   <input id="file-camera" type="file" accept="image/*" capture="environment" hidden />
   <input id="file-gallery" type="file" accept="image/*" multiple hidden />
 
