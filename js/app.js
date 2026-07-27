@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v92";
+  const APP_VERSION = "v93";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -2491,12 +2491,24 @@
     box.innerHTML = "";
     pendingShots.forEach((b, i) => {
       const cell = document.createElement("div");
-      cell.className = "shot-cell";
-      cell.innerHTML = `<img src="${urlFor(b)}" alt=""><i>${i + 1}</i>`;
+      cell.className = "shot-cell" + (i === 0 ? " cover" : "");
+      cell.innerHTML = `<img src="${urlFor(b)}" alt="">` +
+        (i === 0 ? `<i class="cover-tag">★ 表紙(ひょうし)</i>` : `<i>${i + 1}</i>`);
+      // タップした しゃしんを 表紙(ひょうし)に する
+      if (i > 0) {
+        cell.addEventListener("click", () => {
+          const [pick] = pendingShots.splice(i, 1);
+          pendingShots.unshift(pick);
+          pendingBlob = pendingShots[0];
+          drawShotsList();
+          sound.blip();
+        });
+      }
       if (pendingShots.length > 1) {
         const del = document.createElement("button");
         del.type = "button"; del.textContent = "✕"; del.setAttribute("aria-label", "この写真を はずす");
-        del.addEventListener("click", () => {
+        del.addEventListener("click", (e) => {
+          e.stopPropagation();
           pendingShots.splice(i, 1);
           pendingBlob = pendingShots[0];
           drawShotsList();
@@ -2506,6 +2518,7 @@
       }
       box.appendChild(cell);
     });
+    rubyifyDOM(box);
   }
 
   // 「写真(しゃしん)を たして もう一度 きく」を おした あとか
@@ -2695,12 +2708,24 @@
     if (box.hidden) return;
     pendingShots.forEach((b, i) => {
       const cell = document.createElement("div");
-      cell.className = "r-shot";
-      cell.innerHTML = `<img src="${urlFor(b)}" alt=""><i>${i + 1}</i>`;
+      cell.className = "r-shot" + (i === 0 ? " cover" : "");
+      cell.innerHTML = `<img src="${urlFor(b)}" alt="">` + (i === 0 ? `<i class="cover-tag">★</i>` : `<i>${i + 1}</i>`);
+      cell.title = i === 0 ? "表紙(ひょうし)の 写真" : "タップで 表紙(ひょうし)に する";
+      if (i > 0) {
+        cell.addEventListener("click", () => {
+          const [pick] = pendingShots.splice(i, 1);
+          pendingShots.unshift(pick);
+          pendingBlob = pendingShots[0];
+          $("#r-photo").src = urlFor(pendingBlob);
+          drawResultShots();
+          sound.blip();
+        });
+      }
       if (pendingShots.length > 1) {
         const del = document.createElement("button");
         del.type = "button"; del.textContent = "✕"; del.title = "この 写真を はずす";
-        del.addEventListener("click", () => {
+        del.addEventListener("click", (e) => {
+          e.stopPropagation();
           pendingShots.splice(i, 1);
           pendingBlob = pendingShots[0];
           $("#r-photo").src = urlFor(pendingBlob);
@@ -2872,6 +2897,8 @@
     $("#loading").hidden = true;
     const leveledUp = levelOf(groups.size) > lvBefore;
     const shots = Math.max(1, pendingShots.length);
+    // 何枚か ある ときは、1まいめ（★）を カードの 表紙に する
+    if (shots > 1) { Covers.set(name, rec.date); try { await afterChange(name, false); } catch (e) {} }
     pendingShots = [];                 // つぎの とうろくに もちこさない
     if (isNew) celebrate(rec, leveledUp); else miniCheer(rec);
     if (shots > 1) setTimeout(() => miniNote(`📷 写真(しゃしん) ${shots}枚(まい)を 図鑑(ずかん)に 入(い)れたよ！`), 900);

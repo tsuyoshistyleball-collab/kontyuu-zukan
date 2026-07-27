@@ -1244,6 +1244,12 @@ body.noscroll .card::before, body.noscroll .r5-aura, body.noscroll .r5-shine::af
   display: grid; place-items: center; }
 .shot-cell button { position: absolute; right: 0; bottom: 0; width: 26px; height: 26px; border: 0;
   background: rgba(200,60,40,.92); color: #fff; font-size: 14px; font-weight: 900; border-radius: 10px 0 0 0; }
+.shot-cell.cover { border-color: #ffce2e; box-shadow: 0 3px 0 var(--frame-d), 0 0 0 3px rgba(255,206,46,.85); }
+.shot-cell .cover-tag, .r-shot .cover-tag {
+  left: 0; top: 0; width: auto; height: auto; border-radius: 0 0 10px 0; padding: 2px 7px;
+  background: #f2820f; font-size: 10px; white-space: nowrap;
+}
+.r-shot.cover { border-color: #ffce2e; box-shadow: 0 2px 0 var(--frame-d), 0 0 0 2px rgba(255,206,46,.9); }
 .shots-hint b { color: var(--green-d); }
 .shots-hint { margin: 0 0 10px; font-size: 11.5px; font-weight: 800; color: var(--ink-sub); text-align: center; line-height: 1.5; }
 .r-shots { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; margin: 8px 14px 0; }
