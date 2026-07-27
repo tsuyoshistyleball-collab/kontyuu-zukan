@@ -1235,15 +1235,36 @@ body.noscroll .card::before, body.noscroll .r5-aura, body.noscroll .r5-shine::af
 /* ---------- ★の かず（タップで かえられる）---------- */
 .star-pick { display: inline-flex; gap: 2px; align-items: center; }
 .star-pick .star {
-  background: none; border: none; padding: 2px 4px; line-height: 1;
+  background: none; border: none; padding: 6px 7px; line-height: 1;
   font-size: inherit; color: inherit; cursor: pointer;
-  transition: transform .12s ease;
+  transition: transform .12s ease; touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(255,200,80,.35);
 }
 .star-pick .star:active { transform: scale(1.35) rotate(-8deg); }
 .star-pick .star:disabled { cursor: default; }
 .star-hint { font-size: 10.5px; font-weight: 800; color: var(--ink-sub); margin: 2px 0 0; opacity: .85; }
 .m-stars-row { display: flex; flex-direction: column; align-items: center; gap: 0; }
-#r-stars { font-size: 30px; }
+#r-stars { font-size: 34px; }
+/* とうろく画面の ★（おしやすく・わかりやすく）*/
+.m-stars-row { padding: 4px 0 2px; }
+.r-star-label { font-size: 13px; font-weight: 900; color: var(--ink-sub); }
+.r-star-label small { font-size: 11px; font-weight: 800; color: var(--green-d);
+  background: #e7f3dc; border-radius: 999px; padding: 2px 8px; }
+.star-name { font-size: 13px; font-weight: 900; color: var(--ink); margin-top: 1px; }
+.star-name.s1 { color: #6f9a4e; } .star-name.s2 { color: #4fa384; }
+.star-name.s3 { color: var(--honey-d); } .star-name.s4 { color: #8a4fd0; }
+.star-name.s5 { color: var(--terra); }
+#r-stars .star.on { animation: none; }
+#r-stars.pop .star.on { animation: starPop .38s cubic-bezier(.2,1.7,.4,1); }
+#r-stars.pop .star.on:nth-child(2) { animation-delay: .04s; }
+#r-stars.pop .star.on:nth-child(3) { animation-delay: .08s; }
+#r-stars.pop .star.on:nth-child(4) { animation-delay: .12s; }
+#r-stars.pop .star.on:nth-child(5) { animation-delay: .16s; }
+@keyframes starPop {
+  0% { transform: scale(1); }
+  55% { transform: scale(1.5) rotate(-12deg); }
+  100% { transform: scale(1); }
+}
 .page-stars { font-size: 30px; }
 .page-star-hint { color: rgba(90,70,40,.65); margin: 0 0 2px; }
 .page.r3 .page-star-hint, .page.r4 .page-star-hint, .page.r5 .page-star-hint { color: rgba(90,70,40,.8); }

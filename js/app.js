@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v85";
+  const APP_VERSION = "v86";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -2531,14 +2531,25 @@
     rubyifyDOM(box);
   }
 
-  function drawResultStars() {
-    renderStars($("#r-stars"), pendingRarity, (v) => {
+  const RARITY_NAME = ["", "ふつう", "ちょっと めずらしい", "めずらしい", "とても めずらしい", "でんせつ！"];
+  function drawResultStars(pop) {
+    const box = $("#r-stars");
+    renderStars(box, pendingRarity, (v) => {
       pendingRarity = v;
       rarityTouched = true;
-      drawResultStars();
+      drawResultStars(true);
       drawResultBattle();
       sound.blip();
+      if (navigator.vibrate) navigator.vibrate(18);
     });
+    const nm = $("#r-star-name");
+    if (nm) {
+      nm.textContent = RARITY_NAME[clampR(pendingRarity)] || "";
+      nm.className = "star-name s" + clampR(pendingRarity);
+    }
+    box.classList.remove("pop");
+    if (pop) { void box.offsetWidth; box.classList.add("pop"); }
+    rubyifyDOM($(".m-stars-row"));
   }
 
   function updateResultIllust(name) {

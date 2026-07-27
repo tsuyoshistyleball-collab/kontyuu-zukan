@@ -121,8 +121,9 @@
     <button id="r-retry" class="r-retry" type="button" hidden>🔄 もう一度(いちど) AIに 聞(き)く</button>
     <div id="r-battle" class="r-battle"></div>
     <div class="m-stars-row">
+      <span class="r-star-label">⭐ レア度(ど)　<small>タップで 変(か)えられるよ</small></span>
       <div id="r-stars" class="r-stars star-pick" role="group" aria-label="レア度"></div>
-      <span class="star-hint">タップで 変(か)えられるよ</span>
+      <span id="r-star-name" class="star-name"></span>
     </div>
     <label class="r-label">名前(なまえ)（直(なお)せるよ）</label>
     <input id="r-name-input" class="r-name-input" type="text" maxlength="24" placeholder="名前を 入れてね"
