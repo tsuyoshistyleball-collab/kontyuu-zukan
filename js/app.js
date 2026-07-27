@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v84";
+  const APP_VERSION = "v85";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -556,7 +556,9 @@
     } else { m.innerHTML = ""; m.hidden = true; }
   }
 
-  function openPlaceModal(id) {
+  let placeThenSelect = false;      // ばしょを ほぞんしたら、むしの がめんで えらぶ
+  function openPlaceModal(id, opts) {
+    placeThenSelect = !!(opts && opts.fromResult);
     const p = id ? Places.all.find((x) => x.id === id) : null;
     placeEditingId = p ? p.id : null;
     placeEmoji = p ? (p.emoji || PLACE_EMOJI[0]) : PLACE_EMOJI[0];
@@ -611,6 +613,7 @@
 
     $("#place-modal").showModal();
     rubyifyDOM($("#place-modal"));
+    if (opts && opts.here) setTimeout(() => useCurrentPlace(), 120);   // すぐ 現在地を しらべる
     // じどうで キーボードを ださない（なまえの らんを タップ したら ひらく）
   }
 
@@ -624,21 +627,71 @@
       lastFix = fix;
       placeCoord = { lat: fix.lat, lng: fix.lng };
       updatePlaceMap();
+      let revName = "";
       try {
         const r = await Geo.reverse(fix.lat, fix.lng);
         placeAddress = r.address;
+        revName = r.name || "";
         $("#pl-address").textContent = "📍 " + r.address;
-        if (!$("#pl-name").value.trim()) $("#pl-name").value = r.name.slice(0, 20);
-        msg.textContent = "✓ 今(いま)の 場所(ばしょ)が わかったよ！";
+        if (!$("#pl-name").value.trim()) $("#pl-name").value = revName.slice(0, 20);
+        msg.textContent = "✓ 今(いま)の 場所(ばしょ)が わかったよ！ 近(ちか)くを さがして いるよ…";
       } catch (e) {
         $("#pl-address").textContent = `📍 ${fix.lat.toFixed(5)}, ${fix.lng.toFixed(5)}`;
-        msg.textContent = "✓ 位置(いち)を 記録(きろく)したよ（名前(なまえ)は 手(て)で 入(い)れてね）";
+        msg.textContent = "✓ 位置(いち)を 記録(きろく)したよ。近(ちか)くを さがして いるよ…";
       }
       msg.className = "pl-search-msg ok";
+      rubyifyDOM(msg);
+
+      // ちかくの こうえん・もり などを こうほに だす
+      try {
+        const rows = await Geo.nearby(fix.lat, fix.lng);
+        if (rows.length) {
+          showPlaceCandidates(rows);
+          msg.textContent = "📍 近(ちか)くの 場所(ばしょ)だよ。タップして 選(えら)んでね";
+          msg.className = "pl-search-msg ok";
+        } else {
+          msg.textContent = "✓ 今(いま)の 場所(ばしょ)を 記録(きろく)したよ（近(ちか)くに 名前(なまえ)の ある 場所(ばしょ)は なかったよ）";
+        }
+      } catch (e) {
+        msg.textContent = revName
+          ? "✓ 今(いま)の 場所(ばしょ)が わかったよ！"
+          : "✓ 位置(いち)を 記録(きろく)したよ（名前(なまえ)は 手(て)で 入(い)れてね）";
+      }
+      rubyifyDOM(msg);
     } catch (err) {
       msg.textContent = "✕ " + (err.message || "位置(いち)が わかりませんでした");
       msg.className = "pl-search-msg warn";
     }
+  }
+
+  /* ばしょの こうほを ボタンで ならべる（けんさく けっか／ちかくの ばしょ）*/
+  function showPlaceCandidates(rows) {
+    const box = $("#pl-results");
+    box.innerHTML = "";
+    for (const r of rows) {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "pl-result";
+      const sub = r.dist != null ? `${r.address}・ここから ${r.dist}m` : r.address;
+      b.innerHTML = `<b>${r.emoji ? r.emoji + " " : ""}${escapeHtml(r.name)}</b><span>${escapeHtml(sub)}</span>`;
+      b.addEventListener("click", () => {
+        placeCoord = { lat: r.lat, lng: r.lng };
+        placeAddress = r.address || placeAddress;
+        $("#pl-name").value = r.name.slice(0, 20);
+        if (r.emoji && PLACE_EMOJI.includes(r.emoji)) {
+          placeEmoji = r.emoji;
+          $$("#pl-emoji .pl-emoji").forEach((x) => x.classList.toggle("active", x.textContent === r.emoji));
+        }
+        $("#pl-address").textContent = "📍 " + (r.address || r.name);
+        box.innerHTML = "";
+        const msg = $("#pl-search-msg");
+        msg.textContent = "✓ 場所(ばしょ)を 選(えら)んだよ！"; msg.className = "pl-search-msg ok";
+        updatePlaceMap();
+        rubyifyDOM($("#place-modal"));
+        sound.blip();
+      });
+      box.appendChild(b);
+    }
+    rubyifyDOM(box);
   }
 
   // 🔎 ばしょを さがす
@@ -652,21 +705,7 @@
       const rows = await Geo.search(q);
       if (!rows.length) { msg.textContent = "みつかりませんでした"; msg.className = "pl-search-msg warn"; return; }
       msg.textContent = "タップして 選(えら)んでね";
-      for (const r of rows) {
-        const b = document.createElement("button");
-        b.type = "button"; b.className = "pl-result";
-        b.innerHTML = `<b>${escapeHtml(r.name)}</b><span>${escapeHtml(r.address)}</span>`;
-        b.addEventListener("click", () => {
-          placeCoord = { lat: r.lat, lng: r.lng };
-          placeAddress = r.address;
-          $("#pl-name").value = r.name.slice(0, 20);
-          $("#pl-address").textContent = "📍 " + r.address;
-          box.innerHTML = "";
-          msg.textContent = "✓ 場所(ばしょ)を 選(えら)んだよ！"; msg.className = "pl-search-msg ok";
-          updatePlaceMap();
-        });
-        box.appendChild(b);
-      }
+      showPlaceCandidates(rows);
     } catch (err) {
       msg.textContent = "✕ " + (err.message || "検索(けんさく)できませんでした");
       msg.className = "pl-search-msg warn";
@@ -710,10 +749,18 @@
         first: when, last: when, visits: 1,
       });
     }
+    const newId = placeEditingId || ("p" + now);
     try { Places.all = all; } catch (e) { return; }
     $("#place-modal").close();
     renderPlaces();
     if (!placeEditingId) { sound.blip(); confetti(1); }
+    // むしの とうろく画面から ひらいた ときは、その ばしょを えらんで おく
+    if (placeThenSelect) {
+      placeThenSelect = false;
+      fillPlaceSelect(newId);
+      $("#r-place").value = newId;
+      miniNote("🗺️ 場所(ばしょ)を 登録(とうろく)して えらんだよ！");
+    }
   }
 
   function visitAgain() {
@@ -3713,6 +3760,7 @@
     }
     $("#pl-save").addEventListener("click", savePlace);
     $("#pl-here").addEventListener("click", useCurrentPlace);
+    $("#r-place-add").addEventListener("click", () => openPlaceModal(null, { fromResult: true, here: true }));
     $("#pl-today").addEventListener("click", () => { $("#pl-date").value = toDateInput(Date.now()); });
     $("#pl-search-btn").addEventListener("click", searchPlace);
     $("#pl-search").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); searchPlace(); } });
