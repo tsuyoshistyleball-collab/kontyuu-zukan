@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v83";
+  const APP_VERSION = "v84";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -292,8 +292,15 @@
   }
 
   // ---- データ ----
+  let rescued = false;         // 「ほぞん場所さがし」は 1かいだけ
   async function reload() {
     captures = await DB.getAll();
+    /* からっぽに 見える ときは、もう いっぽうの ほぞん場所を さがす。
+       （電波や たんまつの ちょうしで 一時的に よみこめない ことが ある）*/
+    if (!captures.length && !rescued) {
+      rescued = true;
+      try { if (await DB.rescue()) captures = await DB.getAll(); } catch (e) {}
+    }
     groups = new Map();
     for (const c of captures) {
       if (!groups.has(c.name)) groups.set(c.name, { name: c.name, list: [], count: 0, firstDate: c.date, lastDate: c.date });
@@ -3077,6 +3084,38 @@
   })();
   const arenaOpen = () => !$("#arena").hidden;
 
+  /* ずかんが 空に 見える ときの 救出ボタン。
+     しゃしんは スマホの 中の 2つの ほぞん場所（IndexedDB / localStorage）の
+     どちらかに 入って いる。おおい ほうに つなぎ直して 読みこむ。*/
+  async function findMyData() {
+    const out = $("#s-find-result");
+    out.className = "s-test-result";
+    out.textContent = "さがして います…";
+    try {
+      const moved = await DB.rescue();
+      const after = await DB.counts();
+      await reload(); renderProgress(); renderGrid(); renderPlaces();
+      const n = captures.length;
+      if (n > 0) {
+        out.className = "s-test-result ok";
+        out.textContent = moved
+          ? `✓ 見(み)つけたよ！ 写真(しゃしん)${n}枚(まい)を よみこみました`
+          : `✓ 写真(しゃしん)は ${n}枚(まい) あります`;
+        if (moved) sound.blip();
+      } else {
+        out.className = "s-test-result warn";
+        out.textContent =
+          `この スマホには 写真(しゃしん)が 見(み)つかりませんでした` +
+          `（中(なか)の ほぞん場所A：${after.idb < 0 ? "使(つか)えない" : after.idb + "枚(まい)"} ／ ` +
+          `B：${after.ls}枚(まい)）。バックアップの ファイルが あれば「復元(ふくげん)」から もどせます。`;
+      }
+      rubyifyDOM(out);
+    } catch (err) {
+      out.className = "s-test-result warn";
+      out.textContent = "✕ " + (err.message || "できませんでした");
+    }
+  }
+
   // ---- せってい ----
   function openSettings() {
     $("#s-key").value = Settings.key;
@@ -3626,6 +3665,7 @@
     $("#s-save").addEventListener("click", saveSettings);
     $("#s-test").addEventListener("click", testSettings);
     $("#s-reclass").addEventListener("click", reclassifyWithAI);
+    $("#s-find").addEventListener("click", findMyData);
     $("#s-auto-backup").checked = autoBackupOn();
     $("#s-auto-backup").addEventListener("change", (e) => {
       try { localStorage.setItem(AUTO_KEY, e.target.checked ? "1" : "0"); } catch (err) {}

@@ -6,7 +6,7 @@
 const DB = (() => {
   const IDB_NAME = "mushizukan";
   const VERSION = 2;
-  const OPEN_TIMEOUT = 4000;
+  const OPEN_TIMEOUT = 9000;
   const LS_KEY = "mz-captures-v2";
 
   let backend = null; // "idb" | "ls"
@@ -165,16 +165,52 @@ const DB = (() => {
   // ---------- しょきか（バックエンドを きめる）----------
   function init() {
     if (ready) return ready;
-    // まえに IDBが だめだった たんまつは、4びょう またずに すぐ localStorage
+    // まえに IDBが だめだった たんまつは、またずに すぐ localStorage
     try { if (localStorage.getItem("mz-idb-broken") === "1") { backend = "ls"; return (ready = Promise.resolve()); } } catch (e) {}
     ready = openIDB()
       .then((db) => { idb = db; backend = "idb"; try { localStorage.removeItem("mz-idb-broken"); } catch (e) {} })
       .catch((err) => {
-        console.warn("IndexedDB つかえません。localStorage に きりかえます:", err && err.message);
+        const m = String((err && err.message) || "");
+        console.warn("IndexedDB つかえません。localStorage に きりかえます:", m);
         backend = "ls";
-        try { localStorage.setItem("mz-idb-broken", "1"); } catch (e) {}
+        /* おそいだけ（TIMEOUT）や ほかの タブが つかんで いる（BLOCKED）ときは、
+           「こわれている」しるしを のこさない。のこすと つぎからも ずっと
+           localStorage を みに いって、IndexedDB の データが 見えなく なる。*/
+        if (m !== "TIMEOUT" && m !== "BLOCKED") {
+          try { localStorage.setItem("mz-idb-broken", "1"); } catch (e) {}
+        }
       });
     return ready;
+  }
+
+  /* ずかんが からっぽに 見える とき、もう いっぽうの ほぞん場所に
+     データが ないか さがして、あれば そちらに きりかえる。
+     （電波や たんまつの ちょうしで 一時的に IndexedDB が ひらけなかった とき、
+       データは 消えて いないのに 空に 見える ことが ある。その ための 救出）*/
+  async function rescue() {
+    await init();
+    try {
+      const lsN = lsRead().length;
+      let idbN = 0;
+      if (!idb) { try { idb = await openIDB(); } catch (e) { idb = null; } }
+      if (idb) { try { idbN = (await idbGetAll()).length; } catch (e) { idbN = 0; } }
+      // データが おおい ほうを つかう
+      const want = idbN > lsN ? "idb" : (lsN > 0 ? "ls" : backend);
+      if (want !== backend) {
+        backend = want;
+        if (want === "idb") { try { localStorage.removeItem("mz-idb-broken"); } catch (e) {} }
+        return true;
+      }
+    } catch (e) {}
+    return false;
+  }
+  // せってい がめん用：どこに なんこ あるか
+  async function counts() {
+    await init();
+    let idbN = -1;
+    if (!idb) { try { idb = await openIDB(); } catch (e) { idb = null; } }
+    if (idb) { try { idbN = (await idbGetAll()).length; } catch (e) { idbN = -1; } }
+    return { backend, ls: lsRead().length, idb: idbN };
   }
 
   // ---------- こうかい API ----------
@@ -202,5 +238,5 @@ const DB = (() => {
 
   async function mode() { await init(); return backend; }
 
-  return { add, getAll, getAllRaw, remove, renameGroup, patchByName, reset, mode, setCollection };
+  return { add, getAll, getAllRaw, remove, renameGroup, patchByName, reset, mode, setCollection, rescue, counts };
 })();
