@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v87";
+  const APP_VERSION = "v88";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -18,6 +18,7 @@
   let pendingResolved = null;
   let pendingRarity = 1;      // とうろく画面で えらんだ ★の かず
   let rarityTouched = false;  // てで かえたら AIの すいそくで うわがきしない
+  let pendingStats = null;    // ★を いじった あとの つよさ（とうろく画面）
 
   // ---- ずかんの きりかえ（むし / おはな）----
   const Zukan = {
@@ -241,6 +242,18 @@
       moveKind: kind || auto.moveKind,
       moveColor: col || MOVE_COLOR[kind] || auto.moveColor,
       moveCry: cry,
+    };
+  }
+
+  /* ★が かわったら つよさも かわる。
+     ★1=190 → ★5=630 を めやすに、いまの つよさを そのまま のばす／ちぢめる。*/
+  const rarBase = (r) => 80 + clampR(r) * 110;
+  function scaleStats(st, fromR, toR) {
+    const f = rarBase(toR) / rarBase(fromR);
+    return {
+      attack: clampPower(Math.round((st.attack || 0) * f)),
+      defense: clampPower(Math.round((st.defense || 0) * f)),
+      hand: st.hand,
     };
   }
 
@@ -2350,7 +2363,9 @@
   async function setRarity(name, v) {
     const g = groups.get(name);
     if (!g || g.rarity === v) return;
-    try { await DB.patchByName(name, { rarity: v }); }
+    // ★に あわせて こうげき力・しゅび力も 上下(じょうげ)させる
+    const st = scaleStats({ attack: g.attack, defense: g.defense, hand: g.hand }, g.rarity, v);
+    try { await DB.patchByName(name, { rarity: v, attack: st.attack, defense: st.defense, hand: st.hand }); }
     catch (e) { console.error(e); say("★を 変(か)えられませんでした"); return; }
     sound.blip();
     if (v === 3) { confetti(3); }
@@ -2552,6 +2567,7 @@
     $("#r-hint").hidden = !r.where;
     pendingRarity = rarityFor(r.name, r.rarity);
     rarityTouched = false;
+    pendingStats = null;
     drawResultStars();
     drawResultBattle();
 
@@ -2598,14 +2614,18 @@
   }
 
   // とうろく がめんの たたかいの すうじ
+  // いま とうろく画面に 出て いる つよさ（★を いじる まえの もと）
+  function currentResultStats() {
+    const name = ($("#r-name-input").value || (pendingResolved && pendingResolved.name) || "").trim();
+    const g = groups.get(name);
+    const st = g ? { attack: g.attack, defense: g.defense, hand: g.hand }
+                 : detailsForName(name || "?", pendingResolved || {});
+    return { attack: st.attack, defense: st.defense, hand: st.hand };
+  }
   function drawResultBattle() {
     const box = $("#r-battle");
     if (!box) return;
-    const name = ($("#r-name-input").value || (pendingResolved && pendingResolved.name) || "").trim();
-    const g = groups.get(name);
-    // ほぞん する ときと おなじ きめかたで だす（がめんと カードで くいちがわない ように）
-    const st = g ? { attack: g.attack, defense: g.defense, hand: g.hand }
-                 : detailsForName(name || "?", pendingResolved || {});
+    const st = pendingStats || currentResultStats();
     box.innerHTML = "";
     box.appendChild(battleRow(st, true));
     rubyifyDOM(box);
@@ -2615,6 +2635,9 @@
   function drawResultStars(pop) {
     const box = $("#r-stars");
     renderStars(box, pendingRarity, (v) => {
+      // いまの つよさを ★に あわせて のばす／ちぢめる
+      const now = pendingStats || currentResultStats();
+      pendingStats = scaleStats(now, pendingRarity, v);
       pendingRarity = v;
       rarityTouched = true;
       drawResultStars(true);
@@ -2716,6 +2739,12 @@
       ...detailsForName(name, r),
       blob: pendingBlob, date: Date.now(),
     };
+    // ★を いじって つよさを かえた ときは、その あたいを つかう
+    if (pendingStats) {
+      rec.attack = pendingStats.attack;
+      rec.defense = pendingStats.defense;
+      if (pendingStats.hand) rec.hand = pendingStats.hand;
+    }
     const selPlace = $("#r-place").value;
     if (selPlace) {
       const pl = Places.all.find((x) => x.id === selPlace);
