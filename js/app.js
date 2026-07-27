@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v89";
+  const APP_VERSION = "v90";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -15,6 +15,8 @@
   let pendingMode = "discovery"; // "discovery" | "append"
   let pendingAppendName = null;
   let pendingBlob = null;
+  const MAX_SHOTS = 3;        // AIに わたす しゃしんは さいだい 3まい
+  let pendingShots = [];      // いま しらべて いる しゃしん たち
   let pendingResolved = null;
   let pendingRarity = 1;      // とうろく画面で えらんだ ★の かず
   let rarityTouched = false;  // てで かえたら AIの すいそくで うわがきしない
@@ -2426,12 +2428,14 @@
   function closePicker() { $("#picker").hidden = true; }
 
   async function onFile(e) {
-    const file = e.target.files && e.target.files[0];
+    const files = Array.from((e.target.files || [])).slice(0, MAX_SHOTS);
     e.target.value = "";
-    if (!file) return;
-    let blob;
-    try { blob = await resizeImage(file, 1024, 0.8); }
-    catch (err) { say("写真(しゃしん)を 読(よ)みこめなかったよ。"); return; }
+    if (!files.length) return;
+    let blobs = [];
+    try {
+      for (const f of files) blobs.push(await resizeImage(f, 1024, 0.8));
+    } catch (err) { say("写真(しゃしん)を 読(よ)みこめなかったよ。"); return; }
+    const blob = blobs[0];
 
     if (pendingMode === "append" && pendingAppendName) {
       const rec = { name: pendingAppendName, ...pickMeta(pendingAppendName), blob, date: Date.now() };
@@ -2451,22 +2455,33 @@
     }
 
     // discovery
-    pendingBlob = blob;
-    await askAI(blob);
+    if (addingShot) {                 // 「写真を たす」から きた とき
+      addingShot = false;
+      pendingShots = pendingShots.concat(blobs).slice(0, MAX_SHOTS);
+    } else {
+      pendingShots = blobs;
+    }
+    pendingBlob = pendingShots[0];
+    await askAI(pendingShots);
   }
 
+  // 「写真(しゃしん)を たして もう一度 きく」を おした あとか
+  let addingShot = false;
+
   // AIに しゃしんを みてもらう（けっか モーダルを ひらく）
-  async function askAI(blob) {
+  async function askAI(blobOrList) {
+    const list = (Array.isArray(blobOrList) ? blobOrList : [blobOrList]).filter(Boolean);
+    const main = list[0];
     const key = Settings.key;
-    if (!key) { openResult(blob, null, "NO_KEY"); return; }
-    startThinking(blob);
+    if (!key) { openResult(main, null, "NO_KEY"); return; }
+    startThinking(main);
     try {
-      const ai = await Gemini.identify(blob, key, Settings.model, onAiWait, Zukan.id);
+      const ai = await Gemini.identify(list, key, Settings.model, onAiWait, Zukan.id);
       stopThinking();
-      openResult(blob, ai, null);
+      openResult(main, ai, null);
     } catch (err) {
       stopThinking();
-      openResult(blob, null, String(err.message || err));
+      openResult(main, null, String(err.message || err));
     }
   }
 
@@ -2559,6 +2574,7 @@
     pendingResolved = r;
 
     $("#r-photo").src = urlFor(blob);
+    drawResultShots();
     updateResultIllust(r.name);
     $("#r-name-input").value = r.name;
     $("#r-kana").textContent = r.kana || "";
@@ -2580,6 +2596,11 @@
     };
     // AIに もういちど きく ボタンは エラーの ときだけ だす
     $("#r-retry").hidden = !(err && err !== "NO_KEY" && Settings.key);
+    $("#r-add-photo").hidden = !Settings.key;
+    $("#r-add-photo").textContent = pendingShots.length > 1
+      ? `📷 写真(しゃしん)を たす（いま ${pendingShots.length}枚(まい)）`
+      : "📷 写真(しゃしん)を たして もう一度(いちど) 聞(き)く";
+    rubyifyDOM($("#r-add-photo"));
 
     if (err === "NO_KEY") {
       note.classList.add("warn");
@@ -2614,6 +2635,32 @@
   }
 
   // とうろく がめんの たたかいの すうじ
+  /* とうろく画面の した に、しらべた しゃしんを ならべる（2まい いじょうの とき）*/
+  function drawResultShots() {
+    const box = $("#r-shots");
+    if (!box) return;
+    box.innerHTML = "";
+    box.hidden = pendingShots.length < 2;
+    if (box.hidden) return;
+    pendingShots.forEach((b, i) => {
+      const cell = document.createElement("div");
+      cell.className = "r-shot";
+      cell.innerHTML = `<img src="${urlFor(b)}" alt=""><i>${i + 1}</i>`;
+      if (pendingShots.length > 1) {
+        const del = document.createElement("button");
+        del.type = "button"; del.textContent = "✕"; del.title = "この 写真を はずす";
+        del.addEventListener("click", () => {
+          pendingShots.splice(i, 1);
+          pendingBlob = pendingShots[0];
+          $("#r-photo").src = urlFor(pendingBlob);
+          drawResultShots();
+        });
+        cell.appendChild(del);
+      }
+      box.appendChild(cell);
+    });
+  }
+
   // いま とうろく画面に 出て いる つよさ（★を いじる まえの もと）
   function currentResultStats() {
     const name = ($("#r-name-input").value || (pendingResolved && pendingResolved.name) || "").trim();
@@ -2758,6 +2805,11 @@
     $("#loading").hidden = false;
     try {
       await DB.add(rec);
+      // しらべる のに つかった ほかの しゃしんも おなじ なまえで ほぞん
+      for (const extra of pendingShots.slice(1)) {
+        try { await DB.add(Object.assign({}, rec, { blob: extra, date: Date.now() })); }
+        catch (e) { console.warn("extra photo save failed:", e); }
+      }
     } catch (err) {
       $("#loading").hidden = true;
       console.error("save failed:", err);
@@ -3817,10 +3869,21 @@
     $("#r-save").addEventListener("click", saveResult);
     $("#r-cancel").addEventListener("click", () => $("#result").close());
     $("#r-retry").addEventListener("click", () => {
-      if (!pendingBlob) return;
-      const blob = pendingBlob;
+      if (!pendingShots.length) return;
+      const list = pendingShots.slice();
       $("#result").close();
-      askAI(blob);
+      askAI(list);
+    });
+    // 写真(しゃしん)を たして もう一度 きく
+    $("#r-add-photo").addEventListener("click", () => {
+      if (pendingShots.length >= MAX_SHOTS) {
+        say(`写真(しゃしん)は ${MAX_SHOTS}枚(まい)まで だよ。\n いらない 写真(しゃしん)は ✕で はずせるよ。`);
+        return;
+      }
+      addingShot = true;
+      pendingMode = "discover";
+      $("#result").close();
+      $("#picker").hidden = false;
     });
     $("#r-name-input").addEventListener("input", (e) => onResultNameInput(e.target.value));
 

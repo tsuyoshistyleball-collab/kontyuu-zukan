@@ -87,12 +87,12 @@
     <div class="sheet-card">
       <p class="sheet-title">写真(しゃしん)を…</p>
       <button id="pick-camera" class="sheet-btn cam">📷 カメラで 撮(と)る</button>
-      <button id="pick-file" class="sheet-btn file">🖼️ アルバム・ファイルから</button>
+      <button id="pick-file" class="sheet-btn file">🖼️ アルバム・ファイルから<small>何枚(なんまい)か えらぶと よく 当(あ)たるよ</small></button>
       <button id="pick-cancel" class="sheet-btn cancel">やめる</button>
     </div>
   </div>
   <input id="file-camera" type="file" accept="image/*" capture="environment" hidden />
-  <input id="file-gallery" type="file" accept="image/*" hidden />
+  <input id="file-gallery" type="file" accept="image/*" multiple hidden />
 
   <!-- ブック（よこに めくる） -->
   <div id="book" class="book" hidden>
@@ -117,6 +117,8 @@
   <dialog id="result" class="modal">
     <div class="m-illust-wrap"><div id="r-illust" class="m-illust"></div></div>
     <div class="r-photo-wrap"><img id="r-photo" class="r-photo" alt="" /></div>
+    <div id="r-shots" class="r-shots" hidden></div>
+    <button id="r-add-photo" class="r-add-photo" type="button">📷 写真(しゃしん)を たして もう一度(いちど) 聞(き)く</button>
     <p id="r-note" class="r-note"></p>
     <button id="r-retry" class="r-retry" type="button" hidden>🔄 もう一度(いちど) AIに 聞(き)く</button>
     <div id="r-battle" class="r-battle"></div>

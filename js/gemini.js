@@ -325,15 +325,27 @@ const Gemini = (() => {
   const MAX_RETRY = 2;
   const MAX_WAIT_S = 40;
 
+  /* しゃしんは 1まいでも、はいれつで 何まいでも わたせる。
+     何まいか わたすと「おなじ 1ぴきを ちがう むきから とった もの」として
+     まとめて 見て もらえる ので、あたりやすく なる。*/
   async function identify(blob, key, model, onWait, kind) {
     if (!key) throw new Error("NO_KEY");
-    const b64 = await blobToBase64(blob);
+    const blobs = (Array.isArray(blob) ? blob : [blob]).filter(Boolean).slice(0, 4);
+    if (!blobs.length) throw new Error("NO_IMAGE");
+    const b64s = [];
+    for (const b of blobs) b64s.push(await blobToBase64(b));
+    const many = b64s.length > 1
+      ? `\n【しゃしんに ついて】これは おなじ 1ぴき（1つ）を ${b64s.length}まい、` +
+        "ちがう むき・ちがい あかるさで とった ものです。" +
+        "ぜんぶの しゃしんを あわせて 見て、いちばん あう なまえを 1つ こたえて ください。" +
+        "とくちょうが よく 見える しゃしんを 手がかりに して ください。"
+      : "";
     const body = {
       contents: [
         {
           parts: [
-            { text: promptFor(kind) },
-            { inline_data: { mime_type: "image/jpeg", data: b64 } },
+            { text: promptFor(kind) + many },
+            ...b64s.map((d) => ({ inline_data: { mime_type: "image/jpeg", data: d } })),
           ],
         },
       ],

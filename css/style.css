@@ -1230,6 +1230,24 @@ body.noscroll .card::before, body.noscroll .r5-aura, body.noscroll .r5-shine::af
 .place-emoji.big { font-size: 30px; }
 
 /* むし とうろく の ばしょ えらび */
+.r-shots { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; margin: 8px 14px 0; }
+.r-shot { position: relative; width: 56px; height: 56px; border-radius: 12px; overflow: hidden;
+  border: 3px solid #fff; box-shadow: 0 2px 0 var(--frame-d); background: var(--paper2); }
+.r-shot img { width: 100%; height: 100%; object-fit: cover; }
+.r-shot i { position: absolute; left: 2px; top: 2px; width: 17px; height: 17px; border-radius: 50%;
+  background: rgba(30,60,20,.8); color: #fff; font-size: 10px; font-style: normal; font-weight: 900;
+  display: grid; place-items: center; }
+.r-shot button { position: absolute; right: 0; bottom: 0; width: 20px; height: 20px; border: 0;
+  background: rgba(200,60,40,.9); color: #fff; font-size: 12px; font-weight: 900; border-radius: 8px 0 0 0; }
+.r-add-photo {
+  display: block; margin: 9px auto 0; padding: 10px 16px; border-radius: 999px; font-family: inherit;
+  font-size: 13px; font-weight: 900; color: #3a6b25;
+  background: linear-gradient(180deg, #eefbe4, #cdeeba); border: 2px solid #fff;
+  box-shadow: 0 3px 0 #8fbb72; max-width: 92%;
+}
+.r-add-photo:active { transform: translateY(2px); box-shadow: 0 1px 0 #8fbb72; }
+.r-add-photo:disabled { opacity: .55; }
+.sheet-btn small { display: block; font-size: 11px; font-weight: 800; opacity: .8; margin-top: 2px; }
 .r-place-add {
   width: 100%; margin-top: 7px; padding: 11px; border-radius: 14px; font-family: inherit;
   font-size: 14px; font-weight: 900; color: #17385f;
