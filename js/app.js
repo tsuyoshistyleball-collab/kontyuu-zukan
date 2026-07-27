@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v91";
+  const APP_VERSION = "v92";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -2643,6 +2643,14 @@
     $("#r-add-photo").textContent = pendingShots.length > 1
       ? `📷 写真(しゃしん)を たす（いま ${pendingShots.length}枚(まい)）`
       : "📷 写真(しゃしん)を たして もう一度(いちど) 聞(き)く";
+    const tip = $("#r-shots-tip");
+    if (tip) {
+      tip.hidden = !Settings.key;
+      tip.innerHTML = pendingShots.length > 1
+        ? `💡 この ${pendingShots.length}枚(まい)は ぜんぶ 図鑑(ずかん)に 保存(ほぞん)されるよ`
+        : "💡 写真(しゃしん)が 多(おお)いほど AIは よく 当(あ)てられるよ（3枚(まい)まで・ぜんぶ 保存(ほぞん)されます）";
+      rubyifyDOM(tip);
+    }
     rubyifyDOM($("#r-add-photo"));
 
     if (err === "NO_KEY") {
@@ -2863,7 +2871,10 @@
     try { await reload(); renderProgress(); renderGrid(); renderPlaces(); } catch (e) { console.error("render after save:", e); }
     $("#loading").hidden = true;
     const leveledUp = levelOf(groups.size) > lvBefore;
+    const shots = Math.max(1, pendingShots.length);
+    pendingShots = [];                 // つぎの とうろくに もちこさない
     if (isNew) celebrate(rec, leveledUp); else miniCheer(rec);
+    if (shots > 1) setTimeout(() => miniNote(`📷 写真(しゃしん) ${shots}枚(まい)を 図鑑(ずかん)に 入(い)れたよ！`), 900);
     setTimeout(() => { maybeAutoBackup(); }, 1200);
     if (gdAutoOn() && GDrive.wasSignedIn()) setTimeout(() => syncDrive({ quiet: true }), 2200);
   }

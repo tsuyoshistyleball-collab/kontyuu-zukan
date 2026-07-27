@@ -86,8 +86,10 @@
   <div id="picker" class="sheet" hidden>
     <div class="sheet-card">
       <p class="sheet-title">写真(しゃしん)を…</p>
-      <button id="pick-camera" class="sheet-btn cam">📷 カメラで 撮(と)る</button>
-      <button id="pick-file" class="sheet-btn file">🖼️ アルバム・ファイルから<small>何枚(なんまい)か えらぶと よく 当(あ)たるよ</small></button>
+      <p class="sheet-tip">💡 同(おな)じ 虫(むし)を <b>2〜3枚(まい)</b>（横(よこ)・上(うえ)・近(ちか)くなど）
+        写(うつ)すと、AIの 名前(なまえ)あてが ぐんと 当(あ)たりやすく なるよ</p>
+      <button id="pick-camera" class="sheet-btn cam">📷 カメラで 撮(と)る<small>1枚(まい)ずつ 撮(と)って あとで たせるよ</small></button>
+      <button id="pick-file" class="sheet-btn file">🖼️ アルバム・ファイルから<small>何枚(なんまい)か まとめて えらべるよ</small></button>
       <button id="pick-cancel" class="sheet-btn cancel">やめる</button>
     </div>
   </div>
@@ -96,7 +98,9 @@
     <div class="sheet-card">
       <p class="sheet-title">この 写真(しゃしん)で いい？</p>
       <div id="shots-list" class="shots-list"></div>
-      <p class="shots-hint">ちがう 向(む)きから もう1枚(まい) 撮(と)ると、AIが よく 当(あ)てられるよ（3枚(まい)まで）</p>
+      <p class="shots-hint">💡 ちがう 向(む)きから もう1枚(まい) 撮(と)ると、
+        AIの 名前(なまえ)あてが <b>当(あ)たりやすく</b> なるよ（3枚(まい)まで）<br>
+        撮(と)った 写真(しゃしん)は ぜんぶ 図鑑(ずかん)に 保存(ほぞん)されるよ</p>
       <button id="shots-more" class="sheet-btn cam">📷 もう1枚(まい) 撮(と)る</button>
       <button id="shots-go" class="sheet-btn file">✓ これで 登録(とうろく)する</button>
       <button id="shots-cancel" class="sheet-btn cancel">やめる</button>
@@ -131,6 +135,7 @@
     <div class="r-photo-wrap"><img id="r-photo" class="r-photo" alt="" /></div>
     <div id="r-shots" class="r-shots" hidden></div>
     <button id="r-add-photo" class="r-add-photo" type="button">📷 写真(しゃしん)を たして もう一度(いちど) 聞(き)く</button>
+    <p id="r-shots-tip" class="r-shots-tip">💡 写真(しゃしん)が 多(おお)いほど AIは よく 当(あ)てられるよ（3枚(まい)まで・ぜんぶ 保存(ほぞん)されます）</p>
     <p id="r-note" class="r-note"></p>
     <button id="r-retry" class="r-retry" type="button" hidden>🔄 もう一度(いちど) AIに 聞(き)く</button>
     <div id="r-battle" class="r-battle"></div>

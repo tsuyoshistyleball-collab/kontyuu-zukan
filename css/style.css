@@ -1230,6 +1230,11 @@ body.noscroll .card::before, body.noscroll .r5-aura, body.noscroll .r5-shine::af
 .place-emoji.big { font-size: 30px; }
 
 /* むし とうろく の ばしょ えらび */
+.sheet-tip { margin: -2px 0 10px; font-size: 11.5px; font-weight: 800; line-height: 1.6;
+  color: var(--ink-sub); text-align: center; background: #f2f8ea; border-radius: 12px; padding: 8px 10px; }
+.sheet-tip b { color: var(--green-d); font-size: 12.5px; }
+.r-shots-tip { margin: 6px 16px 0; font-size: 11px; font-weight: 800; line-height: 1.5;
+  color: var(--ink-sub); text-align: center; }
 .shots-list { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin: 4px 0 8px; }
 .shot-cell { position: relative; width: 88px; height: 88px; border-radius: 16px; overflow: hidden;
   border: 3px solid #fff; box-shadow: 0 3px 0 var(--frame-d); background: var(--paper2); }
@@ -1239,6 +1244,7 @@ body.noscroll .card::before, body.noscroll .r5-aura, body.noscroll .r5-shine::af
   display: grid; place-items: center; }
 .shot-cell button { position: absolute; right: 0; bottom: 0; width: 26px; height: 26px; border: 0;
   background: rgba(200,60,40,.92); color: #fff; font-size: 14px; font-weight: 900; border-radius: 10px 0 0 0; }
+.shots-hint b { color: var(--green-d); }
 .shots-hint { margin: 0 0 10px; font-size: 11.5px; font-weight: 800; color: var(--ink-sub); text-align: center; line-height: 1.5; }
 .r-shots { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; margin: 8px 14px 0; }
 .r-shot { position: relative; width: 56px; height: 56px; border-radius: 12px; overflow: hidden;
