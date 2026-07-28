@@ -4,8 +4,10 @@
   src: url("../fonts/mochiy-pop-one-jp-subset.woff2") format("woff2");
   font-weight: 400 900;
   font-display: swap;
-  unicode-range: U+3041-3096, U+30A1-30FA, U+30FC, U+30FB, U+3001, U+3002,
-                 U+FF01, U+FF1F, U+300C, U+300D, U+FF08, U+FF09, U+301C, U+3005, U+0030-0039;
+  /* unicode-range は つけない。
+     ひらがな・カタカナ だけに していた ので、称号(しょうごう)の 漢字が
+     この フォントに ならなかった。フォントに ない 文字は
+     ブラウザが じどうで もとの フォントに もどして くれる。*/
 }
 
 /* =========================================================
@@ -1097,9 +1099,11 @@ body.noscroll .card::before, body.noscroll .r5-aura, body.noscroll .r5-shine::af
 /* しょうごう（虫博士 など）は まるっこい タイトル フォントで かわいく */
 .level-title {
   font-family: "MushiTitle", var(--font);
-  font-size: 16px; font-weight: 400; letter-spacing: .02em; opacity: 1;
+  font-size: 18px; font-weight: 400; letter-spacing: .03em; opacity: 1;
   color: #fffdf2;
-  text-shadow: 0 2px 0 rgba(38,90,30,.55), 0 0 10px rgba(255,255,255,.35);
+  text-shadow: 1.5px 1.5px 0 rgba(30,78,24,.75), -1.5px 1.5px 0 rgba(30,78,24,.75),
+               1.5px -1.5px 0 rgba(30,78,24,.75), -1.5px -1.5px 0 rgba(30,78,24,.75),
+               0 3px 0 rgba(20,60,16,.5), 0 0 12px rgba(255,255,255,.3);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .level-title rt { font-family: var(--font); font-weight: 800; }
