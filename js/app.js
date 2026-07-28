@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v98";
+  const APP_VERSION = "v99";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -26,10 +26,10 @@
   const Zukan = {
     get id() {
       const v = localStorage.getItem("mz-zukan");
-      return v === "hana" ? "hana" : "mushi";
+      return ZUKAN_IDS.indexOf(v) >= 0 ? v : "mushi";
     },
     set id(v) {
-      const id = v === "hana" ? "hana" : "mushi";
+      const id = ZUKAN_IDS.indexOf(v) >= 0 ? v : "mushi";
       try { localStorage.setItem("mz-zukan", id); } catch (e) {}
       setZukanKind(id);
       DB.setCollection(id);
@@ -269,9 +269,8 @@
   }
 
   function illustFor(name) {
-    const hana = Zukan.id === "hana";
-    const k = hana ? matchKnownFlower(name) : matchKnown(name);
-    const gen = hana ? GENERIC_FLOWER : GENERIC_BUG;
+    const k = matchKnownAny(name, Zukan.id);
+    const gen = genericFor(Zukan.id);
     return k
       ? { svg: k.svg, color: k.color, knownId: k.id, kana: k.kana, fact: k.fact, where: k.where, rarity: k.stars,
           family: k.family || "", trivia: k.trivia || [], habitat: k.habitat || "", season: k.season || "", food: k.food || "", size: k.size || "", care: k.care || "",
@@ -331,7 +330,7 @@
       const cd = Covers.get(g.name);
       g.cover = (cd && g.list.find((c) => c.date === cd)) || g.latest;
       const rep = g.latest;
-      const k = (Zukan.id === "hana") ? matchKnownFlower(g.name) : matchKnown(g.name);
+      const k = matchKnownAny(g.name, Zukan.id);
       g.rarity = clampR(rep.rarity || (k ? k.stars : 1));
       g.kana = rep.kana || (k ? k.kana : "");
       g.fact = rep.fact || (k ? k.fact : "");
@@ -369,7 +368,7 @@
     const order = categoryOrderFor();
     const secs = new Map();   // key -> { catId, family, groups }
     for (const g of groups.values()) {
-      const cat = g.category || (Zukan.id === "hana" ? "f_other" : "other");
+      const cat = g.category || defaultCatFor(Zukan.id);
       const fam = (g.family || "").trim();
       const key = fam ? "f:" + fam : "c:" + cat;
       if (!secs.has(key)) secs.set(key, { catId: cat, family: fam, groups: [] });
@@ -415,6 +414,7 @@
         : "🔄 タップで 図鑑(ずかん)を 切(き)りかえ";
     }
     const fb = $("#fab-text"); if (fb) fb.textContent = z.fab;
+    const to = $("#tip-one"); if (to) { to.textContent = z.one; rubyifyDOM(to); }
     const bb = $("#bar-bug"); if (bb) bb.textContent = z.emoji;
     document.title = z.title;
   }
@@ -988,8 +988,9 @@
   }
   // ずかんに 1しゅるいしか いない ときの「やせいの むし」
   function arWildFighter(exclude) {
-    const list = (Zukan.id === "hana" ? FLOWERS : INSECTS).filter((k) => k.name !== exclude);
-    const k = list[Math.floor(Math.random() * list.length)] || (Zukan.id === "hana" ? FLOWERS[0] : INSECTS[0]);
+    const lib = libraryFor(Zukan.id);
+    const list = lib.filter((k) => k.name !== exclude);
+    const k = list[Math.floor(Math.random() * list.length)] || lib[0];
     const st = statsFor(k.name, k.stars, k);
     const mv = moveFor(k.name, k.stars, k);
     return { name: k.name, hand: st.hand, attack: st.attack, defense: st.defense,
@@ -2266,8 +2267,15 @@
 
 
   // ---- くわしい じょうほうの ブロック ----
+  /* ずかんごとの みだし（すみか・きせつ・ごはん・そだてかた）*/
+  const INFO_LABELS = {
+    mushi:    ["🏠 住(す)んで いる 場所(ばしょ)", "📅 見(み)られる 季節(きせつ)", "🍽️ 食(た)べもの", "🧺 飼(か)い方(かた)"],
+    hana:     ["🌱 生(は)えて いる 場所(ばしょ)", "🌸 咲(さ)く 季節(きせつ)",   "☀️ 好(す)きな 場所(ばしょ)", "🪴 育(そだ)て方(かた)"],
+    doubutsu: ["🏠 住(す)んで いる 場所(ばしょ)", "📅 会(あ)える 季節(きせつ)", "🍽️ 食(た)べもの", "🤝 なかよく する コツ"],
+  };
+
   function buildInfoBlock(g) {
-    const hana = Zukan.id === "hana";
+    const lab = INFO_LABELS[Zukan.id] || INFO_LABELS.mushi;
     const box = document.createElement("div");
     box.className = "page-info";
 
@@ -2285,11 +2293,11 @@
     }
 
     const rows = [
-      [hana ? "🌱 生(は)えて いる 場所(ばしょ)" : "🏠 住(す)んで いる 場所(ばしょ)", g.habitat || g.where],
-      [hana ? "🌸 咲(さ)く 季節(きせつ)" : "📅 見(み)られる 季節(きせつ)", g.season],
+      [lab[0], g.habitat || g.where],
+      [lab[1], g.season],
       ["📏 大(おお)きさ", g.size],
-      [hana ? "☀️ 好(す)きな 場所(ばしょ)" : "🍽️ 食(た)べもの", g.food],
-      [hana ? "🪴 育(そだ)て方(かた)" : "🧺 飼(か)い方(かた)", g.care],
+      [lab[2], g.food],
+      [lab[3], g.care],
     ];
     let any = false;
     for (const [label, val] of rows) {
@@ -2314,9 +2322,7 @@
     if (!g.trivia.length && !any) {
       const p = document.createElement("p");
       p.className = "info-empty";
-      p.textContent = hana
-        ? "まだ くわしい ことが わからないよ。ボタンを 押(お)すと AIが 調(しら)べて くれます。"
-        : "まだ くわしい ことが わからないよ。ボタンを 押(お)すと AIが 調(しら)べて くれます。";
+      p.textContent = "まだ くわしい ことが わからないよ。ボタンを 押(お)すと AIが 調(しら)べて くれます。";
       box.insertBefore(p, btn);
     }
     return box;
@@ -2691,7 +2697,7 @@
       r.move = ai.move_name || ""; r.moveKind = ai.move_kind || "";
       r.moveColor = ai.move_color || ""; r.moveCry = ai.move_cry || "";
     }
-    const known = (Zukan.id === "hana") ? matchKnownFlower(r.name) : matchKnown(r.name);
+    const known = matchKnownAny(r.name, Zukan.id);
     if (known) {
       r.kana = r.kana || known.kana; r.fact = r.fact || known.fact; r.where = r.where || known.where;
       r.family = r.family || known.family || "";
@@ -2868,7 +2874,7 @@
   /* くわしい じょうほうは「なまえが あって いる とき」だけ つかう。
      AIが すいそくした なまえを てで なおした ばあいは、その むしの ものでは ない ので すてる。*/
   function detailsForName(name, r) {
-    const known = (Zukan.id === "hana") ? matchKnownFlower(name) : matchKnown(name);
+    const known = matchKnownAny(name, Zukan.id);
     if (known) {
       return {
         where: known.where || "", family: known.family || "",

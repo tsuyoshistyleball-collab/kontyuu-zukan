@@ -345,7 +345,9 @@ function _catFromLabel(label) {
 }
 
 function categorize(name, aiCategory, kind) {
-  if ((kind || ZUKAN_KIND) === "hana") return categorizeFlower(name, aiCategory);
+  const _k = kind || ZUKAN_KIND;
+  if (_k === "hana") return categorizeFlower(name, aiCategory);
+  if (_k === "doubutsu") return categorizeAnimal(name, aiCategory);
   // 1) ずかんに ある むしは きまった なかまわけ
   const known = matchKnown(name);
   if (known && _KNOWN_CATEGORY[known.id]) return _KNOWN_CATEGORY[known.id];
@@ -385,9 +387,19 @@ const ZUKANS = [
     levels: ["お花(はな) 見習(みなら)い", "お花(はな) 探偵(たんてい)", "お花(はな)ハンター", "お花(はな)博士(はかせ)", "お花(はな)マスター", "お花(はな)クイーン", "お花(はな)レジェンド"],
     think: ["AIが 花(はな)を 調(しら)べて いるよ！", "どんな 花(はな)かな…？", "花(はな)びらを 数(かぞ)え中(ちゅう)🌼", "もう少(すこ)しで わかるよ！"],
   },
+  {
+    id: "doubutsu", title: "どうぶつずかん", sub: "みつけた 動物(どうぶつ)の 記録(きろく)", emoji: "🐾", one: "動物(どうぶつ)",
+    fab: "動物(どうぶつ)を みつけた！", empty: "下(した)の ボタンで 動物(どうぶつ)の 写真(しゃしん)を 撮(と)って みよう！",
+    hint0: "動物(どうぶつ)を みつけて 写真(しゃしん)を 撮(と)ろう！", hint1: "最初(さいしょ)の 動物(どうぶつ) ゲット！ 次(つぎ)は なにかな？",
+    notFound: "動物(どうぶつ)が みつからなかったかも。名前(なまえ)を 入(い)れてね。",
+    delGroup: "🗑️ この 動物(どうぶつ)を 図鑑(ずかん)から 消(け)す",
+    levels: ["動物(どうぶつ)みつけ 見習(みなら)い", "動物(どうぶつ)みつけ 探偵(たんてい)", "動物(どうぶつ)ハンター", "動物(どうぶつ)博士(はかせ)", "動物(どうぶつ)マスター", "動物(どうぶつ)キング", "動物(どうぶつ)レジェンド"],
+    think: ["AIが 動物(どうぶつ)を 調(しら)べて いるよ！", "どんな 動物(どうぶつ)かな…？", "足(あし)あとを 追(お)いかけ中(ちゅう)🐾", "もう少(すこ)しで わかるよ！"],
+  },
 ];
+const ZUKAN_IDS = ["mushi", "hana", "doubutsu"];
 let ZUKAN_KIND = "mushi";
-function setZukanKind(k) { ZUKAN_KIND = (k === "hana") ? "hana" : "mushi"; }
+function setZukanKind(k) { ZUKAN_KIND = ZUKAN_IDS.indexOf(k) >= 0 ? k : "mushi"; }
 function zukanMeta(id) { return ZUKANS.find((z) => z.id === (id || ZUKAN_KIND)) || ZUKANS[0]; }
 
 /* おはなの なかまわけ */
@@ -401,7 +413,10 @@ const FLOWER_CATEGORIES = [
   { id: "f_other",  label: "その他(ほか)",             emoji: "🌱" },
 ];
 
-function categoriesFor(kind) { return (kind || ZUKAN_KIND) === "hana" ? FLOWER_CATEGORIES : CATEGORIES; }
+function categoriesFor(kind) {
+  const k = kind || ZUKAN_KIND;
+  return k === "hana" ? FLOWER_CATEGORIES : k === "doubutsu" ? ANIMAL_CATEGORIES : CATEGORIES;
+}
 function categoryOrderFor(kind) { return categoriesFor(kind).map((c) => c.id); }
 
 const _FCAT_KEYWORDS = [
@@ -582,6 +597,435 @@ const _FALIASES = {
 };
 
 function matchKnownFlower(name) { return _matchFrom(FLOWERS, _FALIASES, name); }
+
+
+/* ============================================================
+   どうぶつずかん
+   ============================================================ */
+const ANIMAL_CATEGORIES = [
+  { id: "a_pet",   label: "ペット・家(いえ)の 動物(どうぶつ)",   emoji: "🐶" },
+  { id: "a_bird",  label: "鳥(とり)",                            emoji: "🐦" },
+  { id: "a_wild",  label: "野山(のやま)の 動物(どうぶつ)",       emoji: "🦊" },
+  { id: "a_water", label: "水(みず)の 生(い)きもの",             emoji: "🐟" },
+  { id: "a_rep",   label: "は虫類(ちゅうるい)・両生類(りょうせいるい)", emoji: "🦎" },
+  { id: "a_zoo",   label: "動物園(どうぶつえん)の 人気者(にんきもの)", emoji: "🦁" },
+  { id: "a_farm",  label: "牧場(ぼくじょう)の 動物(どうぶつ)",   emoji: "🐄" },
+  { id: "a_other", label: "その他(ほか)",                        emoji: "🐾" },
+];
+
+const _ACAT_KEYWORDS = [
+  ["a_pet",   ["いぬ", "ねこ", "うさぎ", "はむすたー", "もるもっと", "ふぇれっと", "こいぬ", "こねこ",
+               "しばいぬ", "ちわわ", "といぷーどる", "だっくすふんど", "ぽめらにあん", "れとりばー",
+               "dog", "cat", "puppy", "kitten", "rabbit", "bunny", "hamster", "guinea pig"]],
+  ["a_bird",  ["すずめ", "はと", "からす", "つばめ", "しじゅうから", "めじろ", "ひよどり", "むくどり",
+               "せきれい", "かも", "かるがも", "はくちょう", "さぎ", "しらさぎ", "とんび", "とび",
+               "きじ", "いんこ", "おうむ", "にわとり", "ひよこ", "ふくろう", "きつつき", "かもめ", "とり",
+               "bird", "sparrow", "pigeon", "dove", "crow", "raven", "duck", "swan", "heron", "owl", "parrot"]],
+  ["a_wild",  ["りす", "たぬき", "きつね", "しか", "いのしし", "さる", "にほんざる", "いたち",
+               "はくびしん", "こうもり", "ねずみ", "もぐら", "うさぎの やせい", "くま",
+               "squirrel", "chipmunk", "fox", "deer", "boar", "monkey", "bear", "raccoon", "weasel", "mole", "bat"]],
+  ["a_water", ["さかな", "きんぎょ", "こい", "めだか", "ふな", "どじょう", "ざりがに", "えび", "かに",
+               "いるか", "くじら", "あざらし", "らっこ", "ぺんぎん", "くらげ", "たこ", "いか",
+               "ひとで", "やどかり", "うみがめ", "まんぼう", "さめ", "えい",
+               "fish", "goldfish", "carp", "dolphin", "whale", "seal", "otter", "penguin", "crab", "shrimp", "jellyfish"]],
+  ["a_rep",   ["かめ", "とかげ", "やもり", "かなへび", "へび", "いもり", "かえる", "がえる",
+               "おたまじゃくし", "わに", "いぐあな", "かめれおん",
+               "turtle", "tortoise", "lizard", "gecko", "snake", "frog", "toad", "newt", "crocodile", "iguana"]],
+  ["a_zoo",   ["ぞう", "きりん", "らいおん", "とら", "しまうま", "かば", "さい", "ごりら", "ちんぱんじー",
+               "こあら", "かんがるー", "ぱんだ", "しろくま", "ほっきょくぐま", "らくだ", "みーあきゃっと",
+               "れっさーぱんだ", "なまけもの", "はりねずみ",
+               "elephant", "giraffe", "lion", "tiger", "zebra", "hippo", "rhino", "gorilla",
+               "panda", "koala", "kangaroo", "camel", "sloth", "meerkat", "hedgehog"]],
+  ["a_farm",  ["うし", "うま", "ぶた", "ひつじ", "やぎ", "あひる", "ろば", "ぽにー", "こうし", "こうま",
+               "cow", "cattle", "horse", "pony", "pig", "sheep", "goat", "donkey"]],
+];
+const _ACAT_LABEL_MAP = {
+  "ぺっといえのどうぶつ": "a_pet", "とり": "a_bird", "のやまのどうぶつ": "a_wild",
+  "みずのいきもの": "a_water", "はちゅうるいりょうせいるい": "a_rep",
+  "どうぶつえんのどうぶつ": "a_zoo", "ぼくじょうのどうぶつ": "a_farm",
+};
+function _matchACat(hay) {
+  if (!hay) return null;
+  for (const [id, kws] of _ACAT_KEYWORDS) {
+    for (const kw of kws) {
+      const k = _norm(kw);
+      if (k.length >= 2 && hay.includes(k)) return id;
+    }
+  }
+  return null;
+}
+function _acatFromLabel(label) {
+  const k = _norm(label);
+  if (!k) return null;
+  if (k === "そのほか") return null;
+  if (_ACAT_LABEL_MAP[k]) return _ACAT_LABEL_MAP[k];
+  for (const key in _ACAT_LABEL_MAP) {
+    if (k.includes(key) || key.includes(k)) return _ACAT_LABEL_MAP[key];
+  }
+  return _matchACat(k);
+}
+function categorizeAnimal(name, aiCategory) {
+  const known = matchKnownAnimal(name);
+  if (known && known.cat) return known.cat;
+  const byAi = _acatFromLabel(aiCategory);
+  if (byAi) return byAi;
+  const hit = _matchACat(_norm(name));
+  if (hit) return hit;
+  return "a_other";
+}
+
+/* どうぶつの イラスト（ずかんに ある もの）*/
+const ANIMALS = [
+  {
+    id: "inu", name: "いぬ", kana: "イヌ", stars: 1, color: "#d99a5b", cat: "a_pet",
+    where: "おうち・こうえんの おさんぽ", fact: "においを かぐ 力(ちから)が 人(ひと)の 1万倍(まんばい)！",
+    attack: 420, defense: 380, hand: "グー", family: "イヌ科",
+    size: "体長(たいちょう) 20〜80cm・重(おも)さ 2〜40kg（種類(しゅるい)に よって ぜんぜん ちがうよ）",
+    trivia: ["鼻(はな)の しわの 形(かたち)は、人(ひと)の 指紋(しもん)と おなじで 1匹(ぴき)ずつ ちがうよ。",
+             "しっぽを 右(みぎ)に ふる ときは うれしい 気持(きも)ち なんだって。",
+             "汗(あせ)を かけないので、はぁはぁ して 体(からだ)を ひやして いるんだ。"],
+    habitat: "世界中(せかいじゅう)の 人(ひと)の そば。1万年(まんねん)より 前(まえ)から 人(ひと)と いっしょに くらして いる、いちばん 古(ふる)い 友(とも)だち だよ。",
+    season: "一年中(いちねんじゅう)。朝(あさ)と 夕方(ゆうがた)の おさんぽの 時間(じかん)に よく 会(あ)えるよ。",
+    food: "ドッグフード。たまねぎと チョコレートは 毒(どく)だから ぜったい あげないでね。",
+    care: "知(し)らない 犬(いぬ)には いきなり さわらないで、かいぬしさんに 聞(き)いてから。手(て)の こうを そっと 出(だ)して においを かがせると 安心(あんしん)して くれるよ。",
+  },
+  {
+    id: "neko", name: "ねこ", kana: "ネコ", stars: 1, color: "#a7aeb5", cat: "a_pet",
+    where: "まちの すみ・こうえん・おうち", fact: "1日(にち)に 16時間(じかん)も ねむる ねぼすけ！",
+    attack: 380, defense: 300, hand: "チョキ", family: "ネコ科",
+    size: "体長(たいちょう) 45〜55cm（しっぽは べつに 25cm くらい）・重(おも)さ 3〜5kg",
+    trivia: ["ひげは センサー。せまい すきまを 通(とお)れるか、ひげで はかって いるよ。",
+             "ゴロゴロと のどを ならす 音(おと)には、けがを 早(はや)く 治(なお)す 力(ちから)が あるらしいよ。",
+             "しっぽを ぴんと 立(た)てて 近(ちか)づいて きたら「なかよく しよう」の あいさつ だよ。"],
+    habitat: "世界中(せかいじゅう)の まち。日(ひ)なたの 石(いし)の 上(うえ)や、車(くるま)の 下(した)、こうえんの ベンチの まわりに いる ことが 多(おお)いよ。",
+    season: "一年中(いちねんじゅう)。あたたかい 昼(ひる)は 日(ひ)なたぼっこ、夜(よる)は げんきに 動(うご)くよ。",
+    food: "キャットフードや さかな。牛乳(ぎゅうにゅう)は おなかを こわす ことが あるよ。",
+    care: "のら猫(ねこ)は そっと 見(み)るだけに しようね。おうちの 猫(ねこ)は、あごの 下(した)を やさしく なでると よろこぶよ。",
+  },
+  {
+    id: "usagi", name: "うさぎ", kana: "ウサギ", stars: 2, color: "#f3ece6", cat: "a_pet",
+    where: "ふれあい どうぶつえん・おうち", fact: "うれしい ときは ぴょんと ジャンプして 体(からだ)を ひねるよ！",
+    attack: 260, defense: 320, hand: "パー", family: "ウサギ科",
+    size: "体長(たいちょう) 30〜50cm・重(おも)さ 1〜3kg",
+    trivia: ["長(なが)い 耳(みみ)は、音(おと)を 聞(き)くだけで なく、体(からだ)の 熱(ねつ)を にがす エアコン でも あるよ。",
+             "目(め)が 顔(かお)の よこに ついて いるので、うしろも ほとんど 見(み)えて いるんだ。",
+             "歯(は)が 一生(いっしょう) のび つづけるので、かたい 牧草(ぼくそう)で けずって いるよ。"],
+    habitat: "野生(やせい)の ノウサギは 日本(にほん)の 野山(のやま)に。ペットの ウサギは おうちの 中(なか)で くらして いるよ。",
+    season: "一年中(いちねんじゅう)。暑(あつ)さが とても 苦手(にがて) だよ。",
+    food: "牧草(ぼくそう)（チモシー）が いちばん。にんじんは おやつ くらいで じゅうぶん。",
+    care: "だっこは 苦手(にがて)な 子(こ)が 多(おお)いよ。せなかを そっと なでて あげよう。だきあげる ときは おしりを ささえてね。",
+  },
+  {
+    id: "suzume", name: "すずめ", kana: "スズメ", stars: 1, color: "#c49a68", cat: "a_bird",
+    where: "こうえん・でんせん・おうちの やね", fact: "ほっぺの 黒(くろ)い ぽちが スズメの めじるし！",
+    attack: 200, defense: 180, hand: "パー", family: "スズメ科",
+    size: "体長(たいちょう) 14〜15cm・重(おも)さ 24g くらい",
+    trivia: ["ほっぺの 黒(くろ)い もようは、大人(おとな)に なると はっきり して くるよ。",
+             "寒(さむ)い 日(ひ)は 羽(はね)を ふくらませて まんまるに なる。「ふくらすずめ」と いうんだ。",
+             "ぴょんぴょんと 両足(りょうあし) そろえて 進(すす)むのが スズメの あるきかた だよ。"],
+    habitat: "日本(にほん) 全国(ぜんこく)の まちと 田(た)んぼ。人(ひと)が 住(す)んで いる ところの すぐ そばで くらす、とても 身近(みぢか)な 鳥(とり) だよ。",
+    season: "一年中(いちねんじゅう)。朝(あさ)に いちばん にぎやかに 鳴(な)くよ。",
+    food: "草(くさ)の たね・お米(こめ)・虫(むし)。ひなには 虫(むし)を あげるんだ。",
+    care: "野鳥(やちょう)なので 飼(か)えないよ。すが 落(お)ちて いても さわらずに、そっと 見(み)まもってね。",
+  },
+  {
+    id: "hato", name: "はと", kana: "ハト", stars: 1, color: "#97a1b8", cat: "a_bird",
+    where: "こうえん・えきまえ・じんじゃ", fact: "おうちまで 何百(なんびゃく)キロでも 帰(かえ)れる 方向(ほうこう)の 天才(てんさい)！",
+    attack: 220, defense: 240, hand: "パー", family: "ハト科",
+    size: "体長(たいちょう) 30〜35cm・重(おも)さ 300g くらい",
+    trivia: ["首(くび)の みどりや むらさきの 光(ひか)る 色(いろ)は、絵(え)の具(ぐ)では なく 光(ひかり)の はんしゃ だよ。",
+             "地球(ちきゅう)の 磁石(じしゃく)の 力(ちから)を 感(かん)じて、道(みち)を 見(み)つけて いると 言(い)われて いるよ。",
+             "歩(ある)く ときに 首(くび)を ふるのは、目(め)で 景色(けしき)を 止(と)めて 見(み)る ため なんだ。"],
+    habitat: "日本(にほん) 全国(ぜんこく)の まち・こうえん・じんじゃ。もともとは がけに すむ 鳥(とり)なので、ビルの すきまを がけの かわりに して いるよ。",
+    season: "一年中(いちねんじゅう)。",
+    food: "草(くさ)の たね・木(き)の 実(み)・パンくず。",
+    care: "野鳥(やちょう)なので 飼(か)えないよ。えさを あげるのが 禁止(きんし)の こうえんも あるから、気(き)を つけてね。",
+  },
+  {
+    id: "karasu", name: "からす", kana: "カラス", stars: 2, color: "#333a47", cat: "a_bird",
+    where: "こうえん・ごみ しゅうしゅうじょ・でんちゅう", fact: "道具(どうぐ)を つかえる、鳥(とり)の 中(なか)の てんさい！",
+    attack: 420, defense: 300, hand: "チョキ", family: "カラス科",
+    size: "体長(たいちょう) 50〜57cm・つばさを ひろげると 1m ちかく",
+    trivia: ["かたい くるみを 道路(どうろ)に 落(お)として、車(くるま)に わって もらう カラスが いるよ。",
+             "人(ひと)の 顔(かお)を おぼえられて、いじわるした 人(ひと)を 何年(なんねん)も おぼえて いるんだ。",
+             "水(みず)に 食(た)べものを ひたして やわらかく してから 食(た)べる ことも あるよ。"],
+    habitat: "日本(にほん) 全国(ぜんこく)。まちの ハシブトガラスと、田(た)んぼの ハシボソガラスが いるよ。高(たか)い 木(き)や 鉄塔(てっとう)に すを つくるんだ。",
+    season: "一年中(いちねんじゅう)。春(はる)の 子育(こそだ)て中(ちゅう)は 近(ちか)づくと おこる ことが あるよ。",
+    food: "なんでも 食(た)べる。木(き)の 実(み)・虫(むし)・小(ちい)さな 動物(どうぶつ)・のこった ごはん。",
+    care: "野鳥(やちょう)なので 飼(か)えないよ。春(はる)〜夏(なつ)に 頭(あたま)の 上(うえ)を 飛(と)ばれたら、すが 近(ちか)い 合図(あいず)。しずかに はなれてね。",
+  },
+  {
+    id: "kamo", name: "かも", kana: "カモ", stars: 2, color: "#b09a72", cat: "a_bird",
+    where: "いけ・かわ・こうえんの みずべ", fact: "羽(はね)に あぶらを ぬって いるから、水(みず)に ぬれないよ！",
+    attack: 260, defense: 280, hand: "パー", family: "カモ科",
+    size: "体長(たいちょう) 50〜60cm・重(おも)さ 1kg くらい",
+    trivia: ["おしりに ある 油(あぶら)の つぶを くちばしで ぬって、羽(はね)を 水(みず)を はじく ように して いるよ。",
+             "冷(つめ)たい 水(みず)に 足(あし)を つけても へいきなのは、足(あし)の 血(ち)の 通(とお)りかたが とくべつ だから。",
+             "うまれた ばかりの ひなは、はじめに 見(み)た 動(うご)く ものを お母(かあ)さんと 思(おも)うんだ。"],
+    habitat: "日本(にほん) 全国(ぜんこく)の 池(いけ)・川(かわ)・湖(みずうみ)。カルガモは 一年中(いちねんじゅう) いて、ほかの カモは 冬(ふゆ)に 北(きた)から やって くるよ。",
+    season: "カルガモは 一年中(いちねんじゅう)。その ほかの カモは 11月(がつ)〜3月(がつ)。",
+    food: "水草(みずくさ)・草(くさ)の たね・小(ちい)さな 虫(むし)。",
+    care: "野鳥(やちょう)なので 飼(か)えないよ。ひなを つれた 親(おや)ガモには 近(ちか)づかないで、遠(とお)くから 見(み)よう。",
+  },
+  {
+    id: "kingyo", name: "きんぎょ", kana: "キンギョ", stars: 2, color: "#ff7a45", cat: "a_water",
+    where: "おまつりの きんぎょすくい・おうちの すいそう", fact: "じつは フナから 生(う)まれた、人(ひと)が つくった さかな！",
+    attack: 180, defense: 200, hand: "パー", family: "コイ科",
+    size: "体長(たいちょう) 5〜30cm（そだてかたで 大(おお)きさが かわるよ）",
+    trivia: ["じょうずに 育(そだ)てると 10年(ねん)〜15年(ねん)も 生(い)きるんだ。",
+             "まぶたが ないので、目(め)を あけたまま ねむって いるよ。",
+             "色(いろ)や 音(おと)を おぼえられて、ごはんの 時間(じかん)が わかる 子(こ)も いるんだって。"],
+    habitat: "おうちの 水(みず)そうや 池(いけ)。もとは 中国(ちゅうごく)で フナから つくられて、日本(にほん)には 500年(ねん)くらい 前(まえ)に やって きたよ。",
+    season: "一年中(いちねんじゅう)。夏(なつ)の おまつりで よく 会(あ)えるね。",
+    food: "金魚(きんぎょ)の えさ。あげすぎは 水(みず)が よごれる 原因(げんいん)だから 少(すこ)しずつ。",
+    care: "水道水(すいどうすい)は カルキぬきを してから 入(い)れてね。水(みず)を かえる ときは 全部(ぜんぶ)では なく 3分(ぶん)の 1 くらいずつ。",
+  },
+  {
+    id: "kame", name: "かめ", kana: "カメ", stars: 3, color: "#5f8f52", cat: "a_rep",
+    where: "こうえんの いけ・かわの いし の うえ", fact: "こうらは 骨(ほね)。ぬいだり できないよ！",
+    attack: 300, defense: 620, hand: "グー", family: "ヌマガメ科",
+    size: "こうらの ながさ 12〜25cm",
+    trivia: ["こうらは せぼねと あばら骨(ぼね)が くっついて できた もの。だから 中身(なかみ)は ぬけないんだ。",
+             "石(いし)の 上(うえ)で 日(ひ)なたぼっこするのは、体(からだ)を あたためて 元気(げんき)に なる ため だよ。",
+             "とても 長生(ながい)きで、100年(ねん) 以上(いじょう) 生(い)きる 種類(しゅるい)も いるよ。"],
+    habitat: "日本(にほん) 全国(ぜんこく)の 池(いけ)・川(かわ)・水(みず)を ためた 田(た)んぼ。晴(は)れた 日(ひ)は 石(いし)や 流木(りゅうぼく)の 上(うえ)に ならんで いるよ。",
+    season: "4月(がつ)〜10月(がつ)。寒(さむ)く なると 泥(どろ)の 中(なか)で 冬(ふゆ)ごし するよ。",
+    food: "水草(みずくさ)・小(ちい)さな 魚(さかな)・虫(むし)。",
+    care: "野生(やせい)の カメは つれて 帰(かえ)らないでね。飼(か)う ときは、日(ひ)なたぼっこ できる 陸地(りくち)と、あたたかい ライトが 必要(ひつよう) だよ。",
+  },
+  {
+    id: "tokage", name: "とかげ", kana: "トカゲ", stars: 3, color: "#6aa84f", cat: "a_rep",
+    where: "いしがき・ひなたの じめん", fact: "しっぽを 切(き)って にげる わざを もって いる！",
+    attack: 340, defense: 260, hand: "チョキ", family: "トカゲ科",
+    size: "体長(たいちょう) 15〜25cm（半分(はんぶん)くらいが しっぽ）",
+    trivia: ["しっぽは 切(き)れても また はえて くるけど、前(まえ)と おなじ 形(かたち)には ならないんだ。",
+             "子(こ)どもの ニホントカゲの しっぽは、あざやかな 青色(あおいろ)を して いるよ。",
+             "体(からだ)を あたためないと 動(うご)けないので、朝(あさ)は 日(ひ)なたで じっと して いるよ。"],
+    habitat: "日本(にほん) 全国(ぜんこく)の 石(いし)がき・草(くさ)むら・こうえんの 日(ひ)あたりの いい 場所(ばしょ)。かくれる すきまが ある ところが 好(す)き だよ。",
+    season: "4月(がつ)〜10月(がつ)。晴(は)れた 日(ひ)の 午前中(ごぜんちゅう)が いちばん 見(み)つけやすいよ。",
+    food: "小(ちい)さな 虫(むし)・クモ・ダンゴムシ。",
+    care: "つかまえる ときは しっぽを 持(も)たないでね（切(き)れちゃう）。見(み)たら すぐ 元(もと)の 場所(ばしょ)に 逃(に)がして あげよう。",
+  },
+  {
+    id: "risu", name: "りす", kana: "リス", stars: 4, color: "#c98a4b", cat: "a_wild",
+    where: "もりの 木(き)の うえ・こうえんの おおきな き", fact: "どんぐりを かくして、ばしょを わすれる ことも！",
+    attack: 280, defense: 240, hand: "チョキ", family: "リス科",
+    size: "体長(たいちょう) 16〜22cm・しっぽも おなじ くらい ながいよ",
+    trivia: ["かくした どんぐりを わすれる ことが あって、それが 芽(め)を 出(だ)して 森(もり)の 木(き)に なるんだ。",
+             "ふさふさの しっぽは バランスを とる ぼうで あり、寒(さむ)い 日(ひ)の ふとん でも あるよ。",
+             "ほっぺの ふくろに、どんぐりを いくつも つめて 運(はこ)べるんだ。"],
+    habitat: "本州(ほんしゅう)の 山(やま)の 林(はやし)と、大(おお)きな こうえん。北海道(ほっかいどう)には エゾリスが いるよ。木(き)の 上(うえ)を すばやく 走(はし)りまわるんだ。",
+    season: "一年中(いちねんじゅう)。朝(あさ)と 夕方(ゆうがた)に 活動(かつどう)するよ。",
+    food: "どんぐり・くるみ・松(まつ)ぼっくりの たね・木(き)の 芽(め)。",
+    care: "野生(やせい)の 動物(どうぶつ)なので 飼(か)えないよ。えさを あげると 人(ひと)を こわがらなく なって 危(あぶ)ないから、見(み)るだけに しようね。",
+  },
+  {
+    id: "zou", name: "ぞう", kana: "ゾウ", stars: 5, color: "#9aa5ad", cat: "a_zoo",
+    where: "どうぶつえん", fact: "鼻(はな)で つかむ・のむ・シャワーまで できる！",
+    attack: 780, defense: 720, hand: "グー", family: "ゾウ科",
+    size: "高(たか)さ 2.5〜3.5m・重(おも)さ 3000〜6000kg（車(くるま) 4台分(だいぶん)！）",
+    trivia: ["鼻(はな)には 骨(ほね)が なく、4万(まん)もの 筋肉(きんにく)で できて いるよ。",
+             "大(おお)きな 耳(みみ)を ぱたぱた させて、体(からだ)の 熱(ねつ)を にがして いるんだ。",
+             "足(あし)の うらで 地面(じめん)の ふるえを 感(かん)じて、遠(とお)くの なかまと お話(はなし)できるよ。"],
+    habitat: "アフリカや アジアの サバンナと 森(もり)。日本(にほん)では 動物園(どうぶつえん)で 会(あ)えるよ。",
+    season: "一年中(いちねんじゅう)。",
+    food: "草(くさ)・木(き)の 葉(は)・くだもの。1日(にち)に 100kg 以上(いじょう) 食(た)べるよ。",
+    care: "おうちでは 飼(か)えないよ。動物園(どうぶつえん)では 手(て)を 出(だ)さずに、しずかに 見(み)よう。",
+  },
+  {
+    id: "kirin", name: "きりん", kana: "キリン", stars: 5, color: "#e8b84b", cat: "a_zoo",
+    where: "どうぶつえん", fact: "せかいで いちばん せが 高(たか)い どうぶつ！",
+    attack: 620, defense: 560, hand: "パー", family: "キリン科",
+    size: "高(たか)さ 4.5〜5.5m・重(おも)さ 800〜1200kg",
+    trivia: ["あんなに 首(くび)が 長(なが)いのに、首(くび)の 骨(ほね)の 数(かず)は 人(ひと)と おなじ 7つ だよ。",
+             "舌(した)は 40cm も あって、とげの ある 木(き)の 葉(は)も じょうずに 食(た)べられるんだ。",
+             "1日(にち)に 20分(ぷん)〜2時間(じかん)しか ねむらない、ねむりの みじかい 動物(どうぶつ) だよ。"],
+    habitat: "アフリカの サバンナ。日本(にほん)では 動物園(どうぶつえん)で 会(あ)えるよ。",
+    season: "一年中(いちねんじゅう)。",
+    food: "アカシアなど 高(たか)い 木(き)の 葉(は)っぱ。",
+    care: "おうちでは 飼(か)えないよ。えさやり 体験(たいけん)が ある 動物園(どうぶつえん)では、係(かかり)の 人(ひと)の お話(はなし)を よく 聞(き)いてね。",
+  },
+  {
+    id: "raion", name: "らいおん", kana: "ライオン", stars: 5, color: "#d99a3f", cat: "a_zoo",
+    where: "どうぶつえん", fact: "ほえる 声(こえ)は 8km さきまで とどく！",
+    attack: 860, defense: 600, hand: "グー", family: "ネコ科",
+    size: "体長(たいちょう) 1.7〜2.5m・重(おも)さ 150〜250kg",
+    trivia: ["りっぱな たてがみが あるのは オスだけ。こい 色(いろ)ほど 強(つよ)い しるし なんだ。",
+             "かりを するのは おもに メス。みんなで 力(ちから)を あわせて つかまえるよ。",
+             "1日(にち)の うち 20時間(じかん)も ごろごろ 休(やす)んで いる、のんびりやさん でも あるよ。"],
+    habitat: "アフリカの サバンナや 草原(そうげん)。「プライド」と いう 家族(かぞく)の むれで くらして いるよ。",
+    season: "一年中(いちねんじゅう)。",
+    food: "シマウマや シカなど、大(おお)きな 草(くさ)を 食(た)べる 動物(どうぶつ)。",
+    care: "おうちでは 飼(か)えないよ。動物園(どうぶつえん)の さくには ぜったい 手(て)を 入(い)れないでね。",
+  },
+  {
+    id: "ushi", name: "うし", kana: "ウシ", stars: 3, color: "#f4f1ec", cat: "a_farm",
+    where: "ぼくじょう・ふれあい ひろば", fact: "胃(い)が 4つも ある、草(くさ)を 消化(しょうか)する 名人(めいじん)！",
+    attack: 560, defense: 640, hand: "グー", family: "ウシ科",
+    size: "体長(たいちょう) 2〜2.5m・重(おも)さ 500〜900kg",
+    trivia: ["いちど 飲(の)みこんだ 草(くさ)を 口(くち)に もどして、また かむ。これを「はんすう」と いうよ。",
+             "白黒(しろくろ)の もようは 1頭(とう)ずつ ちがう ので、模様(もよう)で 見分(みわ)けられるんだ。",
+             "1日(にち)に 20〜30リットルの ミルクを 出(だ)す ウシも いるよ。牛乳(ぎゅうにゅう)パック 30本分(ぼんぶん)！"],
+    habitat: "世界中(せかいじゅう)の 牧場(ぼくじょう)。日本(にほん)では 北海道(ほっかいどう)に とくに たくさん いるよ。",
+    season: "一年中(いちねんじゅう)。",
+    food: "牧草(ぼくそう)・とうもろこし・わら。",
+    care: "おうちでは 飼(か)えないよ。牧場(ぼくじょう)で さわった あとは、かならず 手(て)を あらってね。",
+  },
+];
+
+const GENERIC_ANIMAL = {
+  color: "#c2a87e",
+  svg: `<svg viewBox="0 0 120 120"><path d="M88 92 q18 -6 14 -22" stroke="#a58c6a" stroke-width="8" fill="none" stroke-linecap="round"/>
+    <ellipse cx="58" cy="86" rx="26" ry="22" fill="#c2a87e"/>
+    <circle cx="38" cy="34" r="11" fill="#a58c6a"/><circle cx="82" cy="34" r="11" fill="#a58c6a"/>
+    <circle cx="60" cy="52" r="27" fill="#d6bd93"/>
+    <circle cx="50" cy="48" r="4.6" fill="#3b2f1d"/><circle cx="70" cy="48" r="4.6" fill="#3b2f1d"/>
+    <circle cx="51.6" cy="46.4" r="1.7" fill="#fff"/><circle cx="71.6" cy="46.4" r="1.7" fill="#fff"/>
+    <ellipse cx="60" cy="63" rx="11" ry="8" fill="#f3e6cd"/>
+    <ellipse cx="60" cy="59" rx="4.6" ry="3.4" fill="#3b2f1d"/>
+    <path d="M60 63 v3 M60 66 q-5 5 -9 1 M60 66 q5 5 9 1" stroke="#3b2f1d" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg>`
+};
+
+/* どうぶつの イラスト（SVG）。とりは かたちが おなじ なので 色(いろ)だけ かえて つくる。*/
+const _birdSvg = (body, wing, head, beak, tail, mark) =>
+  `<svg viewBox="0 0 120 120"><path d="M86 78 l28 -7 l-8 15 l6 12 l-28 -8Z" fill="${tail}"/>
+    <ellipse cx="62" cy="70" rx="30" ry="26" fill="${body}"/>
+    <ellipse cx="70" cy="74" rx="20" ry="14" fill="${wing}"/>
+    <circle cx="42" cy="42" r="18" fill="${head}"/>
+    <path d="M30 30 q12 -9 22 0 q-1 -13 -11 -13 q-11 0 -11 13Z" fill="${mark}"/>
+    <circle cx="38" cy="41" r="4.4" fill="#241b12"/><circle cx="39.6" cy="39.4" r="1.6" fill="#fff"/>
+    <path d="M25 46 l-13 4 l13 5Z" fill="${beak}"/>
+    <g stroke="${beak}" stroke-width="3.6" stroke-linecap="round"><path d="M54 94 v10 M50 104 h9"/><path d="M70 94 v10 M66 104 h9"/></g></svg>`;
+
+const _ANIMAL_SVG = {
+  inu: `<svg viewBox="0 0 120 120"><path d="M86 92 q18 -4 16 -22" stroke="#a9713a" stroke-width="9" fill="none" stroke-linecap="round"/>
+    <ellipse cx="58" cy="88" rx="27" ry="22" fill="#d99a5b"/>
+    <path d="M34 44 q-9 -25 6 -27 q12 -1 14 19Z" fill="#a9713a"/><path d="M86 44 q9 -25 -6 -27 q-12 -1 -14 19Z" fill="#a9713a"/>
+    <circle cx="60" cy="52" r="27" fill="#e8b06e"/><ellipse cx="60" cy="66" rx="15" ry="11" fill="#fbe6cf"/>
+    <circle cx="50" cy="47" r="4.5" fill="#3b2a18"/><circle cx="70" cy="47" r="4.5" fill="#3b2a18"/>
+    <circle cx="51.6" cy="45.4" r="1.7" fill="#fff"/><circle cx="71.6" cy="45.4" r="1.7" fill="#fff"/>
+    <ellipse cx="60" cy="61" rx="6" ry="4.5" fill="#3b2a18"/>
+    <path d="M60 65 v4 M60 69 q-6 5 -10 1 M60 69 q6 5 10 1" stroke="#3b2a18" stroke-width="2.6" fill="none" stroke-linecap="round"/></svg>`,
+  neko: `<svg viewBox="0 0 120 120"><path d="M88 94 q20 -2 16 -24" stroke="#8b9299" stroke-width="9" fill="none" stroke-linecap="round"/>
+    <ellipse cx="58" cy="90" rx="26" ry="20" fill="#a7aeb5"/>
+    <path d="M36 30 l3 24 l19 -9Z" fill="#8b9299"/><path d="M84 30 l-3 24 l-19 -9Z" fill="#8b9299"/>
+    <circle cx="60" cy="54" r="26" fill="#c2c8cd"/>
+    <circle cx="50" cy="50" r="5" fill="#2f3a2f"/><circle cx="70" cy="50" r="5" fill="#2f3a2f"/>
+    <circle cx="51.8" cy="48.2" r="1.8" fill="#fff"/><circle cx="71.8" cy="48.2" r="1.8" fill="#fff"/>
+    <path d="M55 62 h10 l-5 5Z" fill="#e8869a"/>
+    <path d="M60 67 q-5 5 -9 1 M60 67 q5 5 9 1" stroke="#4a5158" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+    <g stroke="#4a5158" stroke-width="2" stroke-linecap="round" opacity=".75"><path d="M46 62 l-16 -4"/><path d="M46 67 l-15 4"/><path d="M74 62 l16 -4"/><path d="M74 67 l15 4"/></g></svg>`,
+  usagi: `<svg viewBox="0 0 120 120"><ellipse cx="60" cy="86" rx="26" ry="24" fill="#f3ece6"/>
+    <ellipse cx="44" cy="34" rx="9" ry="27" fill="#f3ece6"/><ellipse cx="44" cy="34" rx="4.5" ry="19" fill="#f6c3ce"/>
+    <ellipse cx="76" cy="34" rx="9" ry="27" fill="#f3ece6"/><ellipse cx="76" cy="34" rx="4.5" ry="19" fill="#f6c3ce"/>
+    <circle cx="60" cy="64" r="24" fill="#fbf6f2"/>
+    <circle cx="51" cy="60" r="4.4" fill="#5b4438"/><circle cx="69" cy="60" r="4.4" fill="#5b4438"/>
+    <circle cx="52.5" cy="58.4" r="1.6" fill="#fff"/><circle cx="70.5" cy="58.4" r="1.6" fill="#fff"/>
+    <path d="M55 70 h10 l-5 5Z" fill="#e8869a"/>
+    <path d="M60 75 q-5 4 -9 0 M60 75 q5 4 9 0" stroke="#8b7565" stroke-width="2.3" fill="none" stroke-linecap="round"/></svg>`,
+  suzume: _birdSvg("#c49a68", "#a9793f", "#c49a68", "#efc35a", "#8a6540", "#5e4326"),
+  hato: _birdSvg("#aab4c8", "#8e99b0", "#97a1b8", "#e8a0a8", "#7c879e", "#6f9a86"),
+  karasu: _birdSvg("#3a4250", "#2b313c", "#333a47", "#1c1f26", "#2b313c", "#4a5468"),
+  kamo: _birdSvg("#b09a72", "#8f7c5b", "#3f7a4a", "#e8b84b", "#6f6047", "#2f5c38"),
+  kingyo: `<svg viewBox="0 0 120 120"><path d="M86 60 l26 -22 q7 22 0 44Z" fill="#ff9a5c"/>
+    <path d="M58 34 q10 -19 23 -15 q-4 15 -15 21Z" fill="#ffb182"/>
+    <path d="M52 84 q9 17 23 15 q-4 -15 -13 -19Z" fill="#ffb182"/>
+    <ellipse cx="56" cy="60" rx="34" ry="26" fill="#ff7a45"/>
+    <g fill="#ffc9a8" opacity=".75"><ellipse cx="64" cy="50" rx="8" ry="5"/><ellipse cx="76" cy="62" rx="6" ry="4"/></g>
+    <circle cx="34" cy="54" r="6" fill="#fff"/><circle cx="32.6" cy="54" r="3.3" fill="#2b2118"/>
+    <path d="M25 66 q9 6 17 2" stroke="#d95a2a" stroke-width="2.6" fill="none" stroke-linecap="round"/></svg>`,
+  kame: `<svg viewBox="0 0 120 120"><g fill="#8fbf6f"><ellipse cx="30" cy="92" rx="11" ry="7"/><ellipse cx="92" cy="92" rx="11" ry="7"/></g>
+    <path d="M94 66 q16 3 15 13 q-14 4 -18 -6Z" fill="#8fbf6f"/>
+    <circle cx="30" cy="58" r="16" fill="#9fcc7c"/>
+    <circle cx="23" cy="54" r="4.2" fill="#25361c"/><circle cx="24.4" cy="52.6" r="1.5" fill="#fff"/>
+    <path d="M18 65 q8 5 15 1" stroke="#4e7a37" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+    <path d="M30 76 q8 -34 42 -34 q36 0 36 31 q0 23 -36 23 q-34 0 -42 -20Z" fill="#5f8f52"/>
+    <g fill="none" stroke="#3f6b36" stroke-width="3"><path d="M48 46 q14 24 6 48"/><path d="M76 43 q-6 27 4 50"/><path d="M36 68 h70"/></g></svg>`,
+  tokage: `<svg viewBox="0 0 120 120"><path d="M92 66 q22 -3 22 -22 q0 -14 -12 -13" stroke="#7cb356" stroke-width="9" fill="none" stroke-linecap="round"/>
+    <g stroke="#4c8033" stroke-width="7" stroke-linecap="round"><path d="M46 74 l-9 16"/><path d="M74 74 l9 16"/><path d="M48 56 l-9 -14"/><path d="M76 56 l9 -14"/></g>
+    <ellipse cx="60" cy="66" rx="34" ry="17" fill="#6aa84f"/>
+    <circle cx="28" cy="60" r="15" fill="#7cb356"/>
+    <circle cx="22" cy="56" r="4.2" fill="#22381a"/><circle cx="23.4" cy="54.6" r="1.5" fill="#fff"/>
+    <path d="M15 66 q9 5 16 1" stroke="#3e6b2c" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+    <g fill="#4c8033" opacity=".65"><circle cx="56" cy="60" r="3.4"/><circle cx="70" cy="67" r="3.4"/><circle cx="82" cy="60" r="3"/></g></svg>`,
+  risu: `<svg viewBox="0 0 120 120"><path d="M90 100 q22 -14 18 -42 q-4 -24 -24 -21 q16 9 13 28 q-3 22 -16 28Z" fill="#c98a4b"/>
+    <ellipse cx="54" cy="84" rx="24" ry="26" fill="#c98a4b"/><ellipse cx="54" cy="90" rx="15" ry="18" fill="#f2dfc4"/>
+    <path d="M36 34 q-5 -15 6 -15 q10 0 9 15Z" fill="#a9713a"/><path d="M72 34 q5 -15 -6 -15 q-10 0 -9 15Z" fill="#a9713a"/>
+    <circle cx="54" cy="48" r="21" fill="#d99a5b"/>
+    <circle cx="46" cy="45" r="4.4" fill="#3b2a18"/><circle cx="62" cy="45" r="4.4" fill="#3b2a18"/>
+    <circle cx="47.5" cy="43.4" r="1.6" fill="#fff"/><circle cx="63.5" cy="43.4" r="1.6" fill="#fff"/>
+    <ellipse cx="54" cy="56" rx="4.4" ry="3.4" fill="#3b2a18"/>
+    <path d="M50 62 h8 v7 h-8Z" fill="#fffaf0"/></svg>`,
+  zou: `<svg viewBox="0 0 120 120"><ellipse cx="22" cy="52" rx="18" ry="25" fill="#8a959d"/><ellipse cx="98" cy="52" rx="18" ry="25" fill="#8a959d"/>
+    <ellipse cx="60" cy="54" rx="32" ry="30" fill="#9aa5ad"/>
+    <circle cx="48" cy="46" r="4.6" fill="#2f3a40"/><circle cx="72" cy="46" r="4.6" fill="#2f3a40"/>
+    <circle cx="49.6" cy="44.4" r="1.7" fill="#fff"/><circle cx="73.6" cy="44.4" r="1.7" fill="#fff"/>
+    <path d="M44 70 q-9 15 -5 24" stroke="#f4efe4" stroke-width="6" fill="none" stroke-linecap="round"/>
+    <path d="M76 70 q9 15 5 24" stroke="#f4efe4" stroke-width="6" fill="none" stroke-linecap="round"/>
+    <path d="M52 66 q-3 24 4 32 q7 8 15 1 q6 -6 -3 -10 q-6 -3 -4 -13Z" fill="#8a959d"/></svg>`,
+  kirin: `<svg viewBox="0 0 120 120"><path d="M52 112 V44" stroke="#e8b84b" stroke-width="19" stroke-linecap="round"/>
+    <g fill="#a9702c"><circle cx="47" cy="60" r="5"/><circle cx="58" cy="76" r="5"/><circle cx="47" cy="92" r="5"/><circle cx="58" cy="50" r="4"/></g>
+    <ellipse cx="66" cy="34" rx="22" ry="17" fill="#f0c65c"/><ellipse cx="83" cy="41" rx="10" ry="8" fill="#e0a840"/>
+    <circle cx="62" cy="30" r="4.2" fill="#3b2a18"/><circle cx="63.4" cy="28.6" r="1.5" fill="#fff"/>
+    <g stroke="#a9702c" stroke-width="4" stroke-linecap="round"><path d="M57 20 v-8"/><path d="M71 18 v-8"/></g>
+    <g fill="#a9702c"><circle cx="57" cy="10" r="4"/><circle cx="71" cy="8" r="4"/></g>
+    <g fill="#3b2a18"><circle cx="87" cy="38" r="1.8"/><circle cx="87" cy="45" r="1.8"/></g></svg>`,
+  raion: `<svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="44" fill="#c8862f"/>
+    <g fill="#e0a445"><circle cx="60" cy="17" r="11"/><circle cx="90" cy="29" r="11"/><circle cx="103" cy="60" r="11"/><circle cx="90" cy="91" r="11"/>
+    <circle cx="60" cy="103" r="11"/><circle cx="30" cy="91" r="11"/><circle cx="17" cy="60" r="11"/><circle cx="30" cy="29" r="11"/></g>
+    <circle cx="60" cy="60" r="31" fill="#f0c079"/>
+    <circle cx="49" cy="54" r="4.6" fill="#3b2a18"/><circle cx="71" cy="54" r="4.6" fill="#3b2a18"/>
+    <circle cx="50.6" cy="52.4" r="1.7" fill="#fff"/><circle cx="72.6" cy="52.4" r="1.7" fill="#fff"/>
+    <path d="M54 67 h12 l-6 6Z" fill="#8a5a2b"/>
+    <path d="M60 73 v4 M60 77 q-7 6 -12 1 M60 77 q7 6 12 1" stroke="#8a5a2b" stroke-width="2.8" fill="none" stroke-linecap="round"/></svg>`,
+  ushi: `<svg viewBox="0 0 120 120"><g fill="none" stroke="#ded0b4" stroke-width="8" stroke-linecap="round"><path d="M40 30 q-12 -8 -6 -18"/><path d="M80 30 q12 -8 6 -18"/></g>
+    <g fill="#f4f1ec"><ellipse cx="18" cy="56" rx="13" ry="8"/><ellipse cx="102" cy="56" rx="13" ry="8"/></g>
+    <ellipse cx="60" cy="62" rx="34" ry="30" fill="#f4f1ec"/>
+    <g fill="#3a3630"><ellipse cx="38" cy="44" rx="12" ry="9" transform="rotate(-20 38 44)"/><ellipse cx="85" cy="70" rx="11" ry="9" transform="rotate(15 85 70)"/></g>
+    <circle cx="48" cy="54" r="4.6" fill="#3b2a18"/><circle cx="72" cy="54" r="4.6" fill="#3b2a18"/>
+    <circle cx="49.6" cy="52.4" r="1.7" fill="#fff"/><circle cx="73.6" cy="52.4" r="1.7" fill="#fff"/>
+    <ellipse cx="60" cy="77" rx="18" ry="13" fill="#f6c3ce"/>
+    <g fill="#dd9dab"><circle cx="54" cy="75" r="2.6"/><circle cx="66" cy="75" r="2.6"/></g></svg>`,
+};
+for (const a of ANIMALS) a.svg = _ANIMAL_SVG[a.id] || GENERIC_ANIMAL.svg;
+
+const _AALIASES = {
+  inu: ["犬", "イヌ", "こいぬ", "しばいぬ", "しばけん", "柴犬", "といぷーどる", "ちわわ", "だっくすふんど", "dog", "puppy"],
+  neko: ["猫", "ネコ", "こねこ", "のらねこ", "みけねこ", "くろねこ", "cat", "kitten"],
+  usagi: ["兎", "ウサギ", "うさぎさん", "のうさぎ", "あなうさぎ", "rabbit", "bunny"],
+  suzume: ["雀", "スズメ", "すずめさん", "sparrow"],
+  hato: ["鳩", "ハト", "どばと", "きじばと", "pigeon", "dove"],
+  karasu: ["烏", "鴉", "カラス", "はしぶとがらす", "はしぼそがらす", "crow", "raven"],
+  kamo: ["鴨", "カモ", "かるがも", "まがも", "おながも", "duck", "mallard"],
+  kingyo: ["金魚", "キンギョ", "きんぎょさん", "goldfish"],
+  kame: ["亀", "カメ", "いしがめ", "くさがめ", "みししっぴあかみみがめ", "あかみみがめ", "turtle", "tortoise"],
+  tokage: ["蜥蜴", "トカゲ", "にほんとかげ", "かなへび", "にほんかなへび", "lizard", "skink"],
+  risu: ["栗鼠", "リス", "えぞりす", "にほんりす", "しまりす", "squirrel", "chipmunk"],
+  zou: ["象", "ゾウ", "あふりかぞう", "あじあぞう", "elephant"],
+  kirin: ["麒麟", "キリン", "giraffe"],
+  raion: ["獅子", "ライオン", "lion"],
+  ushi: ["牛", "ウシ", "こうし", "ほるすたいん", "にゅうぎゅう", "cow", "cattle"],
+};
+
+function matchKnownAnimal(name) { return _matchFrom(ANIMALS, _AALIASES, name); }
+
+/* ずかんの しゅるいに あわせて まとめて かえす ヘルパー */
+function libraryFor(kind) {
+  const k = kind || ZUKAN_KIND;
+  return k === "hana" ? FLOWERS : k === "doubutsu" ? ANIMALS : INSECTS;
+}
+function matchKnownAny(name, kind) {
+  const k = kind || ZUKAN_KIND;
+  return k === "hana" ? matchKnownFlower(name) : k === "doubutsu" ? matchKnownAnimal(name) : matchKnown(name);
+}
+function genericFor(kind) {
+  const k = kind || ZUKAN_KIND;
+  return k === "hana" ? GENERIC_FLOWER : k === "doubutsu" ? GENERIC_ANIMAL : GENERIC_BUG;
+}
+function defaultCatFor(kind) {
+  const k = kind || ZUKAN_KIND;
+  return k === "hana" ? "f_other" : k === "doubutsu" ? "a_other" : "other";
+}
 
 
 /* ============================================================

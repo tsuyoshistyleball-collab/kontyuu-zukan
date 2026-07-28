@@ -12,9 +12,10 @@ const DB = (() => {
   let backend = null; // "idb" | "ls"
   let idb = null;
   let ready = null;
-  let colId = "mushi";                       // いまの ずかん（mushi / hana）
+  const COLS = ["mushi", "hana", "doubutsu"]; // ずかんの しゅるい
+  let colId = "mushi";                       // いまの ずかん
   const recCol = (r) => (r && r.col) || "mushi";
-  function setCollection(id) { colId = (id === "hana") ? "hana" : "mushi"; }
+  function setCollection(id) { colId = COLS.indexOf(id) >= 0 ? id : "mushi"; }
 
   // ---------- きょうつう ヘルパー ----------
   function blobToDataURL(blob) {
