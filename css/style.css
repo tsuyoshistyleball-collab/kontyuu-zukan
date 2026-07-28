@@ -1489,6 +1489,14 @@ body[data-zukan="hana"] {
     linear-gradient(180deg, #fff7f8 0%, #fdeef2 60%, #fbe6ec 100%);
 }
 
+/* バックアップの おおきさの おしらせ */
+.backup-info {
+  margin: 2px 0 10px; padding: 9px 12px; border-radius: 14px;
+  background: rgba(255,255,255,.6); border: 2px dashed var(--frame);
+  font-size: 12px; line-height: 1.7;
+}
+.backup-info:empty { display: none; }
+
 /* どうぶつずかんの ときは ぜんたいを オレンジに */
 body[data-zukan="doubutsu"] {
   --green:   #e08a3c;

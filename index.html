@@ -288,10 +288,12 @@
 
     <div class="s-divider"></div>
     <p class="s-lead">💾 バックアップ（消(き)えないように ときどき 保存(ほぞん)してね）</p>
+    <p id="s-backup-info" class="s-note backup-info"></p>
     <label class="s-toggle">
-      <input id="s-auto-backup" type="checkbox" checked />
+      <input id="s-auto-backup" type="checkbox" />
       <span class="s-toggle-box" aria-hidden="true"></span>
-      <span class="s-toggle-text">自動(じどう)で バックアップする<br><small>登録(とうろく)した あと、1時間(じかん)に 1回(かい)まで ファイルを 保存(ほぞん)します</small></span>
+      <span class="s-toggle-text">自動(じどう)で バックアップする<br><small>オンに すると、1週間(しゅうかん)に 1回(かい)まで 自動(じどう)で ファイルを 保存(ほぞん)します。
+        1回(かい)ぶんに <b>写真(しゃしん)が ぜんぶ</b> 入(はい)る ので、その ぶん 場所(ばしょ)を 使(つか)います</small></span>
     </label>
     <button id="s-share" class="s-backup-btn share" hidden>📤 バックアップを ほかへ 送(おく)る</button>
     <button id="s-export" class="s-backup-btn save">💾 今(いま) バックアップを 保存(ほぞん)</button>
@@ -304,8 +306,11 @@
         <li>新(あたら)しい スマホで この アプリを 開(ひら)き、<b>「📂 バックアップから 戻(もど)す」</b> で その ファイルを えらぶ</li>
       </ol>
       <p class="s-note">写真(しゃしん)・場所(ばしょ)・★・表紙(ひょうし)まで、そのまま 引(ひ)きつがれます。</p>
+      <p class="s-note">🧹 バックアップは <b>1回(かい)ごとに 図鑑(ずかん) まるごとの コピー</b> です。
+        古(ふる)い ファイルは 消(け)して しまって だいじょうぶ。
+        <b>いちばん 新(あたら)しい 1つ</b> だけ 残(のこ)して おけば、ぜんぶ 戻(もど)せます。</p>
     </div>
-    <input id="s-import-file" type="file" accept="application/json,.json" hidden />
+    <input id="s-import-file" type="file" accept="application/json,application/gzip,.json,.gz" hidden />
     <p id="s-backup-result" class="s-test-result"></p>
 
     <div class="s-divider"></div>

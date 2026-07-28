@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v99";
+  const APP_VERSION = "v100";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -3512,6 +3512,7 @@
     refreshGDriveUI();
     $("#settings").showModal();
     rubyifyDOM($("#settings"));
+    updateBackupInfo();
   }
   function saveSettings() {
     Settings.key = $("#s-key").value.trim();
@@ -3601,11 +3602,15 @@
       : "💾 大事(だいじ)な 写真(しゃしん)を 守(まも)ろう！ タップで バックアップ";
   }
 
-  // ---- じどう バックアップ ----
-  const AUTO_KEY = "mz-auto-backup";   // "0" なら オフ（きほんは オン）
+  /* ---- じどう バックアップ ----
+     バックアップは 1つの ファイルに「ぜんぶの しゃしん」が 入(はい)る ので、
+     何回(なんかい)も じどうで ほぞんすると ダウンロード フォルダが
+     おなじ 中身(なかみ)の おおきな ファイルで いっぱいに なって しまう。
+     そこで きほんは オフ。オンに しても 1週間(しゅうかん)に 1回(かい)までに する。*/
+  const AUTO_KEY = "mz-auto-backup";   // "1" なら オン（きほんは オフ）
   const SIG_KEY = "mz-backup-sig";     // さいごに ほぞんした データの しるし
-  const AUTO_EVERY = 60 * 60 * 1000;   // 1じかんに 1かいまで
-  const autoBackupOn = () => { try { return localStorage.getItem(AUTO_KEY) !== "0"; } catch (e) { return true; } };
+  const AUTO_EVERY = 7 * 24 * 60 * 60 * 1000;  // 1しゅうかんに 1かいまで
+  const autoBackupOn = () => { try { return localStorage.getItem(AUTO_KEY) === "1"; } catch (e) { return false; } };
   function markBackedUp(sig) {
     try {
       localStorage.setItem(BACKUP_KEY, String(Date.now()));
@@ -3623,11 +3628,11 @@
     } catch (e) {}
     if (last && Date.now() - last < AUTO_EVERY) return;       // まだ はやい
     try {
-      const { blob, count, sig } = await buildBackup();
+      const { blob, ext, count, size, sig } = await buildBackup();
       if (!count || sig === lastSig) return;                  // なにも かわって いない
-      downloadBlob(blob, backupFileName());
+      downloadBlob(blob, backupFileName(ext));
       markBackedUp(sig);
-      miniNote(`💾 自動(じどう)で バックアップしたよ（写真(しゃしん) ${count}枚(まい)）`);
+      miniNote(`💾 自動(じどう)で バックアップしたよ（写真(しゃしん) ${count}枚(まい)・${fmtSize(size)}）`);
     } catch (err) {
       console.warn("auto backup failed:", err);
     }
@@ -3821,8 +3826,31 @@
   }
 
   // バックアップの ファイルを つくる（てどうも じどうも これを つかう）
+  /* バックアップは そのままだと おおきい（しゃしんを もじに するので 1.37ばい）。
+     ブラウザが つかえるなら gzip で ちぢめて から ほぞんする。
+     もどす ときは、ちぢめた ファイルも ふつうの JSONも どちらも 読(よ)める。*/
+  const canGzip = () => typeof CompressionStream === "function";
+  async function gzipBlob(blob) {
+    if (!canGzip()) return null;
+    try {
+      const s = blob.stream().pipeThrough(new CompressionStream("gzip"));
+      return new Blob([await new Response(s).arrayBuffer()], { type: "application/gzip" });
+    } catch (e) { return null; }
+  }
+  async function readBackupText(file) {
+    const head = new Uint8Array(await file.slice(0, 2).arrayBuffer());
+    if (head[0] === 0x1f && head[1] === 0x8b) {          // gzip の めじるし
+      if (typeof DecompressionStream !== "function") {
+        throw new Error("この ブラウザでは ちぢめた ファイルを ひらけません");
+      }
+      const s = file.stream().pipeThrough(new DecompressionStream("gzip"));
+      return new Response(s).text();
+    }
+    return file.text();
+  }
+
   async function buildBackup() {
-    const rows = await DB.getAllRaw();   // ずかん ぜんぶ（むし も おはな も）
+    const rows = await DB.getAllRaw();   // ずかん ぜんぶ（むし も おはな も どうぶつ も）
     const items = [];
     let newest = 0;
     for (const r of rows) {
@@ -3837,19 +3865,53 @@
       app: "mushizukan", version: APP_VERSION, exportedAt: Date.now(),
       captures: items, places: Places.all, covers: Covers.all,
     };
+    const plain = new Blob([JSON.stringify(data)], { type: "application/json" });
+    const small = await gzipBlob(plain);
     return {
-      blob: new Blob([JSON.stringify(data)], { type: "application/json" }),
+      blob: small || plain,
+      ext: small ? "json.gz" : "json",
       count: items.length,
+      size: (small || plain).size,
       sig: `${items.length}|${newest}|${Places.all.length}`,
     };
   }
   /* ファイル名は 時刻(じこく)まで 入れる。
      おなじ 名前だと ブラウザが「もう一度 ダウンロードしますか？」と
      きいて きて、あそびの じゃまに なる ため。*/
-  function backupFileName() {
+  function backupFileName(ext) {
     const d = new Date();
     const p2 = (n) => String(n).padStart(2, "0");
-    return `mushizukan-backup-${toDateInput(d.getTime())}-${p2(d.getHours())}${p2(d.getMinutes())}.json`;
+    return `mushizukan-backup-${toDateInput(d.getTime())}-${p2(d.getHours())}${p2(d.getMinutes())}.${ext || "json"}`;
+  }
+  const fmtSize = (n) => (n >= 1048576 ? (n / 1048576).toFixed(1) + "MB" : Math.max(1, Math.round(n / 1024)) + "KB");
+
+  /* せってい がめんに「1回ぶんの おおきさ」を だす。
+     バックアップは 1回ごとに ぜんぶの しゃしんが 入(はい)る ので、
+     何回(なんかい)も ためると そのぶん 場所(ばしょ)を 使(つか)う ことを つたえる。*/
+  async function updateBackupInfo() {
+    const el = $("#s-backup-info");
+    if (!el) return;
+    el.textContent = "大(おお)きさを 調(しら)べて いるよ…";
+    try {
+      const rows = await DB.getAllRaw();
+      let bytes = 0;
+      for (const r of rows) {
+        if (r.blob && r.blob.size) bytes += r.blob.size;
+        else if (r.img && r.img.byteLength) bytes += r.img.byteLength;
+        else if (r.imgData) bytes += Math.round(r.imgData.length * 0.75);
+      }
+      // もじに すると 1.37ばい。ちぢめられる ときは ほぼ もとの 大きさに もどる
+      const one = Math.round(bytes * (canGzip() ? 1.02 : 1.37)) + 2048;
+      let last = 0;
+      try { last = parseInt(localStorage.getItem(BACKUP_KEY) || "0", 10) || 0; } catch (e) {}
+      el.textContent =
+        `写真(しゃしん) ${rows.length}枚(まい)／バックアップ 1回(かい)ぶん およそ ${fmtSize(one)}。` +
+        (last ? ` 前(まえ)の 保存(ほぞん)は ${fmtDate(last)}。` : " まだ 保存(ほぞん)して いないよ。") +
+        " 古(ふる)い ファイルは 消(け)して だいじょうぶ（いちばん 新(あたら)しい 1つだけ あれば 戻(もど)せます）。";
+      rubyifyDOM(el);
+    } catch (e) {
+      el.textContent = "";
+    }
   }
   function downloadBlob(blob, filename) {
     const url = URL.createObjectURL(blob);
@@ -3864,10 +3926,11 @@
     const out = $("#s-backup-result");
     out.textContent = "バックアップを 作(つく)って いるよ…"; out.className = "s-test-result";
     try {
-      const { blob, count, sig } = await buildBackup();
-      downloadBlob(blob, backupFileName());
+      const { blob, ext, count, size, sig } = await buildBackup();
+      downloadBlob(blob, backupFileName(ext));
       markBackedUp(sig);
-      out.textContent = `✓ ${count}枚(まい)の 写真(しゃしん)を 保存(ほぞん)したよ！`;
+      out.textContent = `✓ ${count}枚(まい)の 写真(しゃしん)を 保存(ほぞん)したよ！（${fmtSize(size)}）`;
+      updateBackupInfo();
       out.className = "s-test-result ok";
     } catch (err) {
       console.error(err);
@@ -3890,15 +3953,15 @@
     const out = $("#s-backup-result");
     out.textContent = "バックアップを 作(つく)って いるよ…"; out.className = "s-test-result"; rubyifyDOM(out);
     try {
-      const { blob, count, sig } = await buildBackup();
-      const file = new File([blob], backupFileName(), { type: "application/json" });
+      const { blob, ext, count, sig } = await buildBackup();
+      const file = new File([blob], backupFileName(ext), { type: blob.type });
       if (canShareFiles()) {
         await navigator.share({ files: [file], title: "むしずかんの バックアップ" });
         markBackedUp(sig);
         out.textContent = `✓ ${count}枚(まい)の 写真(しゃしん)を 送(おく)ったよ！`;
         out.className = "s-test-result ok";
       } else {
-        downloadBlob(blob, backupFileName());
+        downloadBlob(blob, backupFileName(ext));
         markBackedUp(sig);
         out.textContent = `✓ ${count}枚(まい)を この 端末(たんまつ)に 保存(ほぞん)したよ`;
         out.className = "s-test-result ok";
@@ -3916,7 +3979,7 @@
     const out = $("#s-backup-result");
     out.textContent = "読(よ)みこんで いるよ…"; out.className = "s-test-result";
     try {
-      const data = JSON.parse(await file.text());
+      const data = JSON.parse(await readBackupText(file));
       if (!data || data.app !== "mushizukan") throw new Error("むしずかんの バックアップ ではないみたい");
       const existing = await DB.getAllRaw();
       const keyOf = (c) => `${c.col || "mushi"}|${c.name}|${c.date}`;
