@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v96";
+  const APP_VERSION = "v98";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -2006,6 +2006,80 @@
   }
   let swallowClick = false;
 
+  /* こうげき力・しゅび力・じゃんけんを 手で なおす パネル。
+     むかし とうろく した カード（★を かえても つよさが そのまま）も ここで 直せる。*/
+  function buildStatEditor(g, toggleBtn) {
+    const box = document.createElement("div");
+    box.className = "stat-edit";
+    box.hidden = true;
+    let atk = clampPower(g.attack), def = clampPower(g.defense), hand = normHand(g.hand) || "グー";
+
+    const row = (label, get, set) => {
+      const r = document.createElement("div");
+      r.className = "se-row";
+      const nm = document.createElement("span"); nm.className = "se-label"; nm.textContent = label;
+      const val = document.createElement("b"); val.className = "se-val"; val.textContent = get();
+      const mk = (t, d) => {
+        const b = document.createElement("button");
+        b.type = "button"; b.className = "se-btn"; b.textContent = t;
+        b.addEventListener("click", () => { set(clampPower(get() + d)); val.textContent = get(); sound.blip(); });
+        return b;
+      };
+      r.appendChild(nm);
+      r.appendChild(mk("−100", -100)); r.appendChild(mk("−10", -10));
+      r.appendChild(val);
+      r.appendChild(mk("＋10", 10)); r.appendChild(mk("＋100", 100));
+      return r;
+    };
+    box.appendChild(row("⚔️", () => atk, (v) => (atk = v)));
+    box.appendChild(row("🛡️", () => def, (v) => (def = v)));
+
+    // じゃんけんの ぞくせい
+    const hb = document.createElement("div");
+    hb.className = "se-hands";
+    const paint = () => $$(".se-hand", hb).forEach((x) => x.classList.toggle("on", x.dataset.h === hand));
+    for (const h of HANDS) {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "se-hand h-" + (h === "グー" ? "g" : h === "チョキ" ? "c" : "p");
+      b.dataset.h = h;
+      b.innerHTML = `${HAND_EMOJI[h]}<span>${h}</span>`;
+      b.addEventListener("click", () => { hand = h; paint(); sound.blip(); });
+      hb.appendChild(b);
+    }
+    box.appendChild(hb);
+    paint();
+
+    const acts = document.createElement("div");
+    acts.className = "se-actions";
+    const auto = document.createElement("button");
+    auto.type = "button"; auto.className = "se-auto";
+    auto.textContent = "⭐ 星(ほし)の 数(かず)に あわせる";
+    auto.addEventListener("click", () => {
+      const a = autoStats(g.name, g.rarity);
+      atk = a.attack; def = a.defense;
+      const vals = $$(".se-val", box);
+      if (vals[0]) vals[0].textContent = atk;
+      if (vals[1]) vals[1].textContent = def;
+      sound.blip();
+    });
+    const ok = document.createElement("button");
+    ok.type = "button"; ok.className = "se-ok"; ok.textContent = "✓ これで OK";
+    ok.addEventListener("click", async () => {
+      await DB.patchByName(g.name, { attack: atk, defense: def, hand });
+      sound.blip();
+      miniNote(`⚔️${atk} 🛡️${def} に 直(なお)したよ！`);
+      await afterChange(g.name, true);
+    });
+    const ng = document.createElement("button");
+    ng.type = "button"; ng.className = "se-ng"; ng.textContent = "やめる";
+    ng.addEventListener("click", () => { box.hidden = true; toggleBtn.hidden = false; });
+    acts.appendChild(auto); acts.appendChild(ok); acts.appendChild(ng);
+    box.appendChild(acts);
+
+    toggleBtn.addEventListener("click", () => { box.hidden = false; toggleBtn.hidden = true; });
+    return box;
+  }
+
   function buildPage(g) {
     const ill = illustFor(g.name);
     const meta = categoryMeta(g.category);
@@ -2067,6 +2141,13 @@
     renderStars(st, g.rarity, (v) => setRarity(g.name, v));
     page.appendChild(st);
     page.appendChild(battleRow(g, true));
+
+    // つよさを 手(て)で なおす（むかし ★5で とうろくした カード用）
+    const edBtn = document.createElement("button");
+    edBtn.className = "page-stat-edit";
+    edBtn.textContent = "✏️ つよさを 直(なお)す";
+    page.appendChild(edBtn);
+    page.appendChild(buildStatEditor(g, edBtn));
 
     const stHint = document.createElement("p");
     stHint.className = "star-hint page-star-hint";

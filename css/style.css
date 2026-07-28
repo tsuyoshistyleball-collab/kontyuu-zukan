@@ -571,6 +571,45 @@ main { max-width: 760px; margin: 0 auto; }
 .page-stars { margin-top: 18px; font-size: 26px; letter-spacing: 3px; }
 .page-stars.s1 { color: #8fbf6a; } .page-stars.s2 { color: #6bbd9a; } .page-stars.s3 { color: var(--honey-d); }
 .page-stars.s4 { color: #9457d8; } .page-stars.s5 { color: var(--terra); }
+/* つよさを 手で なおす パネル */
+.page-stat-edit {
+  display: block; margin: 4px auto 0; padding: 6px 14px; border-radius: 999px;
+  font-family: inherit; font-size: 11.5px; font-weight: 900; color: var(--ink-sub);
+  background: rgba(255,255,255,.75); border: 2px solid var(--frame);
+}
+.page-stat-edit:active { transform: translateY(1px); }
+.stat-edit {
+  margin: 8px 10px 2px; padding: 10px 8px; border-radius: 16px;
+  background: rgba(255,255,255,.9); border: 2px dashed var(--frame);
+}
+.se-row { display: flex; align-items: center; justify-content: center; gap: 4px; margin-bottom: 7px; }
+.se-label { font-size: 17px; }
+.se-btn {
+  min-width: 46px; padding: 8px 4px; border-radius: 12px; font-family: inherit;
+  font-size: 12.5px; font-weight: 900; color: var(--green-d); white-space: nowrap;
+  background: var(--paper2); border: 2px solid #fff; box-shadow: 0 2px 0 var(--frame-d);
+}
+.se-btn:active { transform: translateY(2px); box-shadow: 0 0 0 var(--frame-d); }
+.se-val { min-width: 62px; text-align: center; font-size: 20px; font-weight: 900; color: var(--ink); }
+.se-hands { display: flex; justify-content: center; gap: 8px; margin: 2px 0 9px; }
+.se-hand {
+  display: flex; flex-direction: column; align-items: center; gap: 1px; font-family: inherit;
+  padding: 6px 12px; border-radius: 14px; font-size: 20px; line-height: 1;
+  background: var(--paper2); border: 2px solid #fff; box-shadow: 0 2px 0 var(--frame-d);
+}
+.se-hand span { font-size: 10.5px; font-weight: 900; color: var(--ink-sub); }
+.se-hand.on { background: linear-gradient(180deg,#ffe28c,var(--honey)); box-shadow: 0 2px 0 var(--honey-d); }
+.se-hand.on span { color: #6a4b00; }
+.se-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 7px; }
+.se-auto, .se-ok, .se-ng {
+  padding: 9px 13px; border-radius: 14px; font-family: inherit; font-size: 12.5px; font-weight: 900;
+  border: 2px solid #fff; box-shadow: 0 3px 0 rgba(0,0,0,.18);
+}
+.se-auto { background: linear-gradient(180deg,#e5f0ff,#bcd8f7); color: #29527f; }
+.se-ok { background: linear-gradient(180deg,#cdefb4,#8fce6a); color: #2f5c1c; }
+.se-ng { background: rgba(255,255,255,.9); color: var(--ink-sub); }
+.se-auto:active, .se-ok:active, .se-ng:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0,0,0,.18); }
+
 .page-reask {
   display: block; margin: 6px auto 2px; padding: 9px 14px; border-radius: 999px;
   font-family: inherit; font-size: 12.5px; font-weight: 900; color: #2c5c8f;
@@ -1101,9 +1140,10 @@ body.noscroll .card::before, body.noscroll .r5-aura, body.noscroll .r5-shine::af
   font-family: "MushiTitle", var(--font);
   font-size: 18px; font-weight: 400; letter-spacing: .03em; opacity: 1;
   color: #fffdf2;
-  text-shadow: 1.5px 1.5px 0 rgba(30,78,24,.75), -1.5px 1.5px 0 rgba(30,78,24,.75),
-               1.5px -1.5px 0 rgba(30,78,24,.75), -1.5px -1.5px 0 rgba(30,78,24,.75),
-               0 3px 0 rgba(20,60,16,.5), 0 0 12px rgba(255,255,255,.3);
+  /* ふちは くっきり（ぼかしは 入れない。にじんで 見えるので）*/
+  text-shadow: 1px 1px 0 #1e4e18, -1px 1px 0 #1e4e18,
+               1px -1px 0 #1e4e18, -1px -1px 0 #1e4e18,
+               0 2px 0 #143c10;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .level-title rt { font-family: var(--font); font-weight: 800; }
@@ -1115,7 +1155,8 @@ body.noscroll .card::before, body.noscroll .r5-aura, body.noscroll .r5-shine::af
   background: linear-gradient(90deg,#ff6b6b,#ffa94d,#ffe14d,#5fd97a,#4dc4ff,#b47cff);
   background-size: 300% 100%; animation: holoSweep 3.5s linear infinite;
   color: #fff; font-weight: 900; font-size: 17px; text-align: center;
-  text-shadow: 0 2px 3px rgba(0,0,0,.35); box-shadow: 0 4px 12px rgba(70,50,30,.3);
+  text-shadow: 1px 1px 0 rgba(70,40,10,.6), 0 2px 0 rgba(70,40,10,.45);
+  box-shadow: 0 4px 12px rgba(70,50,30,.3);
 }
 .cel-level-title { display: block; font-family: "MushiTitle", var(--font);
   font-size: 17px; font-weight: 400; margin-top: 3px; opacity: 1; letter-spacing: .02em; }
