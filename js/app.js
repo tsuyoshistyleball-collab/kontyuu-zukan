@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v107";
+  const APP_VERSION = "v108";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -3048,7 +3048,7 @@
     /* AIが 出(だ)した「もしかして」の 候補(こうほ)と、答(こた)えの こまかさ。
        種(しゅ)まで 分(わ)からない ときは「○○の なかま」で 止(と)めて もらう。*/
     pendingCands = (ai && Array.isArray(ai.candidates) ? ai.candidates : [])
-      .filter((c) => c && c.name).slice(0, 5);
+      .filter((c) => c && c.name).slice(0, 6);
     pendingLevel = (ai && ai.name_level) || "";
     if (ai && ai.is_creature && ai.name) {
       r.name = ai.name; r.kana = ai.kana || ""; r.fact = ai.fact || ""; r.where = ai.where || "";
@@ -3170,7 +3170,7 @@
     if (!box) return;
     box.innerHTML = "";
     const now = $("#r-name-input").value.trim();
-    const others = pendingCands.filter((c) => c.name && c.name !== now);
+    const others = pendingCands.filter((c) => c.name && c.name !== now).slice(0, 5);
     box.hidden = !others.length;
     if (box.hidden) return;
     const lab = document.createElement("span");
