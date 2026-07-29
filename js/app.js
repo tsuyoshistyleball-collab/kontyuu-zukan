@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v111";
+  const APP_VERSION = "v112";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -206,13 +206,21 @@
     for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
     return h;
   }
+  /* じゃんけんの ぞくせいは、なまえから きめる。
+     AIに まかせると「あごが ある から チョキ」の ように なって、
+     おなじ 科(か)の 子が ぜんぶ おなじ 手(て)に なって しまう。
+     なまえから きめれば、おなじ 科でも バラバラに なり、
+     しかも いつ・どの たんまつで 見ても おなじ 手に なる。*/
+  const handOf = (name) => HANDS[(nameHash(name) >>> 20) % 3];
+
   // なまえと レアどから きまった すうじを つくる（AIが なくても カードが そろう）
   function autoStats(name, rarity) {
     const h = nameHash(name);
     const base = 80 + clampR(rarity) * 110;                 // ★1→190、★5→630
+    // ※ >>>（ふごう なし）で ずらす。>> だと マイナスに なって はずれる
     const atk = clampPower(base + ((h % 15) - 7) * 20);
-    const def = clampPower(base - 30 + (((h >> 8) % 15) - 7) * 20);
-    return { attack: atk, defense: def, hand: HANDS[(h >> 16) % 3] };
+    const def = clampPower(base - 30 + (((h >>> 8) % 15) - 7) * 20);
+    return { attack: atk, defense: def, hand: handOf(name) };
   }
   // カードや ページに はる「たたかいの すうじ」
   function battleRow(g, big) {
@@ -282,10 +290,12 @@
   function statsFor(name, rarity, src) {
     const a = clampPower(src && src.attack);
     const d = clampPower(src && src.defense);
-    const hd = normHand(src && src.hand);
-    if (a && d && hd) return { attack: a, defense: d, hand: hd };
-    const auto = autoStats(name, rarity);
-    return { attack: a || auto.attack, defense: d || auto.defense, hand: hd || auto.hand };
+    /* 手(て)は なまえから きめる。
+       ただし「つよさを 直(なお)す」で じぶんで えらんだ ものは そのまま。*/
+    const fixed = src && src.handFixed ? normHand(src.hand) : "";
+    const hd = fixed || handOf(name);
+    const auto = (a && d) ? null : autoStats(name, rarity);
+    return { attack: a || auto.attack, defense: d || auto.defense, hand: hd };
   }
 
   function illustFor(name) {
@@ -369,7 +379,7 @@
       g.season = pick("season") || "";
       g.food = pick("food") || "";
       g.size = pick("size") || "";
-      const st = statsFor(g.name, g.rarity, { attack: pick("attack"), defense: pick("defense"), hand: pick("hand") });
+      const st = statsFor(g.name, g.rarity, { attack: pick("attack"), defense: pick("defense"), hand: pick("hand"), handFixed: pick("handFixed") });
       g.attack = st.attack; g.defense = st.defense; g.hand = st.hand;
       const mv = moveFor(g.name, g.rarity, { move: pick("move"), moveKind: pick("moveKind"), moveColor: pick("moveColor"), moveCry: pick("moveCry") });
       g.move = mv.move; g.moveKind = mv.moveKind; g.moveColor = mv.moveColor; g.moveCry = mv.moveCry;
@@ -2327,7 +2337,7 @@
     const ok = document.createElement("button");
     ok.type = "button"; ok.className = "se-ok"; ok.textContent = "✓ これで OK";
     ok.addEventListener("click", async () => {
-      await DB.patchByName(g.name, { attack: atk, defense: def, hand });
+      await DB.patchByName(g.name, { attack: atk, defense: def, hand, handFixed: 1 });
       sound.blip();
       miniNote(`⚔️${atk} 🛡️${def} に 直(なお)したよ！`);
       await afterChange(g.name, true);
@@ -2811,7 +2821,7 @@
     if (!g || g.rarity === v) return;
     // ★に あわせて こうげき力・しゅび力も 上下(じょうげ)させる
     const st = scaleStats({ attack: g.attack, defense: g.defense, hand: g.hand }, g.rarity, v);
-    try { await DB.patchByName(name, { rarity: v, attack: st.attack, defense: st.defense, hand: st.hand }); }
+    try { await DB.patchByName(name, { rarity: v, attack: st.attack, defense: st.defense }); }
     catch (e) { console.error(e); say("★を 変(か)えられませんでした"); return; }
     sound.blip();
     if (v === 3) { confetti(3); }
