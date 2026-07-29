@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v110";
+  const APP_VERSION = "v111";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -2671,9 +2671,10 @@
       seen.add(t);
       rows.push({ name: t, kana: kana || "", why: why || "", conf: typeof conf === "number" ? conf : null });
     };
-    add(ai.name, ai.kana, "", ai.confidence);
-    for (const c of (Array.isArray(ai.candidates) ? ai.candidates : [])) add(c.name, c.kana, c.why, c.confidence);
-    add(g.name, g.kana, "", null);      // いまの なまえも のこす
+    // 「○○の なかま」は えらぶ 意味(いみ)が うすい ので ならべない
+    if (!isGroupName(ai.name)) add(ai.name, ai.kana, "", ai.confidence);
+    for (const c of dropGroupNames(ai.candidates)) add(c.name, c.kana, c.why, c.confidence);
+    add(g.name, g.kana, "", null);      // いまの なまえは（なかまでも）のこす
 
     for (const r of rows) {
       const b = document.createElement("button");
@@ -3047,8 +3048,7 @@
           attack: 0, defense: 0, hand: "" };
     /* AIが 出(だ)した「もしかして」の 候補(こうほ)と、答(こた)えの こまかさ。
        種(しゅ)まで 分(わ)からない ときは「○○の なかま」で 止(と)めて もらう。*/
-    pendingCands = (ai && Array.isArray(ai.candidates) ? ai.candidates : [])
-      .filter((c) => c && c.name).slice(0, 6);
+    pendingCands = dropGroupNames(ai && ai.candidates).slice(0, 6);
     pendingLevel = (ai && ai.name_level) || "";
     if (ai && ai.is_creature && ai.name) {
       r.name = ai.name; r.kana = ai.kana || ""; r.fact = ai.fact || ""; r.where = ai.where || "";
@@ -3161,6 +3161,15 @@
     setTimeout(() => { if (!r.name) $("#r-name-input").focus(); }, 200);
     // GPSで ちかくの ばしょを じどう せんたく
     guessPlaceId().then((id) => { if (id && !$("#r-place").value) $("#r-place").value = id; });
+  }
+
+  /* 「○○の なかま」の ような 大(おお)きな まとまりの 名前(なまえ)は、
+     えらんでも カードの 名前(なまえ)として うれしく ない ので 候補(こうほ)から はずす。
+     AIに「入(い)れないで」と たのんでは いるが、たまに 入(はい)って くる。*/
+  const GROUP_NAME = /(の\s*なかま|の\s*仲間|の\s*ナカマ|類)$/;
+  const isGroupName = (n) => GROUP_NAME.test(String(n || "").trim());
+  function dropGroupNames(list) {
+    return (Array.isArray(list) ? list : []).filter((c) => c && c.name && !isGroupName(c.name));
   }
 
   /* AIの「もしかして」を なまえの したに ならべる。
