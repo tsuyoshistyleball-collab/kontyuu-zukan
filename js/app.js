@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v114";
+  const APP_VERSION = "v116";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -255,7 +255,9 @@
     const kind = MOVE_KINDS[h % MOVE_KINDS.length];
     const head = plain(name).replace(/[^\u3040-\u30FF\u4E00-\u9FFFa-zA-Z]/g, "").slice(0, 4) || "むし";
     return {
-      move: head + MOVE_TAIL[(h >> 5) % MOVE_TAIL.length],
+      // ※ >>>（ふごう なし）で ずらす。>> だと マイナスの 添字(そえじ)に なって
+      //    MOVE_TAIL[-3] が undefined に なり、「ニジイロundefined」の ように 出(で)て しまう
+      move: head + MOVE_TAIL[(h >>> 5) % MOVE_TAIL.length],
       moveKind: kind,
       moveColor: MOVE_COLOR[kind],
       moveCry: "",
@@ -263,7 +265,10 @@
   }
   function moveFor(name, rarity, src) {
     const auto = autoMove(name, rarity);
-    const nm = String((src && src.move) || (src && src.move_name) || "").trim().slice(0, 14);
+    /* むかしの データに「〜undefined」が 保存(ほぞん)されて いる ことが ある
+       （上(うえ)の ずらしの まちがいで できた もの）。見(み)つけたら すてて 作(つく)りなおす。*/
+    const raw = String((src && src.move) || (src && src.move_name) || "").trim();
+    const nm = /undefined|NaN|null/.test(raw) ? "" : raw.slice(0, 14);
     const kind = normKind((src && src.moveKind) || (src && src.move_kind));
     const col = okColor((src && src.moveColor) || (src && src.move_color));
     const cry = String((src && src.moveCry) || (src && src.move_cry) || "").trim().slice(0, 40);

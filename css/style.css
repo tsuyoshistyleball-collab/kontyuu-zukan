@@ -1844,9 +1844,13 @@ rt {
 .arena {
   position: fixed; inset: 0; z-index: 46; overflow-y: auto;
   padding: calc(var(--safe-top) + 54px) 12px calc(var(--safe-bot) + 16px);
+  /* なかまを えらぶ がめんは とうぎじょうの ひかえしつ。
+     うえと したを すこし くらく して、もじと カードを 読(よ)みやすく する。*/
   background:
-    radial-gradient(120% 60% at 50% 0%, #2f5a22 0%, transparent 62%),
-    linear-gradient(180deg, #1e3d16 0%, #10230c 100%);
+    linear-gradient(180deg, rgba(6,18,4,.74) 0%, rgba(6,18,4,.30) 26%,
+                            rgba(6,18,4,.34) 62%, rgba(6,18,4,.80) 100%),
+    url("../img/pick-bg.webp") center 30% / cover no-repeat,
+    #16300f;
   color: #fff8ec;
 }
 .arena.fighting {

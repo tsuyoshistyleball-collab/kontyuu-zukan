@@ -1,10 +1,11 @@
 /* むしずかん — サービスワーカー（オフラインでも つかえる／あたらしい ばんに すぐ なる）*/
-const CACHE = "mushizukan-v114";
+const CACHE = "mushizukan-v116";
 const ASSETS = [
   "./",
   "./index.html",
   "./css/style.css",
   "./img/arena-bg.webp",
+  "./img/pick-bg.webp",
   "./img/hand-g.png",
   "./img/hand-c.png",
   "./img/hand-p.png",
