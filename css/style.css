@@ -1507,25 +1507,6 @@ body[data-zukan="hana"] {
 .rc-chip i { font-size: 10.5px; font-style: normal; font-weight: 800; color: var(--ink-sub); flex: none; }
 .rc-chip:active { transform: translateY(2px); box-shadow: 0 0 0 var(--frame-d); }
 
-/* 「この 名前、ほんとうに ある？」の たしかめ */
-.r-verify {
-  display: block; width: 100%; margin: 0 0 8px; padding: 9px 12px;
-  border-radius: 14px; font-family: inherit; font-size: 13px; font-weight: 900;
-  color: var(--green-d); background: var(--paper2);
-  border: 2px dashed var(--frame-d);
-}
-.r-verify:active { transform: translateY(1px); }
-.r-verify[disabled] { opacity: .55; }
-.r-verify-out {
-  margin: -4px 0 10px; font-size: 12.5px; font-weight: 700; line-height: 1.7;
-  color: var(--ink-sub); text-align: left;
-}
-.r-verify-out:empty { display: none; }
-.r-verify-out.ok { color: #2f7d32; }
-.r-verify-out.warn { color: #b3651f; }
-.rc-chip.fix { margin: 6px 0 0 6px; vertical-align: middle; }
-.rc-chip.fix i { color: var(--ink-sub); }
-
 /* バックアップの おおきさの おしらせ */
 .backup-info {
   margin: 2px 0 10px; padding: 9px 12px; border-radius: 14px;

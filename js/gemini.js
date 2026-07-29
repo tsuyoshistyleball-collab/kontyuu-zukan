@@ -42,10 +42,11 @@ const Gemini = (() => {
     "━━━ 答(こた)える じゅんばん ━━━",
     "1. observed: 写真(しゃしん)で 見(み)えた 特徴(とくちょう)を 1〜2文(ぶん)で。",
     "   形(かたち)・色(いろ)・もよう・大(おお)きさ・脚(あし)や 羽(はね)の ようす・まわりの ようす。",
-    "2. candidates: 思(おも)いあたる 名前(なまえ)を 多(おお)くて 3つ、あてはまる 順(じゅん)に。",
+    "2. candidates: 思(おも)いあたる 名前(なまえ)を 5つ、あてはまる 順(じゅん)に。",
     "   それぞれ name（ひらがな）・kana（カタカナ）・why（そう 思(おも)う 理由(りゆう)を みじかく）・",
     "   confidence（0.0〜1.0）。ぜんぶ じっさいに ある 名前(なまえ) だけ。",
-    "   1つしか 思(おも)いつかない ときは 1つでも かまいません。",
+    "   5つ 思(おも)いつかない ときは、あるだけで かまいません。むりに 数(かず)を そろえる ために",
+    "   ない 名前(なまえ)を つくっては いけません。",
     "3. name_level: 答(こた)えの こまかさ。つぎの どれか ひとつ だけ：",
     `   「しゅ」＝ 種(しゅ)まで 分(わ)かる（れい: ${egSp}）`,
     `   「なかま」＝ 大(おお)きな まとまりまで 分(わ)かる（れい: ${egGrp}）`,
@@ -517,50 +518,6 @@ const Gemini = (() => {
     return obj;
   }
 
-  /* 「この 名前(なまえ)、ほんとうに ある？」の たしかめ（もじだけ・やすい）。
-     AIは たまに それらしい 名前を つくって しまう ので、
-     あやしい ときに この チェックで つかまえる。*/
-  const VERIFY_SCHEMA = {
-    type: "OBJECT",
-    propertyOrdering: ["reason", "real", "correct_name", "correct_kana", "note"],
-    properties: {
-      reason: { type: "STRING" },
-      real: { type: "BOOLEAN" },
-      correct_name: { type: "STRING" },
-      correct_kana: { type: "STRING" },
-      note: { type: "STRING" },
-    },
-    required: ["reason", "real", "note"],
-  };
-  const VERIFY_WORD = { mushi: "虫(むし)・生(い)きもの", hana: "植物(しょくぶつ)", doubutsu: "動物(どうぶつ)" };
-  async function verifyName(name, key, model, kind) {
-    if (!key) throw new Error("NO_KEY");
-    if (!name) throw new Error("NO_NAME");
-    const one = VERIFY_WORD[kind] || VERIFY_WORD.mushi;
-    const prompt = [
-      `「${name}」は、日本(にほん)で じっさいに つかわれて いる ${one}の 名前(なまえ)ですか？`,
-      "図鑑(ずかん)や 学校(がっこう)で つかわれて いる 名前（和名(わめい)・ふつうの 呼(よ)び名(な)・",
-      "大(おお)きな まとまりの 名前『○○の なかま』）なら real を true に して ください。",
-      "だれかが つくった 名前や、じっさいには ない 名前なら real を false に して ください。",
-      "",
-      "こたえる じゅんばん：",
-      "1. reason: なぜ そう 思(おも)うかを 1文(ぶん)で（どの なかまの 名前か、聞(き)いた ことが あるか）。",
-      "2. real: true か false。",
-      "3. correct_name: real が false の ときだけ、いちばん 近(ちか)い ほんとうの 名前を ひらがなで。",
-      "   true の ときは からっぽ。",
-      "4. correct_kana: correct_name の カタカナ。",
-      "5. note: 4さいの こどもに 1文(ぶん)で 説明(せつめい)。かんじの あとに よみがなを",
-      "   まるかっこで つけて ください。れい:「本当(ほんとう)に いる 虫(むし)だよ！」",
-    ].join("\n");
-    const resp = await callGemini(model, key, {
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { responseMimeType: "application/json", responseSchema: VERIFY_SCHEMA, temperature: 0 },
-    });
-    const data = await resp.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-    try { return JSON.parse(text); } catch (e) { return { real: true, note: "" }; }
-  }
-
   // せつぞく テスト（ちいさな てきすとだけ）
   async function test(key, model) {
     const resp = await fetch(endpoint(model || DEFAULT_MODEL, key), {
@@ -644,5 +601,5 @@ const Gemini = (() => {
     return out;
   }
 
-  return { identify, test, classifyNames, details, verifyName, DEFAULT_MODEL, OUTDATED_MODELS };
+  return { identify, test, classifyNames, details, DEFAULT_MODEL, OUTDATED_MODELS };
 })();

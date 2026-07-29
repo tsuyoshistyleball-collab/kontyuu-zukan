@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v101";
+  const APP_VERSION = "v102";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -2693,7 +2693,7 @@
     /* AIが 出(だ)した「もしかして」の 候補(こうほ)と、答(こた)えの こまかさ。
        種(しゅ)まで 分(わ)からない ときは「○○の なかま」で 止(と)めて もらう。*/
     pendingCands = (ai && Array.isArray(ai.candidates) ? ai.candidates : [])
-      .filter((c) => c && c.name).slice(0, 3);
+      .filter((c) => c && c.name).slice(0, 5);
     pendingLevel = (ai && ai.name_level) || "";
     if (ai && ai.is_creature && ai.name) {
       r.name = ai.name; r.kana = ai.kana || ""; r.fact = ai.fact || ""; r.where = ai.where || "";
@@ -2799,10 +2799,6 @@
         "</span>";
     }
     drawCandidates();
-    const vo = $("#r-verify-out");
-    if (vo) { vo.textContent = ""; vo.className = "r-verify-out"; }
-    const vb = $("#r-verify");
-    if (vb) vb.hidden = !Settings.key;
     fillPlaceSelect("");
     $("#result").showModal();
     rubyifyDOM($("#result"));
@@ -2839,58 +2835,6 @@
         onResultNameInput(c.name);
       });
       box.appendChild(b);
-    }
-  }
-
-  /* 「この 名前(なまえ)、ほんとうに ある？」— もじだけの やすい たしかめ。
-     AIが つくった 名前を つかんだら、ほんとうの 名前に 直(なお)せる ように する。*/
-  async function verifyResultName() {
-    const btn = $("#r-verify"), out = $("#r-verify-out");
-    const name = $("#r-name-input").value.trim();
-    if (!out) return;
-    if (!name) { out.textContent = "さきに 名前(なまえ)を 入(い)れてね"; out.className = "r-verify-out warn"; return; }
-    if (!Settings.key) { out.textContent = "⚙️設定(せってい)で AIキーを 入(い)れてね"; out.className = "r-verify-out warn"; rubyifyDOM(out); return; }
-    btn.disabled = true;
-    out.textContent = "🔎 図鑑(ずかん)に ある 名前(なまえ)か 調(しら)べて いるよ…";
-    out.className = "r-verify-out";
-    rubyifyDOM(out);
-    try {
-      const v = await Gemini.verifyName(name, Settings.key, Settings.model, Zukan.id);
-      out.innerHTML = "";
-      const p = document.createElement("span");
-      if (v.real) {
-        p.textContent = `✓ 「${name}」は ほんとうに ある 名前(なまえ)だよ！` + (v.note ? " " + v.note : "");
-        out.className = "r-verify-out ok";
-        out.appendChild(p);
-      } else {
-        p.textContent = `⚠️ 「${name}」は 図鑑(ずかん)に ない 名前(なまえ)みたい。` + (v.note ? " " + v.note : "");
-        out.className = "r-verify-out warn";
-        out.appendChild(p);
-        if (v.correct_name) {
-          const fix = document.createElement("button");
-          fix.type = "button"; fix.className = "rc-chip fix";
-          fix.innerHTML = `<b>${escapeHtml(v.correct_name)}</b><i>に 直(なお)す</i>`;
-          fix.addEventListener("click", () => {
-            sound.blip();
-            $("#r-name-input").value = v.correct_name;
-            if (pendingResolved) pendingResolved.kana = v.correct_kana || "";
-            $("#r-kana").textContent = v.correct_kana || "";
-            pendingStats = null;
-            onResultNameInput(v.correct_name);
-            out.className = "r-verify-out ok";
-            out.textContent = `✓ 「${v.correct_name}」に したよ！`;
-            rubyifyDOM(out);
-          });
-          out.appendChild(fix);
-        }
-      }
-      rubyifyDOM(out);
-    } catch (err) {
-      out.className = "r-verify-out warn";
-      out.textContent = "調(しら)べられなかったよ。少(すこ)し 待(ま)って もう一度(いちど) 押(お)してね。";
-      rubyifyDOM(out);
-    } finally {
-      btn.disabled = false;
     }
   }
 
@@ -4230,7 +4174,6 @@
       $("#picker").hidden = false;
     });
     $("#r-name-input").addEventListener("input", (e) => onResultNameInput(e.target.value));
-    $("#r-verify").addEventListener("click", verifyResultName);
 
     $("#cel-ok").addEventListener("click", () => { const ov = $("#celebrate"); ov.classList.remove("show"); setTimeout(() => (ov.hidden = true), 300); });
 
