@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v113";
+  const APP_VERSION = "v114";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -502,14 +502,21 @@
     const box = $("#quiz-choices");
     box.innerHTML = "";
     box.hidden = false;
+    /* えらぶのは 写真(しゃしん)。4さいは まだ 字(じ)が よめない ので、
+       おとなが なぞなぞを 読(よ)んで、こどもは 絵(え)で えらぶ。*/
     for (const nm of choices) {
+      const g = groups.get(nm);
+      const ph = g && g.cover && g.cover.blob;
       const b = document.createElement("button");
-      b.type = "button"; b.className = "quiz-choice"; b.textContent = nm;
+      b.type = "button"; b.className = "quiz-choice";
       b.dataset.raw = nm;
+      b.setAttribute("aria-label", nm);
+      b.innerHTML =
+        `<span class="qc-pic">${ph ? `<img src="${urlFor(ph)}" alt="">` : illustFor(nm).svg}</span>` +
+        `<i class="qc-mark" aria-hidden="true"></i>`;
       b.addEventListener("click", () => answerQuiz(b, nm));
       box.appendChild(b);
     }
-    rubyifyDOM(box);
   }
   function shuffle(a) {
     for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = a[i]; a[i] = a[j]; a[j] = t; }
@@ -524,14 +531,12 @@
     $$(".quiz-choice", $("#quiz-choices")).forEach((b) => {
       b.disabled = true;
       if (b.dataset.raw === quizNow.name) b.classList.add("right");   // ただしい こたえを ひからせる
+      else b.classList.add("off");                                     // ちがう ものは うすく
     });
-    btn.classList.add(ok ? "right" : "wrong");
+    btn.classList.add(ok ? "picked" : "wrong");
     $("#quiz-hint").disabled = true;
 
     const res = $("#quiz-result");
-    const photo = quizNow.cover && quizNow.cover.blob;
-    const img = $("#quiz-photo");
-    if (photo) { img.src = urlFor(photo); img.hidden = false; } else { img.hidden = true; }
     $("#quiz-verdict").textContent = ok ? "🎉 せいかい！" : "ざんねん…";
     $("#quiz-verdict").className = "quiz-verdict " + (ok ? "ok" : "ng");
     $("#quiz-answer").textContent = "こたえは「" + quizNow.name + "」でした";

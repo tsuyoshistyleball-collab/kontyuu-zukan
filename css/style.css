@@ -1587,24 +1587,39 @@ body[data-zukan="hana"] {
 .quiz-hint:active { transform: translateY(2px); box-shadow: none; }
 .quiz-hint[disabled] { opacity: .5; }
 .quiz-hint-tx { margin: 0 0 10px; font-size: 13px; font-weight: 800; color: var(--ink-sub); line-height: 1.7; }
-.quiz-choices { display: grid; gap: 10px; }
+/* こたえは 写真(しゃしん)で えらぶ（4さいは まだ 字(じ)が よめない）*/
+.quiz-lead { margin: 0 0 6px; font-size: 11.5px; font-weight: 900; color: var(--ink-sub); }
+.quiz-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .quiz-choice {
-  padding: 15px 12px; border-radius: 18px; font-family: inherit;
-  font-size: 17px; font-weight: 900; color: var(--green-d);
-  background: #fff; border: 3px solid var(--frame); box-shadow: 0 4px 0 var(--frame-d);
-  word-break: break-word;
+  position: relative; padding: 8px; border-radius: 22px; font-family: inherit;
+  background: #fff; border: 4px solid var(--frame); box-shadow: 0 5px 0 var(--frame-d);
+  transition: transform .2s ease, opacity .2s ease;
 }
-.quiz-choice:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--frame-d); }
-.quiz-choice.right { background: linear-gradient(180deg,#b7e59a,#7cc45a); color: #234d15; border-color: #fff; box-shadow: 0 4px 0 #55882f; }
-.quiz-choice.wrong { background: linear-gradient(180deg,#f6b6ab,#e8796a); color: #6b1e13; border-color: #fff; box-shadow: 0 4px 0 #b4483a; }
-.quiz-choice[disabled] { opacity: 1; }
+.quiz-choice:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--frame-d); }
+.qc-pic {
+  display: block; width: 100%; aspect-ratio: 1/1; border-radius: 16px; overflow: hidden;
+  background: var(--paper2);
+}
+.qc-pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.qc-pic svg { width: 100%; height: 100%; display: block; }
+/* こたえた あと：まる／ばつ の しるし */
+.qc-mark {
+  position: absolute; top: -10px; right: -8px; width: 40px; height: 40px; border-radius: 50%;
+  display: none; place-items: center; font-size: 22px; font-style: normal; font-weight: 900;
+  color: #fff; box-shadow: 0 3px 8px rgba(0,0,0,.3);
+}
+.quiz-choice.right { border-color: #6fae44; box-shadow: 0 5px 0 #55882f, 0 0 0 6px rgba(124,196,90,.35);
+  animation: qcPop .4s cubic-bezier(.2,1.5,.4,1) both; }
+.quiz-choice.right .qc-mark { display: grid; background: #6fae44; }
+.quiz-choice.right .qc-mark::after { content: "⭕"; font-size: 20px; }
+.quiz-choice.wrong { border-color: #e8796a; box-shadow: 0 5px 0 #b4483a; }
+.quiz-choice.wrong .qc-mark { display: grid; background: #e8796a; }
+.quiz-choice.wrong .qc-mark::after { content: "✕"; }
+.quiz-choice.off { opacity: .38; }
+@keyframes qcPop { 0% { transform: scale(1); } 55% { transform: scale(1.09); } 100% { transform: scale(1.04); } }
 .quiz-result { margin-top: 18px; animation: quizPop .34s cubic-bezier(.2,1.4,.4,1) both; }
 @keyframes quizPop { from { opacity: 0; transform: scale(.86) translateY(10px); } to { opacity: 1; transform: none; } }
-.quiz-photo {
-  width: 168px; height: 168px; object-fit: cover; border-radius: 22px;
-  border: 5px solid #fff; box-shadow: 0 6px 16px rgba(120,80,20,.28);
-}
-.quiz-verdict { margin: 12px 0 4px; font-size: 22px; font-weight: 900; }
+.quiz-verdict { margin: 4px 0 4px; font-size: 24px; font-weight: 900; }
 .quiz-verdict.ok { color: #2f7d32; }
 .quiz-verdict.ng { color: #c2492f; }
 .quiz-answer { margin: 0 0 14px; font-size: 15px; font-weight: 800; color: var(--ink); }
