@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v105";
+  const APP_VERSION = "v106";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -375,6 +375,8 @@
       g.move = mv.move; g.moveKind = mv.moveKind; g.moveColor = mv.moveColor; g.moveCry = mv.moveCry;
       g.care = pick("care") || "";
       g.where = pick("where") || "";
+      g.riddle = pick("riddle") || "";
+      g.riddleHint = pick("riddleHint") || "";
       g.hasDetails = !!(g.trivia.length || g.habitat || g.care);
       // なかまわけは そのつど けいさん（ルールを なおしたら むかしの ぶんも なおる）
       g.category = categorize(g.name, rep.aiCategory || rep.category);
@@ -411,6 +413,123 @@
     return out;
   }
   const NO_FAMILY = "__nofam";
+
+  /* ============================================================
+     なぞなぞモード
+     つかまえた 子(こ)の なぞなぞを 1つ 出(だ)して、
+     4つの なまえから えらぶ。あたると 写真(しゃしん)が 出(で)る。
+     なぞなぞが まだ ない 子(こ)は、はじめる ときに まとめて つくる。
+     ============================================================ */
+  let quizPool = [], quizNow = null, quizHit = 0, quizAll = 0, quizStreak = 0, quizAsked = [];
+  const QUIZ_CHOICES = 4;
+
+  async function openQuiz() {
+    closeDrawer();
+    const all = [...groups.values()];
+    if (all.length < 2) { miniNote("まだ 2しゅるい いないよ"); return; }
+    $("#quiz").hidden = false;
+    document.body.classList.add("noscroll");
+    quizHit = 0; quizAll = 0; quizStreak = 0; quizAsked = [];
+    updateQuizScore();
+    $("#quiz-result").hidden = true;
+    $("#quiz-choices").innerHTML = "";
+    $("#quiz-q").textContent = "なぞなぞを つくって いるよ…";
+    rubyifyDOM($("#quiz-q"));
+
+    // なぞなぞが ない 子(こ)の ぶんを まとめて つくる
+    const missing = all.filter((g) => !g.riddle).map((g) => g.name);
+    if (missing.length && Settings.key) {
+      try {
+        const made = await Gemini.makeRiddles(missing.slice(0, 30), Settings.key, Settings.model, Zukan.id);
+        let n = 0;
+        for (const name in made) {
+          await DB.patchByName(name, { riddle: made[name].riddle, riddleHint: made[name].hint || "" });
+          n++;
+        }
+        if (n) await reload();
+      } catch (err) { console.warn("riddles:", err); }
+    }
+    quizPool = [...groups.values()].filter((g) => g.riddle);
+    if (quizPool.length < 2) {
+      $("#quiz-q").textContent = Settings.key
+        ? "なぞなぞが つくれなかったよ。少(すこ)し 待(ま)って もう一度(いちど) ひらいてね。"
+        : "⚙️設定(せってい)で AIキーを 入(い)れると なぞなぞが 出(で)るよ。";
+      rubyifyDOM($("#quiz-q"));
+      return;
+    }
+    nextQuiz();
+  }
+  function closeQuiz() {
+    $("#quiz").hidden = true;
+    document.body.classList.remove("noscroll");
+    if (quizAll) miniNote(`🧩 ${quizAll}もん中(ちゅう) ${quizHit}もん せいかい！`);
+  }
+  function updateQuizScore() {
+    $("#quiz-score").textContent = `${quizHit} / ${quizAll}`;
+    const st = $("#quiz-streak");
+    st.textContent = quizStreak >= 2 ? `🔥 ${quizStreak}れんぞく！` : "";
+  }
+
+  function nextQuiz() {
+    // 1しゅうするまで おなじ もんだいは ださない
+    let rest = quizPool.filter((g) => quizAsked.indexOf(g.name) < 0);
+    if (!rest.length) { quizAsked = []; rest = quizPool; }
+    quizNow = rest[Math.floor(Math.random() * rest.length)];
+    quizAsked.push(quizNow.name);
+
+    // まちがいの せんたくしは ほかの 子(こ)から
+    const others = [...groups.values()].filter((g) => g.name !== quizNow.name).map((g) => g.name);
+    shuffle(others);
+    const choices = [quizNow.name, ...others.slice(0, QUIZ_CHOICES - 1)];
+    shuffle(choices);
+
+    $("#quiz-result").hidden = true;
+    $("#quiz-hint-tx").hidden = true;
+    $("#quiz-hint").hidden = !quizNow.riddleHint;
+    $("#quiz-hint").disabled = false;
+    $("#quiz-q").textContent = quizNow.riddle;
+    rubyifyDOM($("#quiz-q"));
+    const box = $("#quiz-choices");
+    box.innerHTML = "";
+    box.hidden = false;
+    for (const nm of choices) {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "quiz-choice"; b.textContent = nm;
+      b.dataset.raw = nm;
+      b.addEventListener("click", () => answerQuiz(b, nm));
+      box.appendChild(b);
+    }
+    rubyifyDOM(box);
+  }
+  function shuffle(a) {
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = a[i]; a[i] = a[j]; a[j] = t; }
+    return a;
+  }
+  function answerQuiz(btn, picked) {
+    if (!quizNow) return;
+    const ok = picked === quizNow.name;
+    quizAll++;
+    if (ok) { quizHit++; quizStreak++; } else { quizStreak = 0; }
+    updateQuizScore();
+    $$(".quiz-choice", $("#quiz-choices")).forEach((b) => {
+      b.disabled = true;
+      if (b.dataset.raw === quizNow.name) b.classList.add("right");   // ただしい こたえを ひからせる
+    });
+    btn.classList.add(ok ? "right" : "wrong");
+    $("#quiz-hint").disabled = true;
+
+    const res = $("#quiz-result");
+    const photo = quizNow.cover && quizNow.cover.blob;
+    const img = $("#quiz-photo");
+    if (photo) { img.src = urlFor(photo); img.hidden = false; } else { img.hidden = true; }
+    $("#quiz-verdict").textContent = ok ? "🎉 せいかい！" : "ざんねん…";
+    $("#quiz-verdict").className = "quiz-verdict " + (ok ? "ok" : "ng");
+    $("#quiz-answer").textContent = "こたえは「" + quizNow.name + "」でした";
+    res.hidden = false;
+    rubyifyDOM(res);
+    if (ok) { sound.fanfare(1); if (quizStreak >= 3) confetti(1); } else { sound.blip(); }
+  }
+
 
   /* ============================================================
      科(か)の ならびかえ モード
@@ -620,6 +739,7 @@
     $("#arena-open").hidden = n === 0;
     // 科(か)が 2つ いじょう ある ときだけ ならびかえが つかえる
     $("#sort-open").hidden = groupedByCategory().filter((x) => x.family).length < 2;
+    $("#quiz-open").hidden = n < 2;
     updateBackupHint();
   }
 
@@ -2442,6 +2562,34 @@
       box.appendChild(ul);
     }
 
+    // なぞなぞ（こたえは タップして めくる）
+    if (g.riddle) {
+      const q = document.createElement("div");
+      q.className = "info-riddle";
+      const h = document.createElement("p");
+      h.className = "info-head"; h.textContent = "🧩 なぞなぞ";
+      const t = document.createElement("p");
+      t.className = "ir-q"; t.textContent = g.riddle;
+      const a = document.createElement("button");
+      a.type = "button"; a.className = "ir-open"; a.textContent = "？ こたえを 見(み)る";
+      const ans = document.createElement("p");
+      ans.className = "ir-a"; ans.hidden = true;
+      ans.textContent = "こたえ：" + g.name;
+      a.addEventListener("click", () => {
+        sound.blip();
+        if (ans.hidden) { ans.hidden = false; a.textContent = "こたえを かくす"; rubyifyDOM(a); }
+        else { ans.hidden = true; a.textContent = "？ こたえを 見(み)る"; rubyifyDOM(a); }
+      });
+      q.appendChild(h); q.appendChild(t);
+      if (g.riddleHint) {
+        const hint = document.createElement("p");
+        hint.className = "ir-hint"; hint.textContent = "💡 ヒント：" + g.riddleHint;
+        q.appendChild(hint);
+      }
+      q.appendChild(a); q.appendChild(ans);
+      box.appendChild(q);
+    }
+
     const rows = [
       [lab[0], g.habitat || g.where],
       [lab[1], g.season],
@@ -2496,7 +2644,82 @@
       trivia: Array.isArray(ai.trivia) ? ai.trivia.filter(Boolean).slice(0, 4) : [],
       habitat: ai.habitat || "", season: ai.season || "",
       food: ai.food || "", size: ai.size || "", care: ai.care || "",
+      riddle: ai.riddle || "", riddleHint: ai.riddle_hint || "",
     }, statsFor(name, rar, ai), moveFor(name, rar, ai));
+  }
+
+  /* 図鑑(ずかん)から 聞(き)きなおした ときの こうほ えらび。
+     AIの 1つめの こたえだけで なく、思(おも)いあたる 名前(なまえ)を
+     ぜんぶ ならべて、タップで えらべる ように する。
+     （「○○の なかま」で 止(と)まった とき、じぶんで しぼれる ように）*/
+  let renamePick = null;    // { g, ai }
+  function openRenameSheet(g, ai) {
+    renamePick = { g, ai };
+    const lead = $("#rn-lead");
+    lead.textContent = ai.observed
+      ? `📷 ${ai.observed}`
+      : "えらぶと、名前(なまえ)と 豆知識(まめちしき)が 入(い)れかわるよ";
+    const box = $("#rn-list");
+    box.innerHTML = "";
+
+    // AIの 1つめ ＋ こうほ を、おなじ なまえを まとめて ならべる
+    const seen = new Set();
+    const rows = [];
+    const add = (nm, kana, why, conf) => {
+      const t = String(nm || "").trim().slice(0, 24);
+      if (!t || seen.has(t)) return;
+      seen.add(t);
+      rows.push({ name: t, kana: kana || "", why: why || "", conf: typeof conf === "number" ? conf : null });
+    };
+    add(ai.name, ai.kana, "", ai.confidence);
+    for (const c of (Array.isArray(ai.candidates) ? ai.candidates : [])) add(c.name, c.kana, c.why, c.confidence);
+    add(g.name, g.kana, "", null);      // いまの なまえも のこす
+
+    for (const r of rows) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "rn-row" + (r.name === g.name ? " now" : "");
+      const pct = r.conf != null ? Math.round(r.conf * 100) : null;
+      b.innerHTML =
+        `<span class="rn-main"><b>${escapeHtml(r.name)}</b>` +
+        (r.why ? `<small>${escapeHtml(r.why)}</small>` : "") + `</span>` +
+        (r.name === g.name ? `<span class="rn-now">いま</span>`
+                           : pct != null ? `<span class="rn-pct">${pct}%</span>` : "");
+      b.addEventListener("click", () => applyRename(r.name, r.kana));
+      box.appendChild(b);
+    }
+    rubyifyDOM($("#rename-sheet"));
+    $("#rename-sheet").hidden = false;
+  }
+  function closeRenameSheet() { $("#rename-sheet").hidden = true; renamePick = null; }
+
+  async function applyRename(newName, kana) {
+    if (!renamePick) return;
+    const { g, ai } = renamePick;
+    closeRenameSheet();
+    $("#loading").hidden = false;
+    try {
+      const patch = patchFromAI(newName, ai);
+      if (kana) patch.kana = kana;
+      if (newName === g.name) {
+        await DB.patchByName(g.name, patch);
+        await afterChange(g.name, true);
+        sound.blip();
+        miniNote(`🤖 「${g.name}」の 豆知識(まめちしき)を 新(あたら)しくしたよ`);
+      } else {
+        await DB.renameGroup(g.name, newName);
+        await DB.patchByName(newName, patch);
+        Covers.rename(g.name, newName);
+        await afterChange(newName, true);
+        sound.blip(); confetti(1);
+        miniNote(`🤖 「${newName}」に 直(なお)したよ！`);
+      }
+    } catch (err) {
+      console.error(err);
+      say("直(なお)せませんでした 😢");
+    } finally {
+      $("#loading").hidden = true;
+    }
   }
 
   /* ずかんの ページから「もういちど AIに みてもらう」。
@@ -2515,26 +2738,7 @@
         say("うまく わからなかったよ 😢\nべつの 写真(しゃしん)で ためしてみてね。");
         return;
       }
-      const newName = String(ai.name).trim().slice(0, 24);
-      const pct = typeof ai.confidence === "number" ? Math.round(ai.confidence * 100) : null;
-      if (newName === g.name) {
-        await DB.patchByName(g.name, patchFromAI(g.name, ai));
-        await afterChange(g.name, true);
-        sound.blip();
-        miniNote(`🤖 AIも「${g.name}」だと 言(い)って いるよ！ 豆知識(まめちしき)を 新(あたら)しくしたよ`);
-        return;
-      }
-      const okToChange = ask(
-        `AIは この 写真(しゃしん)を「${newName}」だと 思(おも)って いるよ` +
-        (pct != null ? `（自信(じしん) ${pct}%）` : "") + "。\n" +
-        `「${g.name}」から 変(か)えますか？\n（豆知識(まめちしき)も 新(あたら)しく なります）`);
-      if (!okToChange) return;
-      await DB.renameGroup(g.name, newName);
-      await DB.patchByName(newName, patchFromAI(newName, ai));
-      Covers.rename(g.name, newName);
-      await afterChange(newName, true);
-      sound.blip(); confetti(1);
-      miniNote(`🤖 「${newName}」に 直(なお)したよ！`);
+      openRenameSheet(g, ai);
     } catch (err) {
       const m = String(err.message || err);
       if (m.startsWith("QUOTA_DAY")) say("今日(きょう)の AIの 分(ぶん)は 使(つか)いきったみたい。明日(あした)まで 待(ま)ってね。");
@@ -2567,6 +2771,8 @@
         food: d.food || "",
         size: (d.size || "").trim(),
         care: d.care || "",
+        riddle: d.riddle || "",
+        riddleHint: d.riddle_hint || "",
         ...statsFor(name, (groups.get(name) || {}).rarity, d),
         ...moveFor(name, (groups.get(name) || {}).rarity, d),
       };
@@ -2837,6 +3043,7 @@
   function openResult(blob, ai, err) {
     const r = { name: "", kana: "", fact: "", where: "", rarity: 1, category: "", aiName: null, confidence: null,
                 family: "", trivia: [], habitat: "", season: "", food: "", size: "", care: "",
+                riddle: "", riddleHint: "",
           attack: 0, defense: 0, hand: "" };
     /* AIが 出(だ)した「もしかして」の 候補(こうほ)と、答(こた)えの こまかさ。
        種(しゅ)まで 分(わ)からない ときは「○○の なかま」で 止(と)めて もらう。*/
@@ -2850,6 +3057,7 @@
       r.family = (ai.family || "").trim();
       r.trivia = Array.isArray(ai.trivia) ? ai.trivia.filter(Boolean) : [];
       r.habitat = ai.habitat || ""; r.season = ai.season || ""; r.food = ai.food || ""; r.size = ai.size || ""; r.care = ai.care || "";
+      r.riddle = ai.riddle || ""; r.riddleHint = ai.riddle_hint || "";
       r.attack = ai.attack || 0; r.defense = ai.defense || 0; r.hand = ai.hand || "";
       r.move = ai.move_name || ""; r.moveKind = ai.move_kind || "";
       r.moveColor = ai.move_color || ""; r.moveCry = ai.move_cry || "";
@@ -3082,6 +3290,7 @@
         trivia: (known.trivia || []).slice(0, 4),
         habitat: known.habitat || "", season: known.season || "",
         food: known.food || "", size: known.size || "", care: known.care || "",
+        riddle: known.riddle || "", riddleHint: known.riddleHint || "",
         ...statsFor(name, known.stars, known),
         ...moveFor(name, known.stars, known),
       };
@@ -3093,7 +3302,7 @@
         ? { attack: g0.attack, defense: g0.defense, hand: g0.hand,
             move: g0.move, moveKind: g0.moveKind, moveColor: g0.moveColor, moveCry: g0.moveCry }
         : null;
-      return Object.assign({ where: "", family: "", trivia: [], habitat: "", season: "", food: "", size: "", care: "" },
+      return Object.assign({ where: "", family: "", trivia: [], habitat: "", season: "", food: "", size: "", care: "", riddle: "", riddleHint: "" },
         keep || Object.assign(statsFor(name, pendingRarity, null), moveFor(name, pendingRarity, null)));
     }
     return {
@@ -3101,6 +3310,7 @@
       trivia: Array.isArray(r.trivia) ? r.trivia.slice(0, 4) : [],
       habitat: r.habitat || "", season: r.season || "",
       food: r.food || "", size: r.size || "", care: r.care || "",
+      riddle: r.riddle || "", riddleHint: r.riddleHint || "",
       ...statsFor(name, pendingRarity, r),
       ...moveFor(name, pendingRarity, r),
     };
@@ -4427,6 +4637,19 @@
   function wire() {
     $("#fab").addEventListener("click", () => openPicker("discovery"));
     $("#zukan-switch").addEventListener("click", openZukanSheet);
+    $("#rn-keep").addEventListener("click", closeRenameSheet);
+    $("#rename-sheet").addEventListener("click", (e) => { if (e.target.id === "rename-sheet") closeRenameSheet(); });
+    $("#quiz-open").addEventListener("click", openQuiz);
+    $("#quiz-close").addEventListener("click", closeQuiz);
+    $("#quiz-next").addEventListener("click", nextQuiz);
+    $("#quiz-hint").addEventListener("click", () => {
+      const t = $("#quiz-hint-tx");
+      t.textContent = "💡 " + (quizNow && quizNow.riddleHint || "");
+      t.hidden = false;
+      rubyifyDOM(t);
+      $("#quiz-hint").hidden = true;
+      sound.blip();
+    });
     $("#sort-open").addEventListener("click", openSortSheet);
     $("#sort-done").addEventListener("click", closeSortSheet);
     $("#sort-sheet").addEventListener("click", (e) => { if (e.target.id === "sort-sheet") closeSortSheet(); });
