@@ -2470,8 +2470,14 @@ button.stm:not(:disabled):active .stm-in { transform: scale(.9); }
 .ar-flash.on { animation: arFlash .22s ease-out; }
 @keyframes arFlash { 0% { opacity: .8; } 100% { opacity: 0; } }
 
-.ar-msg { text-align: center; font-size: 15px; font-weight: 900; margin: 0; min-height: 1.7em; color: #fff3d8;
+.ar-msg { text-align: center; font-size: 15px; font-weight: 900; margin: 0; min-height: 3.4em; color: #fff3d8;
+  display: flex; align-items: center; justify-content: center;
   text-shadow: 0 2px 4px rgba(0,0,0,.5); }
+/* とうじょうの あいだは ボタンを かくすが、ばしょは のこす。
+   こう しないと、はじまった とたんに ステージが ちぢんで
+   キャラクターと たいりょくバーの たかさが かわって しまう。*/
+.ar-fight.intro .ar-hands,
+.ar-fight.intro .ar-item-row { visibility: hidden; pointer-events: none; }
 
 /* じゃんけん ボタン */
 .ar-hands { display: grid; grid-template-columns: repeat(3, 1fr); align-items: start; gap: 12px;

@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v112";
+  const APP_VERSION = "v113";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -1560,6 +1560,7 @@
     $("#ar-pick").hidden = true;
     $("#ar-fight").hidden = false;
     $("#ar-end").hidden = true;
+    $("#ar-fight").classList.remove("intro");
     $("#ar-hands").hidden = false;
     $("#ar-item-row").hidden = false;
     $("#ar-foe-hand").innerHTML = "";
@@ -1598,8 +1599,13 @@
   async function arIntro() {
     arBusy = true;
     const foeEl = $("#ar-foe"), meEl = $("#ar-me");
-    $("#ar-hands").hidden = true;
-    $("#ar-item-row").hidden = true;
+    /* とうじょうの あいだ、じゃんけんボタンは 見(み)えなく するだけで
+       ばしょは あけた ままに する。hidden で けすと そのぶん ステージが
+       のびて、たたかいが はじまった とたんに キャラや たいりょくバーの
+       たかさが かわって しまう。*/
+    $("#ar-fight").classList.add("intro");
+    $("#ar-hands").hidden = false;
+    $("#ar-item-row").hidden = false;
     foeEl.classList.add("pre"); meEl.classList.add("pre");
     arZeroBars();
     $("#ar-msg").textContent = "たたかいの じゅんび…";
@@ -1637,8 +1643,7 @@
     if (navigator.vibrate) navigator.vibrate([0, 60, 40, 60]);
     await arSleep(950);
     arHideCenter();
-    $("#ar-hands").hidden = false;
-    $("#ar-item-row").hidden = false;
+    $("#ar-fight").classList.remove("intro");
     $("#ar-msg").textContent = "じゃんけんを えらんでね！";
     arBusy = false;
   }
