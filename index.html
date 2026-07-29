@@ -87,7 +87,8 @@
     <div class="sheet-card">
       <p class="sheet-title">写真(しゃしん)を…</p>
       <p class="sheet-tip">💡 同(おな)じ <span id="tip-one">虫(むし)</span>を <b>2〜3枚(まい)</b>（横(よこ)・上(うえ)・近(ちか)くなど）
-        写(うつ)すと、AIの 名前(なまえ)あてが ぐんと 当(あ)たりやすく なるよ</p>
+        写(うつ)すと、AIの 名前(なまえ)あてが ぐんと 当(あ)たりやすく なるよ<br>
+        📸 <b>できるだけ 近(ちか)づいて、画面(がめん)いっぱい</b>に 写(うつ)すと もっと 当(あ)たるよ</p>
       <button id="pick-camera" class="sheet-btn cam">📷 カメラで 撮(と)る<small>1枚(まい)ずつ 撮(と)って あとで たせるよ</small></button>
       <button id="pick-file" class="sheet-btn file">🖼️ アルバム・ファイルから<small>何枚(なんまい)か まとめて えらべるよ</small></button>
       <button id="pick-cancel" class="sheet-btn cancel">やめる</button>
@@ -149,6 +150,9 @@
     <input id="r-name-input" class="r-name-input" type="text" maxlength="24" placeholder="名前を 入れてね"
            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
            name="mushi_name" data-lpignore="true" data-1p-ignore />
+    <div id="r-cands" class="r-cands" hidden></div>
+    <button id="r-verify" class="r-verify" type="button">🔎 この 名前(なまえ)、ほんとうに ある？</button>
+    <p id="r-verify-out" class="r-verify-out"></p>
     <label class="r-label" id="r-place-label">🗺️ みつけた 場所(ばしょ)</label>
     <select id="r-place" class="r-place"></select>
     <button id="r-place-add" class="r-place-add" type="button">📍 今(いま)いる 場所(ばしょ)を 登録(とうろく)</button>

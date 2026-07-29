@@ -22,6 +22,42 @@ const Gemini = (() => {
     });
   }
 
+  /* ぜんぶの ずかんで きょうつうの「なまえの きまり」。
+     AIは、それらしい なまえを その場(ば)で つくって しまう ことが ある。
+     じっさいに ある なまえ だけを つかわせ、じしんが ない ときは
+     「○○の なかま」と 大(おお)きく こたえさせる ための きまり。
+     さきに「見(み)えた とくちょう」と「思(おも)いあたる 名前(なまえ)」を
+     書(か)かせてから 答(こた)えを 決(き)めさせると、あて が よく なる。*/
+  const NAME_RULES = (one, egSp, egGrp, egNg) => [
+    "",
+    "━━━ いちばん だいじな きまり：名前(なまえ)を つくらない ━━━",
+    `・name には、日本(にほん)で じっさいに つかわれて いる ${one}の 名前(なまえ)だけを 書(か)いて ください。`,
+    "・それらしい 名前(なまえ)を あたらしく つくっては いけません。",
+    `  たとえば「${egNg}」の ような、図鑑(ずかん)に のって いない 名前(なまえ)は だめです。`,
+    `・種(しゅ)まで はっきり しない ときは、むりに 決(き)めずに「${egGrp}」の ように`,
+    "  大(おお)きな まとまりで 答(こた)えて ください。それでも りっぱな 答(こた)えです。",
+    "・写真(しゃしん)で 見(み)えて いる ことだけで 決(き)めて ください。",
+    "  写(うつ)って いない ところを 想像(そうぞう)して 決(き)めては いけません。",
+    "",
+    "━━━ 答(こた)える じゅんばん ━━━",
+    "1. observed: 写真(しゃしん)で 見(み)えた 特徴(とくちょう)を 1〜2文(ぶん)で。",
+    "   形(かたち)・色(いろ)・もよう・大(おお)きさ・脚(あし)や 羽(はね)の ようす・まわりの ようす。",
+    "2. candidates: 思(おも)いあたる 名前(なまえ)を 多(おお)くて 3つ、あてはまる 順(じゅん)に。",
+    "   それぞれ name（ひらがな）・kana（カタカナ）・why（そう 思(おも)う 理由(りゆう)を みじかく）・",
+    "   confidence（0.0〜1.0）。ぜんぶ じっさいに ある 名前(なまえ) だけ。",
+    "   1つしか 思(おも)いつかない ときは 1つでも かまいません。",
+    "3. name_level: 答(こた)えの こまかさ。つぎの どれか ひとつ だけ：",
+    `   「しゅ」＝ 種(しゅ)まで 分(わ)かる（れい: ${egSp}）`,
+    `   「なかま」＝ 大(おお)きな まとまりまで 分(わ)かる（れい: ${egGrp}）`,
+    "   「わからない」＝ ぶれて いる・小(ちい)さすぎる など で 分(わ)からない",
+    "4. name: name_level が「しゅ」なら candidates の 1つめを そのまま。",
+    `   「なかま」なら「${egGrp}」の ような まとまりの 名前(なまえ)に して ください。`,
+    "   「わからない」なら name は からっぽに して ください。",
+    "5. confidence: name が 当(あ)たって いる 自信(じしん) 0.0〜1.0。",
+    "   すこしでも あやしい ときは 低(ひく)く つけて ください。",
+    "   0.9より 上(うえ)に して いいのは、だれが 見(み)ても まちがえない ときだけです。",
+  ].join("\n");
+
   const PROMPTS = {
     mushi: [
       "あなたは こども向けの こんちゅう ずかんの アシスタントです。",
@@ -71,7 +107,7 @@ const Gemini = (() => {
       "  4さいが よめるように、たんごの あいだは はんかくスペースで くぎって ください。",
       "  name は ひらがな だけ、kana は カタカナ だけ（ふりがなの かっこは つけない）。",
       "いきものが いない ときは name を からっぽ、is_creature を false にして ください。",
-    ].join("\n"),
+    ].join("\n") + NAME_RULES("虫(むし)", "ナナホシテントウ", "てんとうむしの なかま", "ミドリオオツノカブト"),
     hana: [
       "あなたは こども向けの しょくぶつ（おはな）ずかんの アシスタントです。",
       "この しゃしんに うつっている しょくぶつ（おはな・くさ・はっぱ・き・きのみ・どんぐり・きのこ など）が なにか みてください。",
@@ -121,7 +157,7 @@ const Gemini = (() => {
       "  4さいが よめるように、たんごの あいだは はんかくスペースで くぎって ください。",
       "  name は ひらがな だけ、kana は カタカナ だけ（ふりがなの かっこは つけない）。",
       "しょくぶつが ない ときは name を からっぽ、is_creature を false にして ください。",
-    ].join("\n"),
+    ].join("\n") + NAME_RULES("植物(しょくぶつ)", "セイヨウタンポポ", "たんぽぽの なかま", "アオバナヒメツユクサ"),
     doubutsu: [
       "あなたは こども向けの どうぶつ ずかんの アシスタントです。",
       "この しゃしんに うつっている 動物(どうぶつ)（いぬ・ねこ・とり・さかな・かめ・どうぶつえんの どうぶつ など）が なにか みてください。",
@@ -173,13 +209,37 @@ const Gemini = (() => {
       "  4さいが よめるように、たんごの あいだは はんかくスペースで くぎって ください。",
       "  name は ひらがな だけ、kana は カタカナ だけ（ふりがなの かっこは つけない）。",
       "動物(どうぶつ)が いない ときは name を からっぽ、is_creature を false にして ください。",
-    ].join("\n"),
+    ].join("\n") + NAME_RULES("動物(どうぶつ)", "シバイヌ", "いぬの なかま", "キタホンドオオリス"),
   };
   const promptFor = (kind) => PROMPTS[kind] || PROMPTS.mushi;
 
+  /* こたえの じゅんばんが だいじ。
+     さきに observed（見(み)えた とくちょう）と candidates（思(おも)いあたる 名前）を
+     書(か)かせて から name を きめさせる。こう すると、いきなり 名前を 言(い)って
+     しまう ときより あて が よく なり、つくった 名前も でにくく なる。*/
+  const REASON_FIRST = ["observed", "candidates", "name_level", "name", "kana", "is_creature", "confidence"];
   const SCHEMA = {
     type: "OBJECT",
+    propertyOrdering: REASON_FIRST.concat([
+      "rarity", "fact", "where", "category", "family", "trivia", "habitat", "season",
+      "food", "size", "care", "attack", "defense", "hand",
+      "move_name", "move_cry", "move_kind", "move_color",
+    ]),
     properties: {
+      observed: { type: "STRING" },
+      candidates: {
+        type: "ARRAY",
+        items: {
+          type: "OBJECT",
+          propertyOrdering: ["name", "kana", "why", "confidence"],
+          properties: {
+            name: { type: "STRING" }, kana: { type: "STRING" },
+            why: { type: "STRING" }, confidence: { type: "NUMBER" },
+          },
+          required: ["name"],
+        },
+      },
+      name_level: { type: "STRING" },
       name: { type: "STRING" },
       kana: { type: "STRING" },
       is_creature: { type: "BOOLEAN" },
@@ -203,7 +263,7 @@ const Gemini = (() => {
       move_kind: { type: "STRING" },
       move_color: { type: "STRING" },
     },
-    required: ["name", "is_creature", "confidence", "rarity", "fact"],
+    required: ["observed", "candidates", "name_level", "name", "is_creature", "confidence", "rarity", "fact"],
   };
 
   /* なまえだけ わかって いる ものを、あとから くわしく しらべる（もじだけ・やすい）*/
@@ -434,7 +494,7 @@ const Gemini = (() => {
       generationConfig: {
         responseMimeType: "application/json",
         responseSchema: SCHEMA,
-        temperature: 0.2,
+        temperature: 0,          // 0だと 名前を つくりにくく、おなじ 写真で おなじ 答えに なる
       },
     };
 
@@ -455,6 +515,50 @@ const Gemini = (() => {
       obj = {};
     }
     return obj;
+  }
+
+  /* 「この 名前(なまえ)、ほんとうに ある？」の たしかめ（もじだけ・やすい）。
+     AIは たまに それらしい 名前を つくって しまう ので、
+     あやしい ときに この チェックで つかまえる。*/
+  const VERIFY_SCHEMA = {
+    type: "OBJECT",
+    propertyOrdering: ["reason", "real", "correct_name", "correct_kana", "note"],
+    properties: {
+      reason: { type: "STRING" },
+      real: { type: "BOOLEAN" },
+      correct_name: { type: "STRING" },
+      correct_kana: { type: "STRING" },
+      note: { type: "STRING" },
+    },
+    required: ["reason", "real", "note"],
+  };
+  const VERIFY_WORD = { mushi: "虫(むし)・生(い)きもの", hana: "植物(しょくぶつ)", doubutsu: "動物(どうぶつ)" };
+  async function verifyName(name, key, model, kind) {
+    if (!key) throw new Error("NO_KEY");
+    if (!name) throw new Error("NO_NAME");
+    const one = VERIFY_WORD[kind] || VERIFY_WORD.mushi;
+    const prompt = [
+      `「${name}」は、日本(にほん)で じっさいに つかわれて いる ${one}の 名前(なまえ)ですか？`,
+      "図鑑(ずかん)や 学校(がっこう)で つかわれて いる 名前（和名(わめい)・ふつうの 呼(よ)び名(な)・",
+      "大(おお)きな まとまりの 名前『○○の なかま』）なら real を true に して ください。",
+      "だれかが つくった 名前や、じっさいには ない 名前なら real を false に して ください。",
+      "",
+      "こたえる じゅんばん：",
+      "1. reason: なぜ そう 思(おも)うかを 1文(ぶん)で（どの なかまの 名前か、聞(き)いた ことが あるか）。",
+      "2. real: true か false。",
+      "3. correct_name: real が false の ときだけ、いちばん 近(ちか)い ほんとうの 名前を ひらがなで。",
+      "   true の ときは からっぽ。",
+      "4. correct_kana: correct_name の カタカナ。",
+      "5. note: 4さいの こどもに 1文(ぶん)で 説明(せつめい)。かんじの あとに よみがなを",
+      "   まるかっこで つけて ください。れい:「本当(ほんとう)に いる 虫(むし)だよ！」",
+    ].join("\n");
+    const resp = await callGemini(model, key, {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: "application/json", responseSchema: VERIFY_SCHEMA, temperature: 0 },
+    });
+    const data = await resp.json();
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    try { return JSON.parse(text); } catch (e) { return { real: true, note: "" }; }
   }
 
   // せつぞく テスト（ちいさな てきすとだけ）
@@ -540,5 +644,5 @@ const Gemini = (() => {
     return out;
   }
 
-  return { identify, test, classifyNames, details, DEFAULT_MODEL, OUTDATED_MODELS };
+  return { identify, test, classifyNames, details, verifyName, DEFAULT_MODEL, OUTDATED_MODELS };
 })();

@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v100";
+  const APP_VERSION = "v101";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -18,6 +18,8 @@
   const MAX_SHOTS = 3;        // AIに わたす しゃしんは さいだい 3まい
   let pendingShots = [];      // いま しらべて いる しゃしん たち
   let pendingResolved = null;
+  let pendingCands = [];      // AIの「もしかして」（ほかの こうほ）
+  let pendingLevel = "";      // "しゅ" / "なかま" / "わからない"
   let pendingRarity = 1;      // とうろく画面で えらんだ ★の かず
   let rarityTouched = false;  // てで かえたら AIの すいそくで うわがきしない
   let pendingStats = null;    // ★を いじった あとの つよさ（とうろく画面）
@@ -2520,7 +2522,9 @@
     if (!files.length) return;
     let blobs = [];
     try {
-      for (const f of files) blobs.push(await resizeImage(f, 1024, 0.8));
+      // AIに わたす しゃしんは 大(おお)きめ・きれいめに（小(ちい)さい 虫(むし)の
+      // もようや 脚(あし)の かたちが つぶれると、名前(なまえ)を まちがえやすい）
+      for (const f of files) blobs.push(await resizeImage(f, 1280, 0.86));
     } catch (err) { say("写真(しゃしん)を 読(よ)みこめなかったよ。"); return; }
     const blob = blobs[0];
 
@@ -2686,6 +2690,11 @@
     const r = { name: "", kana: "", fact: "", where: "", rarity: 1, category: "", aiName: null, confidence: null,
                 family: "", trivia: [], habitat: "", season: "", food: "", size: "", care: "",
           attack: 0, defense: 0, hand: "" };
+    /* AIが 出(だ)した「もしかして」の 候補(こうほ)と、答(こた)えの こまかさ。
+       種(しゅ)まで 分(わ)からない ときは「○○の なかま」で 止(と)めて もらう。*/
+    pendingCands = (ai && Array.isArray(ai.candidates) ? ai.candidates : [])
+      .filter((c) => c && c.name).slice(0, 3);
+    pendingLevel = (ai && ai.name_level) || "";
     if (ai && ai.is_creature && ai.name) {
       r.name = ai.name; r.kana = ai.kana || ""; r.fact = ai.fact || ""; r.where = ai.where || "";
       r.rarity = clampR(ai.rarity); r.category = ai.category || ""; r.aiName = ai.name;
@@ -2773,16 +2782,116 @@
       note.classList.add("warn"); note.innerHTML = "AIが 使(つか)えなかったよ。名前(なまえ)を 手(て)で 入(い)れてね。" + detail(err);
     } else if (ai && !ai.is_creature) {
       note.classList.add("warn"); note.textContent = Zukan.meta.notFound;
+    } else if (ai && !r.name) {
+      note.classList.add("warn");
+      note.innerHTML = "はっきり 分(わ)からなかったよ。<br><span class='r-note-sub'>もう少(すこ)し 近(ちか)くで 撮(と)るか、名前(なまえ)を 手(て)で 入(い)れてね</span>";
     } else if (ai) {
       const pct = r.confidence != null ? Math.round(r.confidence * 100) : null;
-      note.innerHTML = `🤖 AIの 予想(よそう)：<b>${escapeHtml(r.name)}</b>` + (pct != null ? `（自信(じしん) ${pct}%）` : "") + "<br><span class='r-note-sub'>違(ちが)ったら 名前(なまえ)を 直(なお)してね</span>";
+      const low = r.confidence != null && r.confidence < 0.6;
+      const grp = pendingLevel === "なかま";
+      if (low || grp) note.classList.add("warn");
+      note.innerHTML =
+        `🤖 AIの 予想(よそう)：<b>${escapeHtml(r.name)}</b>` + (pct != null ? `（自信(じしん) ${pct}%）` : "") +
+        "<br><span class='r-note-sub'>" +
+        (grp ? "種類(しゅるい)までは しぼれなかったので、大(おお)きな なかまで 書(か)いて いるよ。"
+             : low ? "あまり 自信(じしん)が ないみたい。下(した)の「もしかして」も 見(み)てね。"
+                   : "違(ちが)ったら 名前(なまえ)を 直(なお)してね") +
+        "</span>";
     }
+    drawCandidates();
+    const vo = $("#r-verify-out");
+    if (vo) { vo.textContent = ""; vo.className = "r-verify-out"; }
+    const vb = $("#r-verify");
+    if (vb) vb.hidden = !Settings.key;
     fillPlaceSelect("");
     $("#result").showModal();
     rubyifyDOM($("#result"));
     setTimeout(() => { if (!r.name) $("#r-name-input").focus(); }, 200);
     // GPSで ちかくの ばしょを じどう せんたく
     guessPlaceId().then((id) => { if (id && !$("#r-place").value) $("#r-place").value = id; });
+  }
+
+  /* AIの「もしかして」を なまえの したに ならべる。
+     いちばんの こたえが ちがった とき、タップだけで つぎの こうほに かえられる。*/
+  function drawCandidates() {
+    const box = $("#r-cands");
+    if (!box) return;
+    box.innerHTML = "";
+    const now = $("#r-name-input").value.trim();
+    const others = pendingCands.filter((c) => c.name && c.name !== now);
+    box.hidden = !others.length;
+    if (box.hidden) return;
+    const lab = document.createElement("span");
+    lab.className = "rc-label"; lab.textContent = "もしかして";
+    box.appendChild(lab);
+    for (const c of others) {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "rc-chip";
+      const pct = typeof c.confidence === "number" ? Math.round(c.confidence * 100) : null;
+      b.innerHTML = `<b>${escapeHtml(c.name)}</b>` + (pct != null ? `<i>${pct}%</i>` : "");
+      if (c.why) b.title = c.why;
+      b.addEventListener("click", () => {
+        sound.blip();
+        $("#r-name-input").value = c.name;
+        if (pendingResolved) pendingResolved.kana = c.kana || "";
+        $("#r-kana").textContent = c.kana || "";
+        pendingStats = null;
+        onResultNameInput(c.name);
+      });
+      box.appendChild(b);
+    }
+  }
+
+  /* 「この 名前(なまえ)、ほんとうに ある？」— もじだけの やすい たしかめ。
+     AIが つくった 名前を つかんだら、ほんとうの 名前に 直(なお)せる ように する。*/
+  async function verifyResultName() {
+    const btn = $("#r-verify"), out = $("#r-verify-out");
+    const name = $("#r-name-input").value.trim();
+    if (!out) return;
+    if (!name) { out.textContent = "さきに 名前(なまえ)を 入(い)れてね"; out.className = "r-verify-out warn"; return; }
+    if (!Settings.key) { out.textContent = "⚙️設定(せってい)で AIキーを 入(い)れてね"; out.className = "r-verify-out warn"; rubyifyDOM(out); return; }
+    btn.disabled = true;
+    out.textContent = "🔎 図鑑(ずかん)に ある 名前(なまえ)か 調(しら)べて いるよ…";
+    out.className = "r-verify-out";
+    rubyifyDOM(out);
+    try {
+      const v = await Gemini.verifyName(name, Settings.key, Settings.model, Zukan.id);
+      out.innerHTML = "";
+      const p = document.createElement("span");
+      if (v.real) {
+        p.textContent = `✓ 「${name}」は ほんとうに ある 名前(なまえ)だよ！` + (v.note ? " " + v.note : "");
+        out.className = "r-verify-out ok";
+        out.appendChild(p);
+      } else {
+        p.textContent = `⚠️ 「${name}」は 図鑑(ずかん)に ない 名前(なまえ)みたい。` + (v.note ? " " + v.note : "");
+        out.className = "r-verify-out warn";
+        out.appendChild(p);
+        if (v.correct_name) {
+          const fix = document.createElement("button");
+          fix.type = "button"; fix.className = "rc-chip fix";
+          fix.innerHTML = `<b>${escapeHtml(v.correct_name)}</b><i>に 直(なお)す</i>`;
+          fix.addEventListener("click", () => {
+            sound.blip();
+            $("#r-name-input").value = v.correct_name;
+            if (pendingResolved) pendingResolved.kana = v.correct_kana || "";
+            $("#r-kana").textContent = v.correct_kana || "";
+            pendingStats = null;
+            onResultNameInput(v.correct_name);
+            out.className = "r-verify-out ok";
+            out.textContent = `✓ 「${v.correct_name}」に したよ！`;
+            rubyifyDOM(out);
+          });
+          out.appendChild(fix);
+        }
+      }
+      rubyifyDOM(out);
+    } catch (err) {
+      out.className = "r-verify-out warn";
+      out.textContent = "調(しら)べられなかったよ。少(すこ)し 待(ま)って もう一度(いちど) 押(お)してね。";
+      rubyifyDOM(out);
+    } finally {
+      btn.disabled = false;
+    }
   }
 
   // とうろく がめんの たたかいの すうじ
@@ -2925,6 +3034,7 @@
     updateResultIllust(name);
     const r = pendingResolved || {};
     drawResultBattle();
+    drawCandidates();
     if (rarityTouched) return;   // てで えらんだ ★は そのまま
     pendingRarity = rarityFor(name, r.rarity);
     drawResultStars();
@@ -4120,6 +4230,7 @@
       $("#picker").hidden = false;
     });
     $("#r-name-input").addEventListener("input", (e) => onResultNameInput(e.target.value));
+    $("#r-verify").addEventListener("click", verifyResultName);
 
     $("#cel-ok").addEventListener("click", () => { const ov = $("#celebrate"); ov.classList.remove("show"); setTimeout(() => (ov.hidden = true), 300); });
 
