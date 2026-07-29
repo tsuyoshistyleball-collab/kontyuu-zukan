@@ -418,6 +418,11 @@
       <span class="di-tx"><b>とうぎじょう</b><small>あつめた カードで バトル！</small></span>
       <span class="di-go">›</span>
     </button>
+    <button id="sort-open" class="drawer-item di-sort" hidden>
+      <span class="di-ico">🔀</span>
+      <span class="di-tx"><b>科(か)の ならびかえ</b><small>すきな 順番(じゅんばん)に できるよ</small></span>
+      <span class="di-go">›</span>
+    </button>
     <button id="settings-btn" class="drawer-item di-settings">
       <span class="di-ico">⚙️</span>
       <span class="di-tx"><b>設定(せってい)</b><small>AI・音(おと)・バックアップ</small></span>
@@ -512,6 +517,17 @@
           <button id="ar-back" class="ar-back">なかまを かえる</button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- 科(か)の ならびかえ -->
+  <div id="sort-sheet" class="sheet" hidden>
+    <div class="sheet-card sort-card">
+      <p class="sheet-title">🔀 科(か)の ならびかえ</p>
+      <p class="sheet-tip">⬆️⬇️ で 動(うご)かすか、長(なが)おしして ドラッグしてね</p>
+      <div id="sort-list" class="sort-list"></div>
+      <button id="sort-reset" class="sheet-btn cancel">↩️ もとの 順番(じゅんばん)に もどす</button>
+      <button id="sort-done" class="sheet-btn file">✓ これで OK</button>
     </div>
   </div>
 

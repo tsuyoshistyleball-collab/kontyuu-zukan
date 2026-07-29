@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v104";
+  const APP_VERSION = "v105";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -85,6 +85,24 @@
       const m = this.all, a = this.key(oldName), b = this.key(newName);
       if (m[a] != null) { m[b] = m[a]; delete m[a]; }
       try { localStorage.setItem("mz-covers", JSON.stringify(m)); } catch (e) {}
+    },
+  };
+
+  /* 科(か)の ならびかえ。てで きめた 順番(じゅんばん)を ずかんごとに おぼえる。
+     ここに ある 科が さきに、ない 科（あとから ふえた もの）は うしろに つく。*/
+  const SecOrder = {
+    get all() { try { return JSON.parse(localStorage.getItem("mz-secorder") || "{}"); } catch (e) { return {}; } },
+    get list() { const v = this.all[Zukan.id]; return Array.isArray(v) ? v : []; },
+    set list(arr) {
+      const m = this.all;
+      if (arr && arr.length) m[Zukan.id] = arr; else delete m[Zukan.id];
+      try { localStorage.setItem("mz-secorder", JSON.stringify(m)); } catch (e) {}
+    },
+    clear() { this.list = null; },
+    // 科の なまえ → 何(なん)ばんめ（きめて いなければ 大(おお)きい すうじ）
+    rank(family) {
+      const i = this.list.indexOf(family);
+      return i < 0 ? Infinity : i;
     },
   };
 
@@ -383,6 +401,9 @@
     out.sort((a, b) => {
       if (!a.family !== !b.family) return a.family ? -1 : 1;   // 科が わかる ものが さき
       if (!a.family) return 0;
+      // てで ならびかえた ものが いちばん さき
+      const ra = SecOrder.rank(a.family), rb = SecOrder.rank(b.family);
+      if (ra !== rb) return ra - rb;
       const oa = order.indexOf(a.catId), ob = order.indexOf(b.catId);
       if (oa !== ob) return (oa < 0 ? 99 : oa) - (ob < 0 ? 99 : ob);
       return a.family.localeCompare(b.family, "ja");
@@ -390,6 +411,112 @@
     return out;
   }
   const NO_FAMILY = "__nofam";
+
+  /* ============================================================
+     科(か)の ならびかえ モード
+     ⬆️⬇️の ボタンでも、ドラッグ（長おし して うごかす）でも できる。
+     ============================================================ */
+  let sortItems = [];        // ならびかえ中(ちゅう)の 科の なまえ
+  function openSortSheet() {
+    closeDrawer();
+    const secs = groupedByCategory().filter((s) => s.family);
+    if (!secs.length) { miniNote("まだ 科(か)が ないよ"); return; }
+    sortItems = secs.map((s) => ({ family: s.family, emoji: categoryMeta(s.catId).emoji, n: s.groups.length }));
+    drawSortList();
+    $("#sort-sheet").hidden = false;
+  }
+  function closeSortSheet() { $("#sort-sheet").hidden = true; }
+
+  function drawSortList() {
+    const box = $("#sort-list");
+    box.innerHTML = "";
+    sortItems.forEach((it, i) => {
+      const row = document.createElement("div");
+      row.className = "sort-row";
+      row.dataset.i = i;
+      row.innerHTML =
+        `<span class="so-grip" aria-hidden="true">⠿</span>` +
+        `<span class="so-emoji">${it.emoji}</span>` +
+        `<span class="so-name">${escapeHtml(it.family)}<small>${it.n}しゅるい</small></span>`;
+      const up = document.createElement("button");
+      up.type = "button"; up.className = "so-btn"; up.textContent = "⬆️";
+      up.setAttribute("aria-label", it.family + " を 上へ");
+      up.disabled = i === 0;
+      up.addEventListener("click", () => moveSort(i, -1));
+      const dn = document.createElement("button");
+      dn.type = "button"; dn.className = "so-btn"; dn.textContent = "⬇️";
+      dn.setAttribute("aria-label", it.family + " を 下へ");
+      dn.disabled = i === sortItems.length - 1;
+      dn.addEventListener("click", () => moveSort(i, 1));
+      row.appendChild(up); row.appendChild(dn);
+      wireSortDrag(row);
+      box.appendChild(row);
+    });
+    rubyifyDOM(box);
+  }
+  function moveSort(i, d) {
+    const j = i + d;
+    if (j < 0 || j >= sortItems.length) return;
+    const t = sortItems[i]; sortItems[i] = sortItems[j]; sortItems[j] = t;
+    sound.blip();
+    drawSortList();
+    applySortOrder();
+    // うごかした ぎょうを ひからせる
+    const row = $(`.sort-row[data-i="${j}"]`);
+    if (row) { row.classList.add("moved"); setTimeout(() => row.classList.remove("moved"), 420); }
+  }
+  function applySortOrder() {
+    SecOrder.list = sortItems.map((it) => it.family);
+    renderGrid();
+  }
+
+  /* ゆびで つかんで うごかす。ぎょうの 高(たか)さは ぜんぶ おなじ なので、
+     うごかした きょり ÷ 高さ で 何(なん)ぎょう ぶん 動(うご)いたかが わかる。*/
+  function wireSortDrag(row) {
+    let startY = 0, from = 0, h = 0, moved = false, timer = null, on = false;
+    const begin = (y) => {
+      on = true; startY = y; from = parseInt(row.dataset.i, 10);
+      h = row.getBoundingClientRect().height + 8;
+      row.classList.add("dragging");
+      sound.blip();
+    };
+    row.addEventListener("touchstart", (e) => {
+      const y = e.touches[0].clientY;
+      timer = setTimeout(() => begin(y), 220);          // ながおしで つかむ
+      startY = y;
+    }, { passive: true });
+    row.addEventListener("touchmove", (e) => {
+      if (!on) {
+        if (Math.abs(e.touches[0].clientY - startY) > 8) { clearTimeout(timer); }
+        return;
+      }
+      e.preventDefault();
+      moved = true;
+      const dy = e.touches[0].clientY - startY;
+      row.style.transform = `translateY(${dy}px)`;
+      row.style.zIndex = "5";
+    }, { passive: false });
+    const end = (e) => {
+      clearTimeout(timer);
+      if (!on) return;
+      on = false;
+      const dy = moved ? (e.changedTouches ? e.changedTouches[0].clientY : 0) - startY : 0;
+      row.style.transform = ""; row.style.zIndex = "";
+      row.classList.remove("dragging");
+      moved = false;
+      const step = Math.round(dy / h);
+      if (!step) return;
+      const to = Math.min(sortItems.length - 1, Math.max(0, from + step));
+      if (to === from) return;
+      const [it] = sortItems.splice(from, 1);
+      sortItems.splice(to, 0, it);
+      drawSortList();
+      applySortOrder();
+    };
+    row.addEventListener("touchend", end);
+    row.addEventListener("touchcancel", end);
+  }
+
   // セクションの みだし（AIが おしえて くれた 科(か)の なまえ）
   const secLabel = (sec) => sec.family || "🤖 なかまわけ まち";
 
@@ -491,6 +618,8 @@
     $("#api-hint").hidden = !!Settings.key;
     $("#book-open").hidden = n === 0;
     $("#arena-open").hidden = n === 0;
+    // 科(か)が 2つ いじょう ある ときだけ ならびかえが つかえる
+    $("#sort-open").hidden = groupedByCategory().filter((x) => x.family).length < 2;
     updateBackupHint();
   }
 
@@ -4298,6 +4427,18 @@
   function wire() {
     $("#fab").addEventListener("click", () => openPicker("discovery"));
     $("#zukan-switch").addEventListener("click", openZukanSheet);
+    $("#sort-open").addEventListener("click", openSortSheet);
+    $("#sort-done").addEventListener("click", closeSortSheet);
+    $("#sort-sheet").addEventListener("click", (e) => { if (e.target.id === "sort-sheet") closeSortSheet(); });
+    $("#sort-reset").addEventListener("click", () => {
+      SecOrder.clear();
+      sortItems = groupedByCategory().filter((x) => x.family)
+        .map((x) => ({ family: x.family, emoji: categoryMeta(x.catId).emoji, n: x.groups.length }));
+      drawSortList();
+      renderGrid();
+      sound.blip();
+      miniNote("↩️ もとの 順番(じゅんばん)に もどしたよ");
+    });
     $("#zukan-cancel").addEventListener("click", closeZukanSheet);
     $("#zukan-sheet").addEventListener("click", (e) => { if (e.target.id === "zukan-sheet") closeZukanSheet(); });
     $("#pick-camera").addEventListener("click", () => { closePicker(); $("#file-camera").click(); });
