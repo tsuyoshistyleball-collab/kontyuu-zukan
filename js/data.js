@@ -292,41 +292,7 @@ function categoryMeta(id, kind) {
   return list.find((c) => c.id === id) || list[list.length - 1];
 }
 
-const _KNOWN_CATEGORY = {
-  kabutomushi: "beetle", kuwagata: "beetle", tentoumushi: "beetle", koganemushi: "beetle",
-  monshirochou: "butterfly", agehachou: "butterfly",
-  tonbo: "dragonfly", semi: "cicada",
-  batta: "hopper", koorogi: "hopper", suzumushi: "hopper", kamakiri: "hopper",
-  mitsubachi: "beeant", ari: "beeant",
-  kumo: "spider", katatsumuri: "snail", dangomushi: "other", amenbo: "water",
-};
 
-const _CAT_KEYWORDS = [
-  ["beetle",    ["こうちゅう", "甲虫", "かぶと", "くわがた", "てんとう", "かなぶん", "こがね", "beetle", "ladybug", "weevil"]],
-  ["butterfly", ["ちょう", "蝶", "ちょうちょ", "蛾", "あげは", "もんしろ", "しじみちょう", "butterfly", "moth"]],
-  ["dragonfly", ["とんぼ", "蜻蛉", "やんま", "dragonfly", "damselfly"]],
-  ["cicada",    ["せみ", "蝉", "cicada"]],
-  ["hopper",    ["ばった", "こおろぎ", "きりぎりす", "かまきり", "いなご", "すずむし", "grasshopper", "cricket", "mantis", "locust", "katydid"]],
-  ["beeant",    ["はち", "蜂", "あり", "蟻", "bee", "ant", "wasp", "hornet"]],
-  ["spider",    ["くも", "蜘蛛", "spider"]],
-  ["snail",     ["かたつむり", "でんでん", "まいまい", "snail", "slug", "なめくじ"]],
-  ["water",     ["あめんぼ", "みずすまし", "げんごろう", "たがめ", "water"]],
-  ["amphibian", ["かえる", "がえる", "蛙", "おたまじゃくし", "とかげ", "やもり", "いもり", "かなへび",
-                 "へび", "とんぼの やご", "やご", "frog", "toad", "lizard", "newt", "gecko"]],
-];
-
-/* なまえ / AIの カテゴリー もじれつ から カテゴリーidを きめる */
-function _matchCat(hay) {
-  if (!hay) return null;
-  for (const [id, kws] of _CAT_KEYWORDS) {
-    for (const kw of kws) {
-      const k = _norm(kw);
-      // 1もじの ことばは あいまいなので つかわない（「が」が「あまがえる」に あたる など）
-      if (k.length >= 2 && hay.includes(k)) return id;
-    }
-  }
-  return null;
-}
 /* AIが かえす ラベル → カテゴリーid */
 const _CAT_LABEL_MAP = {
   "こうちゅう": "beetle", "ちょうが": "butterfly", "とんぼ": "dragonfly", "せみ": "cicada",
@@ -341,26 +307,17 @@ function _catFromLabel(label) {
   for (const key in _CAT_LABEL_MAP) {     // ゆらぎ（ちょう / ばった など）にも たいおう
     if (k.includes(key) || key.includes(k)) return _CAT_LABEL_MAP[key];
   }
-  return _matchCat(k);
+  return null;
 }
 
+/* なかまわけは AIの こたえ だけを つかう。
+   むかしは 名前(なまえ)の ことばで こちらが 決(き)めて いたが、
+   それだと 古(ふる)い きまりが 残(のこ)って AIの こたえと 食(く)いちがう。*/
 function categorize(name, aiCategory, kind) {
   const _k = kind || ZUKAN_KIND;
   if (_k === "hana") return categorizeFlower(name, aiCategory);
   if (_k === "doubutsu") return categorizeAnimal(name, aiCategory);
-  // 1) ずかんに ある むしは きまった なかまわけ
-  const known = matchKnown(name);
-  if (known && _KNOWN_CATEGORY[known.id]) return _KNOWN_CATEGORY[known.id];
-  // 2) AIの なかまわけを ゆうせん
-  const byAi = _catFromLabel(aiCategory);
-  if (byAi) return byAi;
-  // 3) なまえの ことばで はんてい
-  const nm = _norm(name);
-  const hit = _matchCat(nm);
-  if (hit) return hit;
-  // 「〜が」で おわる なまえは たいてい 蛾（あまがえる などは のぞく）
-  if (nm.length >= 3 && nm.endsWith("が")) return "butterfly";
-  return "other";
+  return _catFromLabel(aiCategory) || "other";
 }
 
 /* ============================================================
@@ -419,42 +376,11 @@ function categoriesFor(kind) {
 }
 function categoryOrderFor(kind) { return categoriesFor(kind).map((c) => c.id); }
 
-const _FCAT_KEYWORDS = [
-  ["f_tree",   ["さくら", "うめ", "もも", "つばき", "さざんか", "つつじ", "あじさい", "もくれん", "こぶし",
-                "きんもくせい", "はなみずき", "ふじ", "さるすべり", "みもざ", "れんぎょう", "ゆきやなぎ",
-                "cherry", "plum", "camellia", "azalea", "hydrangea", "magnolia", "wisteria"]],
-  ["f_wild",   ["たんぽぽ", "すみれ", "しろつめくさ", "つめくさ", "おおいぬのふぐり", "はこべ", "なずな",
-                "へびいちご", "かたばみ", "つゆくさ", "ひめじょおん", "はるじおん", "のげし", "げんげ",
-                "からすのえんどう", "ほとけのざ", "おおばこ", "れんげ", "のあざみ", "あざみ",
-                "dandelion", "violet", "clover flower"]],
-  ["f_garden", ["ちゅーりっぷ", "ひまわり", "ばら", "ゆり", "あさがお", "ぱんじー", "びおら", "こすもす",
-                "まりーごーるど", "きく", "すいせん", "しゃくやく", "ぼたん", "だりあ", "ぜらにうむ",
-                "にちにちそう", "さるびあ", "ひやしんす", "らべんだー", "あじさい", "けいとう", "きんせんか",
-                "tulip", "sunflower", "rose", "lily", "cosmos", "pansy", "marigold"]],
-  ["f_leaf",   ["はっぱ", "はっぱ", "くろーばー", "よもぎ", "すすき", "しだ", "こけ", "つた", "ささ",
-                "もみじ", "いちょう", "かえで", "ねこじゃらし", "えのころぐさ", "しろつめくさのは",
-                "leaf", "moss", "fern", "grass", "clover"]],
-  ["f_fruit",  ["どんぐり", "まつぼっくり", "まつかさ", "たね", "このみ", "きのみ", "くり", "ぎんなん",
-                "さくらんぼ", "いちご", "みかん", "かき", "なんてん", "ひいらぎ",
-                "acorn", "pinecone", "seed", "berry"]],
-  ["f_mush",   ["きのこ", "しめじ", "えのき", "しいたけ", "べにてんぐ", "ほこりたけ", "きくらげ", "mushroom", "fungus"]],
-];
-
 const _FCAT_LABEL_MAP = {
   "きのおはな": "f_tree", "みちばたのおはな": "f_wild", "にわのおはな": "f_garden",
   "はっぱくさ": "f_leaf", "みたねどんぐり": "f_fruit", "きのこ": "f_mush",
 };
 
-function _matchFCat(hay) {
-  if (!hay) return null;
-  for (const [id, kws] of _FCAT_KEYWORDS) {
-    for (const kw of kws) {
-      const k = _norm(kw);
-      if (k.length >= 2 && hay.includes(k)) return id;
-    }
-  }
-  return null;
-}
 function _fcatFromLabel(label) {
   const k = _norm(label);
   if (!k) return null;
@@ -463,16 +389,10 @@ function _fcatFromLabel(label) {
   for (const key in _FCAT_LABEL_MAP) {
     if (k.includes(key) || key.includes(k)) return _FCAT_LABEL_MAP[key];
   }
-  return _matchFCat(k);
+  return null;
 }
 function categorizeFlower(name, aiCategory) {
-  const known = matchKnownFlower(name);
-  if (known && known.cat) return known.cat;
-  const byAi = _fcatFromLabel(aiCategory);
-  if (byAi) return byAi;
-  const hit = _matchFCat(_norm(name));
-  if (hit) return hit;
-  return "f_other";
+  return _fcatFromLabel(aiCategory) || "f_other";
 }
 
 /* おはなの イラスト（すこしだけ。ないものは そうごうアイコン）*/
@@ -613,47 +533,11 @@ const ANIMAL_CATEGORIES = [
   { id: "a_other", label: "その他(ほか)",                        emoji: "🐾" },
 ];
 
-const _ACAT_KEYWORDS = [
-  ["a_pet",   ["いぬ", "ねこ", "うさぎ", "はむすたー", "もるもっと", "ふぇれっと", "こいぬ", "こねこ",
-               "しばいぬ", "ちわわ", "といぷーどる", "だっくすふんど", "ぽめらにあん", "れとりばー",
-               "dog", "cat", "puppy", "kitten", "rabbit", "bunny", "hamster", "guinea pig"]],
-  ["a_bird",  ["すずめ", "はと", "からす", "つばめ", "しじゅうから", "めじろ", "ひよどり", "むくどり",
-               "せきれい", "かも", "かるがも", "はくちょう", "さぎ", "しらさぎ", "とんび", "とび",
-               "きじ", "いんこ", "おうむ", "にわとり", "ひよこ", "ふくろう", "きつつき", "かもめ", "とり",
-               "bird", "sparrow", "pigeon", "dove", "crow", "raven", "duck", "swan", "heron", "owl", "parrot"]],
-  ["a_wild",  ["りす", "たぬき", "きつね", "しか", "いのしし", "さる", "にほんざる", "いたち",
-               "はくびしん", "こうもり", "ねずみ", "もぐら", "うさぎの やせい", "くま",
-               "squirrel", "chipmunk", "fox", "deer", "boar", "monkey", "bear", "raccoon", "weasel", "mole", "bat"]],
-  ["a_water", ["さかな", "きんぎょ", "こい", "めだか", "ふな", "どじょう", "ざりがに", "えび", "かに",
-               "いるか", "くじら", "あざらし", "らっこ", "ぺんぎん", "くらげ", "たこ", "いか",
-               "ひとで", "やどかり", "うみがめ", "まんぼう", "さめ", "えい",
-               "fish", "goldfish", "carp", "dolphin", "whale", "seal", "otter", "penguin", "crab", "shrimp", "jellyfish"]],
-  ["a_rep",   ["かめ", "とかげ", "やもり", "かなへび", "へび", "いもり", "かえる", "がえる",
-               "おたまじゃくし", "わに", "いぐあな", "かめれおん",
-               "turtle", "tortoise", "lizard", "gecko", "snake", "frog", "toad", "newt", "crocodile", "iguana"]],
-  ["a_zoo",   ["ぞう", "きりん", "らいおん", "とら", "しまうま", "かば", "さい", "ごりら", "ちんぱんじー",
-               "こあら", "かんがるー", "ぱんだ", "しろくま", "ほっきょくぐま", "らくだ", "みーあきゃっと",
-               "れっさーぱんだ", "なまけもの", "はりねずみ",
-               "elephant", "giraffe", "lion", "tiger", "zebra", "hippo", "rhino", "gorilla",
-               "panda", "koala", "kangaroo", "camel", "sloth", "meerkat", "hedgehog"]],
-  ["a_farm",  ["うし", "うま", "ぶた", "ひつじ", "やぎ", "あひる", "ろば", "ぽにー", "こうし", "こうま",
-               "cow", "cattle", "horse", "pony", "pig", "sheep", "goat", "donkey"]],
-];
 const _ACAT_LABEL_MAP = {
   "ぺっといえのどうぶつ": "a_pet", "とり": "a_bird", "のやまのどうぶつ": "a_wild",
   "みずのいきもの": "a_water", "はちゅうるいりょうせいるい": "a_rep",
   "どうぶつえんのどうぶつ": "a_zoo", "ぼくじょうのどうぶつ": "a_farm",
 };
-function _matchACat(hay) {
-  if (!hay) return null;
-  for (const [id, kws] of _ACAT_KEYWORDS) {
-    for (const kw of kws) {
-      const k = _norm(kw);
-      if (k.length >= 2 && hay.includes(k)) return id;
-    }
-  }
-  return null;
-}
 function _acatFromLabel(label) {
   const k = _norm(label);
   if (!k) return null;
@@ -662,16 +546,10 @@ function _acatFromLabel(label) {
   for (const key in _ACAT_LABEL_MAP) {
     if (k.includes(key) || key.includes(k)) return _ACAT_LABEL_MAP[key];
   }
-  return _matchACat(k);
+  return null;
 }
 function categorizeAnimal(name, aiCategory) {
-  const known = matchKnownAnimal(name);
-  if (known && known.cat) return known.cat;
-  const byAi = _acatFromLabel(aiCategory);
-  if (byAi) return byAi;
-  const hit = _matchACat(_norm(name));
-  if (hit) return hit;
-  return "a_other";
+  return _acatFromLabel(aiCategory) || "a_other";
 }
 
 /* どうぶつの イラスト（ずかんに ある もの）*/

@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v102";
+  const APP_VERSION = "v104";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -372,22 +372,26 @@
     for (const g of groups.values()) {
       const cat = g.category || defaultCatFor(Zukan.id);
       const fam = (g.family || "").trim();
-      const key = fam ? "f:" + fam : "c:" + cat;
+      // まとめる のは AIが おしえて くれた「科(か)」だけ。
+      // まだ 聞(き)いて いない ものは 1つの「なかまわけ まち」に あつめる。
+      const key = fam ? "f:" + fam : NO_FAMILY;
       if (!secs.has(key)) secs.set(key, { catId: cat, family: fam, groups: [] });
       secs.get(key).groups.push(g);
     }
     const out = [...secs.values()];
     for (const sec of out) sec.groups.sort((a, b) => b.lastDate - a.lastDate);
     out.sort((a, b) => {
+      if (!a.family !== !b.family) return a.family ? -1 : 1;   // 科が わかる ものが さき
+      if (!a.family) return 0;
       const oa = order.indexOf(a.catId), ob = order.indexOf(b.catId);
       if (oa !== ob) return (oa < 0 ? 99 : oa) - (ob < 0 ? 99 : ob);
-      if (!a.family !== !b.family) return a.family ? -1 : 1;   // 科が わかる ものが さき
       return a.family.localeCompare(b.family, "ja");
     });
     return out;
   }
-  // セクションの みだし（科が あれば 科の なまえ、なければ おおきな なかまわけ）
-  const secLabel = (sec) => sec.family || categoryMeta(sec.catId).label;
+  const NO_FAMILY = "__nofam";
+  // セクションの みだし（AIが おしえて くれた 科(か)の なまえ）
+  const secLabel = (sec) => sec.family || "🤖 なかまわけ まち";
 
   // ---- レベル（10しゅるいごとに アップ・じょうげんなし）----
   const PER_LEVEL = 10;
@@ -429,6 +433,7 @@
     try { await reload(); } catch (e) { console.error("switch zukan:", e); }
     renderProgress(); renderGrid(); renderPlaces();
     $("#loading").hidden = true;
+    setTimeout(() => { autoClassifyMissing(); }, 800);
     sound.blip();
     miniNote(`${Zukan.meta.emoji} ${Zukan.meta.title}に 切(き)りかえたよ！`);
   }
@@ -881,11 +886,16 @@
     for (const sec of sections) {
       const meta = categoryMeta(sec.catId);
       const head = document.createElement("div");
-      head.className = "cat-head";
-      head.innerHTML = `<span class="cat-emoji">${meta.emoji}</span>` +
-        `<span class="cat-label">${escapeHtml(secLabel(sec))}` +
-        (sec.family ? `<small class="cat-sub">${escapeHtml(meta.label)}</small>` : "") +
-        `</span><span class="cat-count">${sec.groups.length}</span>`;
+      head.className = "cat-head" + (sec.family ? "" : " nofam");
+      head.innerHTML = sec.family
+        ? `<span class="cat-emoji">${meta.emoji}</span>` +
+          `<span class="cat-label">${escapeHtml(sec.family)}` +
+          `<small class="cat-sub">${escapeHtml(meta.label)}</small>` +
+          `</span><span class="cat-count">${sec.groups.length}</span>`
+        : `<span class="cat-emoji">🤖</span>` +
+          `<span class="cat-label">なかまわけ まち` +
+          `<small class="cat-sub">AIに 科(か)を 聞(き)いて いるよ…</small>` +
+          `</span><span class="cat-count">${sec.groups.length}</span>`;
       wrap.appendChild(head);
 
       const grid = document.createElement("div");
@@ -2250,6 +2260,15 @@
     again.addEventListener("click", () => openPicker("append", g.name));
     page.appendChild(again);
 
+    // しゃしんを あとから とりだす
+    const dl = document.createElement("button");
+    dl.className = "page-save";
+    dl.textContent = g.list.length > 1
+      ? `📥 写真(しゃしん) ${g.list.length}枚(まい)を 保存(ほぞん)`
+      : "📥 写真(しゃしん)を 保存(ほぞん)";
+    dl.addEventListener("click", () => savePhotos(g, dl));
+    page.appendChild(dl);
+
     const del = document.createElement("button");
     del.className = "page-delete"; del.textContent = Zukan.meta.delGroup;
     del.addEventListener("click", () => deleteGroup(g.name));
@@ -3035,6 +3054,7 @@
       return;
     }
     try { await reload(); renderProgress(); renderGrid(); renderPlaces(); } catch (e) { console.error("render after save:", e); }
+    setTimeout(() => { autoClassifyMissing(); }, 2500);
     $("#loading").hidden = true;
     const leveledUp = levelOf(groups.size) > lvBefore;
     const shots = Math.max(1, pendingShots.length);
@@ -3584,6 +3604,44 @@
   }
 
 
+  /* 科(か)が まだ ない ものを、そっと AIに 聞(き)いて 埋(う)める。
+     なかまわけは ぜんぶ AIの こたえに そろえる ので、
+     むかし 登録(とうろく)した ものも これで 追(お)いつく。
+     もじだけの やすい 問(と)いあわせ。1回(かい)の ひらきで 1度(ど)だけ。*/
+  const autoClassTried = new Set();   // このセッションで もう 聞(き)いた もの
+  let autoClassBusy = false;
+  async function autoClassifyMissing() {
+    const zk = Zukan.id;
+    if (autoClassBusy || !Settings.key) return;
+    const names = [...groups.values()]
+      .filter((g) => !(g.family || "").trim() && !autoClassTried.has(zk + "|" + g.name))
+      .map((g) => g.name)
+      .slice(0, 60);
+    if (!names.length) return;
+    autoClassBusy = true;
+    for (const n of names) autoClassTried.add(zk + "|" + n);
+    try {
+      const map = await Gemini.classifyNames(names, Settings.key, Settings.model, zk);
+      let n = 0;
+      for (const name of names) {
+        const r = map[name];
+        if (!r || !r.family) continue;
+        await DB.patchByName(name, { family: r.family, aiCategory: r.category || "" });
+        n++;
+      }
+      if (n) {
+        await reload(); renderGrid();
+        miniNote(`🤖 ${n}種類(しゅるい)の 仲間分(なかまわ)けが できたよ！`);
+      }
+    } catch (err) {
+      // つぎに ひらいた ときに もう一度(いちど) ためせる ように もどす
+      for (const n of names) autoClassTried.delete(zk + "|" + n);
+      console.warn("auto classify:", err);
+    } finally {
+      autoClassBusy = false;
+    }
+  }
+
   // AIに ぜんぶの なかまわけを やりなおして もらう
   async function reclassifyWithAI() {
     const out = $("#s-reclass-result");
@@ -3967,6 +4025,150 @@
       el.textContent = "";
     }
   }
+  /* ============================================================
+     しゃしんを あとから とりだす（ふつうの 画像(がぞう)ファイルとして）
+     ・1まいなら そのまま .jpg
+     ・何(なん)まいか なら ZIP に まとめる（スマホでも 1回(かい)の 保存(ほぞん)で すむ）
+     ZIPは 圧縮(あっしゅく)なしの「そのまま入(い)れ」。JPEGは もう 圧縮(あっしゅく)
+     されて いるので、ちぢめても ほとんど 小(ちい)さく ならない。
+     ============================================================ */
+  const CRC_TABLE = (() => {
+    const t = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      t[n] = c >>> 0;
+    }
+    return t;
+  })();
+  function crc32(u8) {
+    let c = 0xFFFFFFFF;
+    for (let i = 0; i < u8.length; i++) c = CRC_TABLE[(c ^ u8[i]) & 0xFF] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  }
+  function dosStamp(ms) {
+    const d = new Date(ms || Date.now());
+    return {
+      time: (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1),
+      date: ((Math.max(1980, d.getFullYear()) - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate(),
+    };
+  }
+  // entries: [{ name, data(Uint8Array), date(ms) }]
+  function makeZip(entries) {
+    const enc = new TextEncoder();
+    const parts = [], central = [];
+    let offset = 0;
+    for (const e of entries) {
+      const nb = enc.encode(e.name);
+      const crc = crc32(e.data);
+      const { time, date } = dosStamp(e.date);
+      const lh = new DataView(new ArrayBuffer(30));
+      lh.setUint32(0, 0x04034b50, true);
+      lh.setUint16(4, 20, true);
+      lh.setUint16(6, 0x0800, true);      // なまえは UTF-8
+      lh.setUint16(8, 0, true);           // 圧縮(あっしゅく)なし
+      lh.setUint16(10, time, true); lh.setUint16(12, date, true);
+      lh.setUint32(14, crc, true);
+      lh.setUint32(18, e.data.length, true); lh.setUint32(22, e.data.length, true);
+      lh.setUint16(26, nb.length, true); lh.setUint16(28, 0, true);
+      parts.push(new Uint8Array(lh.buffer), nb, e.data);
+
+      const ch = new DataView(new ArrayBuffer(46));
+      ch.setUint32(0, 0x02014b50, true);
+      ch.setUint16(4, 20, true); ch.setUint16(6, 20, true);
+      ch.setUint16(8, 0x0800, true); ch.setUint16(10, 0, true);
+      ch.setUint16(12, time, true); ch.setUint16(14, date, true);
+      ch.setUint32(16, crc, true);
+      ch.setUint32(20, e.data.length, true); ch.setUint32(24, e.data.length, true);
+      ch.setUint16(28, nb.length, true);
+      ch.setUint32(38, 0, true);
+      ch.setUint32(42, offset, true);
+      central.push(new Uint8Array(ch.buffer), nb);
+      offset += 30 + nb.length + e.data.length;
+    }
+    let csize = 0;
+    for (const c of central) csize += c.length;
+    const eo = new DataView(new ArrayBuffer(22));
+    eo.setUint32(0, 0x06054b50, true);
+    eo.setUint16(8, entries.length, true); eo.setUint16(10, entries.length, true);
+    eo.setUint32(12, csize, true); eo.setUint32(16, offset, true);
+    return new Blob(parts.concat(central, [new Uint8Array(eo.buffer)]), { type: "application/zip" });
+  }
+  // ファイル名に つかえない もじを とる
+  const safeName = (s) => String(s || "").replace(/[\\/:*?"<>| -]/g, "").trim() || "なまえなし";
+  const extOf = (blob) => (blob && /png/i.test(blob.type) ? "png" : /webp/i.test(blob.type) ? "webp" : "jpg");
+
+  /* この 1しゅるいの しゃしんを 保存(ほぞん)する */
+  async function savePhotos(g, btn) {
+    const list = (g.list || []).filter((c) => c.blob);
+    if (!list.length) { miniNote("保存(ほぞん)できる 写真(しゃしん)が ないよ"); return; }
+    const old = btn ? btn.textContent : "";
+    if (btn) { btn.disabled = true; btn.textContent = "保存(ほぞん)中(ちゅう)…"; rubyifyDOM(btn); }
+    try {
+      const base = safeName(g.name);
+      if (list.length === 1) {
+        downloadBlob(list[0].blob, `${base}.${extOf(list[0].blob)}`);
+      } else {
+        const entries = [];
+        for (let i = 0; i < list.length; i++) {
+          const c = list[i];
+          entries.push({
+            name: `${base}/${base}-${String(i + 1).padStart(2, "0")}-${toDateInput(c.date)}.${extOf(c.blob)}`,
+            data: new Uint8Array(await c.blob.arrayBuffer()),
+            date: c.date,
+          });
+        }
+        downloadBlob(makeZip(entries), `${base}-写真${list.length}枚.zip`);
+      }
+      sound.blip();
+      miniNote(`📥 写真(しゃしん) ${list.length}枚(まい)を 保存(ほぞん)したよ！`);
+    } catch (err) {
+      console.error(err);
+      miniNote("保存(ほぞん)できなかったよ 😢");
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = old; rubyifyDOM(btn); }
+    }
+  }
+
+  /* ずかん ぜんぶの しゃしんを ZIPで 保存(ほぞん)する（設定(せってい)がめん）*/
+  async function saveAllPhotos() {
+    const out = $("#s-backup-result");
+    out.textContent = "写真(しゃしん)を あつめて いるよ…"; out.className = "s-test-result"; rubyifyDOM(out);
+    try {
+      const rows = await DB.getAllRaw();
+      const zk = {};
+      for (const z of ZUKANS) zk[z.id] = safeName(z.title);
+      const seen = new Map();
+      const entries = [];
+      for (const r of rows) {
+        let blob = r.blob;
+        if (!blob && r.img) blob = new Blob([r.img], { type: r.mime || "image/jpeg" });
+        if (!blob && r.imgData) blob = dataURLToBlob(r.imgData);
+        if (!blob) continue;
+        const folder = zk[r.col || "mushi"] || "むしずかん";
+        const nm = safeName(r.name);
+        const key = folder + "/" + nm;
+        const n = (seen.get(key) || 0) + 1;
+        seen.set(key, n);
+        entries.push({
+          name: `${folder}/${nm}/${nm}-${String(n).padStart(2, "0")}-${toDateInput(r.date)}.${extOf(blob)}`,
+          data: new Uint8Array(await blob.arrayBuffer()),
+          date: r.date,
+        });
+      }
+      if (!entries.length) { out.textContent = "保存(ほぞん)できる 写真(しゃしん)が まだ ないよ"; out.className = "s-test-result warn"; rubyifyDOM(out); return; }
+      const zip = makeZip(entries);
+      const d = new Date(), p2 = (n) => String(n).padStart(2, "0");
+      downloadBlob(zip, `mushizukan-photos-${toDateInput(d.getTime())}-${p2(d.getHours())}${p2(d.getMinutes())}.zip`);
+      out.textContent = `✓ 写真(しゃしん) ${entries.length}枚(まい)（${fmtSize(zip.size)}）を 保存(ほぞん)したよ！`;
+      out.className = "s-test-result ok"; rubyifyDOM(out);
+    } catch (err) {
+      console.error(err);
+      out.textContent = "✕ " + (err.message || "できませんでした");
+      out.className = "s-test-result warn";
+    }
+  }
+
   function downloadBlob(blob, filename) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -4208,6 +4410,7 @@
     if (canShareFiles()) $("#s-share").hidden = false;
     $("#s-share").addEventListener("click", shareBackup);
     $("#s-export").addEventListener("click", exportBackup);
+    $("#s-photos").addEventListener("click", saveAllPhotos);
     $("#backup-hint").addEventListener("click", exportBackup);
     $("#s-import").addEventListener("click", () => $("#s-import-file").click());
     $("#s-import-file").addEventListener("change", (e) => {
@@ -4343,6 +4546,7 @@
       await reload();
       renderProgress();
       renderGrid();
+      setTimeout(() => { autoClassifyMissing(); }, 1500);
     } catch (e) {
       console.error("load failed:", e);
       $("#progress-msg").textContent = "データを 読(よ)みこめませんでした 😢";

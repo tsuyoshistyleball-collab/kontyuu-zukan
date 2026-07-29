@@ -267,6 +267,10 @@ button { font-family: inherit; cursor: pointer; border: none; color: inherit; }
 main { max-width: 760px; margin: 0 auto; }
 #sections { padding-top: 2px; }
 .cat-head { display: flex; align-items: center; gap: 9px; margin: 14px 18px 8px; }
+/* まだ AIに 科(か)を 聞(き)いて いない ものの みだし（ひかえめに）*/
+.cat-head.nofam .cat-label { color: var(--ink-sub); }
+.cat-head.nofam .cat-emoji { animation: nofamPulse 1.8s ease-in-out infinite; }
+@keyframes nofamPulse { 0%,100% { opacity: 1; } 50% { opacity: .55; } }
 .cat-emoji {
   font-size: 17px; width: 33px; height: 33px; display: grid; place-items: center;
   background: var(--card); border-radius: 50%; box-shadow: 0 3px 0 var(--frame-d), 0 5px 10px var(--shadow);
@@ -856,6 +860,16 @@ main { max-width: 760px; margin: 0 auto; }
   * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
 
+/* しゃしんを あとから とりだす */
+.page-save {
+  margin-top: 11px; padding: 11px 20px; border-radius: 999px;
+  font-family: inherit; font-size: 14px; font-weight: 900; color: #fff;
+  background: linear-gradient(180deg,#6cc3e8,#2f8fbf);
+  border: 3px solid #fff; box-shadow: 0 4px 0 #226f96;
+}
+.page-save:active { transform: translateY(2px); box-shadow: 0 2px 0 #226f96; }
+.page-save[disabled] { opacity: .6; }
+
 /* むしを ずかんから けす（ひかえめ）*/
 .page-delete { margin-top: 14px; background: #fbe3dc; color: var(--terra-d); font-weight: 800; font-size: 13px;
   padding: 9px 18px; border-radius: 999px; box-shadow: 0 2px 0 #e3bdb0; }
@@ -1395,6 +1409,7 @@ input[type="date"].s-input { -webkit-appearance: none; appearance: none; }
   font-weight: 900; font-size: 15px; border: 3px solid #fff; }
 .s-backup-btn.save { background: linear-gradient(180deg,#6cc3e8,#2f8fbf); color: #fff; box-shadow: 0 4px 0 #226f96; }
 .s-backup-btn.load { background: var(--paper2); color: var(--green-d); box-shadow: 0 3px 0 var(--frame-d); border-color: #fff; }
+.s-backup-btn.photos { background: linear-gradient(180deg,#a9d67c,#6fae44); color: #fff; box-shadow: 0 4px 0 #55882f; }
 .s-backup-btn:active { transform: translateY(2px); }
 /* じどう バックアップの スイッチ */
 .s-toggle { display: flex; align-items: flex-start; gap: 10px; margin-top: 10px; padding: 11px 13px;
@@ -1597,7 +1612,7 @@ rt {
 .card-name, .place-name { line-height: 1.25; }
 .logo, .page-name, .cel-name { line-height: 1.75; }
 .sec-title, .zp-title, .info-head, .level-title { line-height: 1.9; }
-.fab, .r-save, .r-cancel, .page-again, .page-delete, .sheet-btn,
+.fab, .r-save, .r-cancel, .page-again, .page-save, .page-delete, .sheet-btn,
 .s-backup-btn, .s-test-btn, .s-save, .s-reset, .info-more, .pl-here,
 .pl-save, .cel-ok, .zukan-pick { line-height: 1.75; }
 /* 科(か)の みだしの したに、おおきな なかまわけを ちいさく */
