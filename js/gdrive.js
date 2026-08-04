@@ -1,16 +1,32 @@
 /*
  * むしずかん — Google ドライブに ほぞん（ログイン）
  *
- * ・Google で ログインして、じぶんの ドライブの「アプリせんよう フォルダ」に
- *   しゃしんと きろくを おく。ほかの ひとには みえない し、
- *   ドライブの がめんにも でて こない（appDataFolder）。
- * ・つかうには Google Cloud で「クライアントID」を 1つ つくって、
- *   せってい がめんに はりつける（つくりかたは README）。
+ * ・Google で ログインすると、じぶんの ドライブに「むしずかん」フォルダを
+ *   つくって、そこに しゃしんと きろくを おく。ドライブの がめんから
+ *   じぶんで 見(み)たり けしたり できる。
+ * ・つかう スコープは drive.file。この アプリが つくった ファイルだけ
+ *   さわれる ので、ドライブの ほかの ファイルは 見(み)えない。
+ * ・DEFAULT_CLIENT_ID を 入(い)れて おけば、つかう 人(ひと)は
+ *   「Google で ログイン」を おすだけ。じぶんの IDに することも できる。
  */
 const GDrive = (() => {
-  const CLIENT_KEY = "mz-gdrive-client";     // クライアントID
+  /* ============================================================
+     ここに この アプリの クライアントID を 入(い)れると、
+     つかう 人(ひと)は「Google で ログイン」を 押(お)すだけで
+     ドライブに バックアップ できる ように なります。
+     （つくりかたは README の「Google ドライブ 連携」を 見(み)てね）
+     ※ ウェブアプリの クライアントIDは 公開(こうかい)される もの なので、
+        ここに 書(か)いて だいじょうぶ です（ひみつの かぎでは ない）。
+     ============================================================ */
+  const DEFAULT_CLIENT_ID = "";
+
+  const CLIENT_KEY = "mz-gdrive-client";     // じぶんで 入れた クライアントID（あれば ゆうせん）
   const ON_KEY = "mz-gdrive-on";             // ログイン したことが あるか
-  const SCOPE = "https://www.googleapis.com/auth/drive.appdata";
+  const FOLDER_KEY = "mz-gdrive-folder";     // ドライブの「むしずかん」フォルダの id
+  /* drive.file＝この アプリが 作(つく)った ファイルだけ さわれる スコープ。
+     ドライブ ぜんたいは 見(み)えない ので、ログインする 人(ひと)も 安心(あんしん)。*/
+  const SCOPE = "https://www.googleapis.com/auth/drive.file";
+  const FOLDER_NAME = "むしずかん";
   const GIS = "https://accounts.google.com/gsi/client";
   const API = "https://www.googleapis.com/drive/v3";
   const UPLOAD = "https://www.googleapis.com/upload/drive/v3";
@@ -23,7 +39,8 @@ const GDrive = (() => {
   const get = (k) => { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } };
   const set = (k, v) => { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch (e) {} };
 
-  const clientId = () => get(CLIENT_KEY).trim();
+  const clientId = () => get(CLIENT_KEY).trim() || DEFAULT_CLIENT_ID;
+  const usingDefault = () => !get(CLIENT_KEY).trim() && !!DEFAULT_CLIENT_ID;
   const configured = () => !!clientId();
   const wasSignedIn = () => get(ON_KEY) === "1";
   const signedIn = () => !!token && Date.now() < expires;
@@ -94,7 +111,7 @@ const GDrive = (() => {
       }
     } catch (e) {}
     token = null; expires = 0;
-    set(ON_KEY, "");
+    set(ON_KEY, ""); set(FOLDER_KEY, "");
   }
 
   // ---- ドライブの そうさ ----
@@ -112,12 +129,41 @@ const GDrive = (() => {
     return r;
   }
 
-  // アプリ フォルダの ファイル いちらん（なまえ → {id, size}）
+  /* ドライブの 中(なか)の「むしずかん」フォルダを さがす。なければ 作(つく)る。
+     drive.file スコープでは、この アプリが 作(つく)った ものだけ 見(み)える ので、
+     ここで 見(み)つかる フォルダは かならず この アプリの もの。*/
+  async function folderId() {
+    const saved = get(FOLDER_KEY);
+    if (saved) {
+      // ごみばこに 入(い)れられて いないか だけ たしかめる
+      try {
+        const j = await (await req(`${API}/files/${saved}?fields=id,trashed`)).json();
+        if (j && j.id && !j.trashed) return saved;
+      } catch (e) {}
+      set(FOLDER_KEY, "");
+    }
+    const q = encodeURIComponent(
+      `name='${FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+    const found = await (await req(`${API}/files?q=${q}&fields=files(id)&pageSize=1`)).json();
+    if (found.files && found.files[0]) { set(FOLDER_KEY, found.files[0].id); return found.files[0].id; }
+    const r = await req(`${API}/files?fields=id`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: FOLDER_NAME, mimeType: "application/vnd.google-apps.folder" }),
+    });
+    const id = (await r.json()).id;
+    set(FOLDER_KEY, id);
+    return id;
+  }
+
+  // 「むしずかん」フォルダの ファイル いちらん（なまえ → {id, size}）
   async function list() {
+    const fid = await folderId();
     const out = new Map();
     let pageToken = "";
     do {
-      const u = `${API}/files?spaces=appDataFolder&pageSize=1000&fields=nextPageToken,files(id,name,size,modifiedTime)` +
+      const q = encodeURIComponent(`'${fid}' in parents and trashed=false`);
+      const u = `${API}/files?q=${q}&pageSize=1000&fields=nextPageToken,files(id,name,size,modifiedTime)` +
                 (pageToken ? "&pageToken=" + encodeURIComponent(pageToken) : "");
       const j = await (await req(u)).json();
       for (const f of j.files || []) out.set(f.name, { id: f.id, size: +(f.size || 0), modified: f.modifiedTime });
@@ -134,7 +180,7 @@ const GDrive = (() => {
       return existingId;
     }
     const b = "mzb" + Math.random().toString(16).slice(2);
-    const meta = { name, parents: ["appDataFolder"] };
+    const meta = { name, parents: [await folderId()] };
     const body = new Blob([
       `--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n`,
       `--${b}\r\nContent-Type: ${mime}\r\n\r\n`,
@@ -154,8 +200,9 @@ const GDrive = (() => {
 
   return {
     get clientId() { return clientId(); },
-    set clientId(v) { set(CLIENT_KEY, String(v || "").trim()); client = null; token = null; expires = 0; },
-    configured, wasSignedIn, signedIn,
+    set clientId(v) { set(CLIENT_KEY, String(v || "").trim()); set(FOLDER_KEY, ""); client = null; token = null; expires = 0; },
+    get folderName() { return FOLDER_NAME; },
+    configured, usingDefault, wasSignedIn, signedIn,
     signIn, silentSignIn, signOut,
     list, upload, download, downloadJSON, remove,
   };

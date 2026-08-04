@@ -1819,6 +1819,14 @@ rt {
 .s-fold > summary::-webkit-details-marker { display: none; }
 .s-fold > summary::after { content: " ▾"; opacity: .6; }
 .s-fold[open] > summary::after { content: " ▴"; }
+/* 中(なか)に ある「上級者むけ」の たたみ（すこし 小(ちい)さく）*/
+.s-fold.sub { margin-top: 10px; }
+.s-fold.sub > summary { background: transparent; font-size: 12px; color: var(--ink-sub);
+  padding: 8px 2px; border-top: 2px dashed var(--frame); border-radius: 0; }
+.s-note.warn { color: #b3651f; font-weight: 800; }
+.s-backup-btn[disabled] { opacity: .5; }
+/* リンクを ボタンと おなじ 見(み)た目に */
+a.s-backup-btn { text-align: center; text-decoration: none; box-sizing: border-box; }
 .s-backup-btn.share { background: linear-gradient(180deg,#8fd07a,#4c9a3a); color: #fff; box-shadow: 0 4px 0 #397a2a; }
 .s-help.handover { margin-top: 14px; }
 .s-help.handover ol { margin: 6px 0 4px 18px; }

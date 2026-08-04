@@ -321,18 +321,25 @@
 
     <div class="s-divider"></div>
     <details id="gd-fold" class="s-fold">
-    <summary>☁️ 別(べつ)の 端末(たんまつ)と つなぐ（Google ドライブ・じょうきゅう者(しゃ)むけ）</summary>
-    <p class="s-note">つかわなくても だいじょうぶ。この 図鑑(ずかん)の きろくは、もともと
-      <b>この 端末(たんまつ)の 中(なか)だけ</b> に あります。ほかの 人(ひと)が この アプリを ひらいても、
-      その 人(ひと)の 図鑑(ずかん)は べつ もの なので まざりません。</p>
+    <summary>☁️ Google ドライブに バックアップ</summary>
+    <p class="s-note">ログインすると、写真(しゃしん)と 図鑑(ずかん)が Google ドライブの
+      <b>「むしずかん」フォルダ</b>に 自動(じどう)で 送(おく)られます。
+      スマホが こわれても、新(あたら)しい スマホで ログインすれば もどせます。<br>
+      見(み)えるのは この アプリが 作(つく)った ファイルだけ。
+      ドライブの ほかの ファイルには さわりません。</p>
     <div id="gd-off">
-      <label class="s-label">Google の クライアントID</label>
-      <input id="gd-client" class="s-input" type="text" placeholder="000000-xxxx.apps.googleusercontent.com"
-             autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-             name="gdrive_client" data-lpignore="true" data-1p-ignore />
-      <p class="s-note">はじめだけ、Google Cloud で ID を 1つ 作(つく)って ここに はりつけます。
-        作(つく)りかたは README の「Google ドライブ 連携(れんけい)」を 見(み)てね。</p>
       <button id="gd-signin" class="s-backup-btn cloud">🔑 Google で ログイン</button>
+      <p id="gd-setup" class="s-note warn" hidden>⚠️ まだ この アプリの 準備(じゅんび)が できて いません。
+        下(した)の「じぶんの IDを つかう」から クライアントIDを 入(い)れてね。</p>
+      <details class="s-fold sub">
+        <summary>じぶんの IDを つかう（上級者(じょうきゅうしゃ)むけ）</summary>
+        <label class="s-label">Google の クライアントID</label>
+        <input id="gd-client" class="s-input" type="text" placeholder="000000-xxxx.apps.googleusercontent.com"
+               autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+               name="gdrive_client" data-lpignore="true" data-1p-ignore />
+        <p class="s-note">Google Cloud で 作(つく)った IDを 入(い)れると、そちらが つかわれます。
+          作(つく)りかたは README の「Google ドライブ 連携(れんけい)」を 見(み)てね。</p>
+      </details>
     </div>
     <div id="gd-on" hidden>
       <p id="gd-state" class="gd-state">✓ ログイン中(ちゅう)</p>
@@ -342,6 +349,7 @@
         <span class="s-toggle-text">自動(じどう)で 同期(どうき)する<br><small>登録(とうろく)した あとに、Google ドライブへ 送(おく)ります</small></span>
       </label>
       <button id="gd-sync" class="s-backup-btn cloud">☁️ いま 同期(どうき)する</button>
+      <a id="gd-open" class="s-backup-btn load" href="https://drive.google.com/drive/my-drive" target="_blank" rel="noopener">📂 ドライブの フォルダを ひらく</a>
       <button id="gd-signout" class="s-backup-btn load">ログアウト</button>
     </div>
     <p id="gd-result" class="s-test-result"></p>
