@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v121";
+  const APP_VERSION = "v122";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -2884,6 +2884,8 @@
       else if (flatOrder.length) rebuildBook(flatOrder[0]);
       else closeBook();
     }
+    // なまえ・★・消(け)した などの 変(か)わりも ドライブへ
+    gdSyncSoon(1500);
   }
 
   // ---- しゃしんを えらぶ（カメラ or ファイル）----
@@ -2920,6 +2922,7 @@
       try { await afterChange(pendingAppendName, true); } catch (e) { console.error(e); }
       $("#loading").hidden = true;
       miniCheer(rec);
+      gdSyncSoon(400);                 // たした しゃしんも すぐ ドライブへ
       return;
     }
 
@@ -3434,7 +3437,7 @@
     pendingShots = [];                 // つぎの とうろくに もちこさない
     if (isNew) celebrate(rec, leveledUp); else miniCheer(rec);
     if (shots > 1) setTimeout(() => miniNote(`📷 写真(しゃしん) ${shots}枚(まい)を 図鑑(ずかん)に 入(い)れたよ！`), 900);
-    if (gdAutoOn() && GDrive.wasSignedIn()) setTimeout(() => syncDrive({ quiet: true }), 2200);
+    gdSyncSoon(400);                   // とった しゃしんを すぐ ドライブへ
   }
 
   function errText(err) {
@@ -4143,10 +4146,19 @@
     }
   }
 
-  let gdSyncing = false;
+  /* とった しゃしんを できるだけ すぐ ドライブへ。
+     つづけて 何回か 呼(よ)ばれても 1回に まとめる（デバウンス）。*/
+  function gdSyncSoon(ms) {
+    if (!gdAutoOn() || !GDrive.wasSignedIn() || !GDrive.configured()) return;
+    clearTimeout(gdSyncSoon._t);
+    gdSyncSoon._t = setTimeout(() => syncDrive({ quiet: true }), ms == null ? 400 : ms);
+  }
+
+  let gdSyncing = false, gdPending = false;
   async function syncDrive(opts) {
     const quiet = opts && opts.quiet;
-    if (gdSyncing) return;
+    // いま 同期中(ちゅう)なら、おわった あとに もう一度(いちど) やる
+    if (gdSyncing) { gdPending = true; return; }
     if (!GDrive.configured()) { if (!quiet) gdSay("この アプリの 準備(じゅんび)が まだ です", "warn"); return; }
     gdSyncing = true;
     if (!quiet) gdSay("☁️ 同期中(どうきちゅう)…");
@@ -4233,7 +4245,10 @@
       if (got || removed) { await reload(); renderProgress(); renderGrid(); renderPlaces(); }
       refreshGDriveUI();
       const msg = `✓ 同期(どうき)できたよ！（もらった ${got}まい・送(おく)った ${put}まい）`;
-      if (quiet) { if (got || put) miniNote("☁️ ドライブと 同期(どうき)したよ"); }
+      if (quiet) {
+        if (put && !got) miniNote(`☁️ 写真(しゃしん) ${put}枚(まい)を ドライブに 保存(ほぞん)したよ！`);
+        else if (got || put) miniNote(`☁️ ドライブと 同期(どうき)したよ（もらった ${got}まい・送(おく)った ${put}まい）`);
+      }
       else gdSay(msg, "ok");
     } catch (err) {
       console.warn("drive sync:", err);
@@ -4246,6 +4261,8 @@
       }
     } finally {
       gdSyncing = false;
+      // 同期中(ちゅう)に あたらしい しゃしんが きて いたら、もう一度(いちど)
+      if (gdPending) { gdPending = false; setTimeout(() => syncDrive({ quiet: true }), 800); }
     }
   }
 
@@ -4620,7 +4637,7 @@
     $("#gd-signin").addEventListener("click", async () => {
       if (!GDrive.configured()) { gdSay("この アプリの 準備(じゅんび)が まだ です", "warn"); return; }
       gdSay("Google の ログイン がめんを ひらきます…");
-      try { await GDrive.signIn(); refreshGDriveUI(); await syncDrive(); }
+      try { await GDrive.signIn(); refreshGDriveUI(); wireDriveRetry(); await syncDrive(); }
       catch (err) { gdSay("✕ ログインできませんでした（" + String(err.message || err).slice(0, 60) + "）", "warn"); }
     });
     $("#gd-sync").addEventListener("click", () => syncDrive());
@@ -4732,6 +4749,16 @@
     window.addEventListener("online", check);
   }
 
+  /* ネットが きれて いて 送(おく)れなかった ぶんを、つながったら 送(おく)る。
+     アプリに もどって きた ときにも たしかめる。*/
+  let driveRetryOn = false;
+  function wireDriveRetry() {
+    if (driveRetryOn) return;
+    driveRetryOn = true;
+    window.addEventListener("online", () => gdSyncSoon(1200));
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) gdSyncSoon(2000); });
+  }
+
   // せってい の「さいしんに する」
   async function forceUpdate() {
     const out = $("#s-update-result");
@@ -4786,7 +4813,7 @@
     // まえに ログイン して いれば、そっと つないで 同期(どうき)する
     if (GDrive.configured() && GDrive.wasSignedIn()) {
       setTimeout(async () => {
-        if (await GDrive.silentSignIn()) { refreshGDriveUI(); if (gdAutoOn()) syncDrive({ quiet: true }); }
+        if (await GDrive.silentSignIn()) { refreshGDriveUI(); wireDriveRetry(); if (gdAutoOn()) syncDrive({ quiet: true }); }
       }, 1500);
     }
     setupUpdater();
