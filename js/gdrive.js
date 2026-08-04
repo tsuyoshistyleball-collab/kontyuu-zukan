@@ -24,7 +24,12 @@ const GDrive = (() => {
   const FOLDER_KEY = "mz-gdrive-folder";     // ドライブの「むしずかん」フォルダの id
   /* drive.file＝この アプリが 作(つく)った ファイルだけ さわれる スコープ。
      ドライブ ぜんたいは 見(み)えない ので、ログインする 人(ひと)も 安心(あんしん)。*/
-  const SCOPE = "https://www.googleapis.com/auth/drive.file";
+  /* email も もらうのは「どの アカウントで 入(はい)ったか」を おぼえる ため。
+     つぎからは その アドレスを ヒントに わたすので、Google アカウントを
+     いくつも 入(い)れて いる 人(ひと)でも、まいかい えらばされずに すむ。*/
+  const SCOPE = "https://www.googleapis.com/auth/drive.file openid email";
+  const HINT_KEY = "mz-gdrive-hint";         // まえに つかった アドレス
+  const FAIL_KEY = "mz-gdrive-silentfail";   // だまって とれなかった かいすう
   const FOLDER_NAME = "むしずかん";
   const GIS = "https://accounts.google.com/gsi/client";
   const API = "https://www.googleapis.com/drive/v3";
@@ -33,6 +38,7 @@ const GDrive = (() => {
   let token = null;          // アクセストークン
   let expires = 0;           // トークンの きげん（ms）
   let client = null;         // GIS の トークンクライアント
+  let clientHint = null;     // client を つくった ときの アドレス
   let gisLoading = null;
 
   const get = (k) => { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } };
@@ -62,14 +68,31 @@ const GDrive = (() => {
   async function tokenClient() {
     if (!configured()) throw new Error("NO_CLIENT_ID");
     await loadGIS();
-    if (!client) {
+    const hint = get(HINT_KEY);
+    if (!client || clientHint !== hint) {
+      clientHint = hint;
       client = google.accounts.oauth2.initTokenClient({
         client_id: clientId(),
         scope: SCOPE,
+        hint: hint || undefined,     // どの アカウントか わかって いれば つたえる
         callback: () => {},          // よぶ たびに いれかえる
       });
     }
     return client;
+  }
+
+  /* どの アカウントで 入(はい)ったかを おぼえる。
+     つぎの ログインで ヒントに つかうと、アカウントの えらびなおしが でない。*/
+  async function rememberAccount() {
+    if (get(HINT_KEY)) return;
+    try {
+      const r = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+        headers: { Authorization: "Bearer " + token },
+      });
+      if (!r.ok) return;
+      const j = await r.json();
+      if (j && j.email) { set(HINT_KEY, j.email); clientHint = null; }
+    } catch (e) {}
   }
 
   /* トークンを とる。
@@ -84,7 +107,8 @@ const GDrive = (() => {
         if (res && res.access_token) {
           token = res.access_token;
           expires = Date.now() + (Number(res.expires_in || 3600) - 120) * 1000;
-          set(ON_KEY, "1");
+          set(ON_KEY, "1"); set(FAIL_KEY, "");
+          rememberAccount();
           fin(resolve, token);
         } else {
           fin(reject, new Error(res && res.error ? res.error : "NO_TOKEN"));
@@ -92,7 +116,10 @@ const GDrive = (() => {
       };
       c.error_callback = (err) => fin(reject, new Error((err && err.type) || "AUTH_FAILED"));
       try {
-        c.requestAccessToken({ prompt: interactive ? "consent" : "" });
+        const o = { prompt: interactive ? "" : "none" };
+        const hint = get(HINT_KEY);
+        if (hint) o.hint = hint;
+        c.requestAccessToken(o);
       } catch (e) { fin(reject, e); }
       // だんまりの ときの ほけん
       setTimeout(() => fin(reject, new Error(interactive ? "AUTH_TIMEOUT" : "NEED_SIGNIN")), interactive ? 120000 : 8000);
@@ -100,18 +127,27 @@ const GDrive = (() => {
   }
 
   const signIn = () => auth(true);
+  /* がめんを ださずに トークンを とる。
+     つづけて しっぱいする ときは、もう じどうでは ためさない
+     （まいかい ログイン がめんが 出(で)て しまう のを ふせぐ）。*/
   async function silentSignIn() {
     if (!configured() || !wasSignedIn()) return false;
-    try { await auth(false); return true; } catch (e) { return false; }
+    if ((parseInt(get(FAIL_KEY), 10) || 0) >= 2) return false;
+    try { await auth(false); return true; }
+    catch (e) {
+      set(FAIL_KEY, String((parseInt(get(FAIL_KEY), 10) || 0) + 1));
+      return false;
+    }
   }
+  const needsSignIn = () => wasSignedIn() && (parseInt(get(FAIL_KEY), 10) || 0) >= 2;
   function signOut() {
     try {
       if (token && window.google && google.accounts && google.accounts.oauth2) {
         google.accounts.oauth2.revoke(token, () => {});
       }
     } catch (e) {}
-    token = null; expires = 0;
-    set(ON_KEY, ""); set(FOLDER_KEY, "");
+    token = null; expires = 0; client = null; clientHint = null;
+    set(ON_KEY, ""); set(FOLDER_KEY, ""); set(HINT_KEY, ""); set(FAIL_KEY, "");
   }
 
   // ---- ドライブの そうさ ----
@@ -201,7 +237,7 @@ const GDrive = (() => {
   return {
     get clientId() { return clientId(); },
     get folderName() { return FOLDER_NAME; },
-    configured, wasSignedIn, signedIn,
+    configured, wasSignedIn, signedIn, needsSignIn,
     signIn, silentSignIn, signOut,
     list, upload, download, downloadJSON, remove,
   };

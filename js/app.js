@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v122";
+  const APP_VERSION = "v123";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -4076,7 +4076,14 @@
   function updateBackupHint() {
     const el = $("#backup-hint");
     if (!el) return;
-    const need = captures.length > 0 && !GDrive.wasSignedIn();
+    if (!captures.length) { el.hidden = true; return; }
+    if (GDrive.needsSignIn()) {          // まえは つないで いたのに 切(き)れた
+      el.hidden = false;
+      el.textContent = "☁️ ドライブとの つながりが 切(き)れました。タップで つなぎ直(なお)してね";
+      rubyifyDOM(el);
+      return;
+    }
+    const need = !GDrive.wasSignedIn();
     el.hidden = !need;
     if (need) {
       el.textContent = "☁️ 大事(だいじ)な 写真(しゃしん)を 守(まも)ろう！ タップで Google ドライブに 保存(ほぞん)";
@@ -4132,7 +4139,7 @@
 
   function refreshGDriveUI() {
     updateBackupHint();                 // つないだら トップの おびを 消(け)す
-    const on = GDrive.wasSignedIn() && GDrive.configured();
+    const on = GDrive.wasSignedIn() && GDrive.configured() && !GDrive.needsSignIn();
     const off = $("#gd-off"), onBox = $("#gd-on");
     if (!off || !onBox) return;
     off.hidden = on; onBox.hidden = !on;
@@ -4164,7 +4171,12 @@
     if (!quiet) gdSay("☁️ 同期中(どうきちゅう)…");
     try {
       await GDrive.silentSignIn();
-      if (!GDrive.signedIn()) await GDrive.signIn();
+      /* じどうの ときは、ぜったいに ログイン がめんを ださない。
+         だまって あきらめて、トップの おびで「つなぎ直(なお)してね」と つたえる。*/
+      if (!GDrive.signedIn()) {
+        if (quiet) { updateBackupHint(); return; }
+        await GDrive.signIn();
+      }
 
       const remote = await GDrive.list();
       const metaEntry = remote.get(GD_META);
