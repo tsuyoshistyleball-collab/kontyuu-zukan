@@ -1,5 +1,5 @@
 /* むしずかん — サービスワーカー（オフラインでも つかえる／あたらしい ばんに すぐ なる）*/
-const CACHE = "mushizukan-v138";
+const CACHE = "mushizukan-v139";
 /* ちずの タイルは バージョンを 上(あ)げても すてない（ためた ぶんが むだに ならない）*/
 const TILES = "mushizukan-tiles";
 const TILE_HOST = "https://tile.openstreetmap.org/";
@@ -27,7 +27,6 @@ const ASSETS = [
   "./img/di-quiz.webp",
   "./img/di-sort.webp",
   "./img/di-map.webp",
-  "./img/japan.webp",
   "./img/menu-btn.webp",
   "./img/plate-mushi.webp",
   "./img/plate-hana.webp",

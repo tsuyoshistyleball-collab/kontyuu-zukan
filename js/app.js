@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v138";
+  const APP_VERSION = "v139";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -3959,158 +3959,10 @@
   // ============ おもいで マップ（ちずの うえに しゃしんを おく）============
   const MM_TILE = 256, MM_MIN_Z = 3, MM_MAX_Z = 18;
   let mmZ = 15, mmLat = 35.68, mmLng = 139.77;   // ちずの まんなか
-  let mmDrag = null, mmWired = false, mmMoved = false;
+  let mmDrag = null, mmWired = false;
+  let mmMoveEnd = 0;            // さいごに 動(うご)かしおわった 時こく（すぐ あとの タップは 見(み)ない）
   const mmPtr = new Map();      // いま さわって いる ゆび
   let mmPinch = null;           // 2本(ほん)ゆびで つまんで いる とちゅう
-  let mmMode = "japan";         // "japan"＝え の にほん地図（さいしょは こっち）／ "real"＝ふつうの ちず
-  const JP_ZMAX = 6;            // え の 地図(ちず)を ここまで 大(おお)きく できる
-  let jpZoom = 1, jpX = 0, jpY = 0;
-
-  /* ---- え の にほん地図(ちず)（img/japan.webp）----
-     手(て)で かいた 絵(え)なので、ほんとうの 地図(ちず)とは かたちが すこし ちがう。
-     そこで「この 場所(ばしょ)は 絵(え)の ここ」という め じるしを いくつか きめて、
-     ・まず ぜんたいを ざっくり あわせる 式(しき)（アフィン変換(へんかん)）を つくり
-     ・そのうえで め じるしの まわりだけ ずれを なおす（きょりの ぎゃく数(すう)で なめらかに）
-     という 2だんがまえで ピンの いちを 出(だ)して いる。
-     め じるしの ところでは ぴったり、はなれる ほど ゆるやかに なる。*/
-  const JP_W = 1024, JP_H = 1536;              // め じるしを きめた ときの え の おおきさ
-  const JP_AX = [71.130897, -24.647764, -8328.2307];   // x = a*けいど + b*いど + c
-  const JP_AY = [-1.030199, -83.533278, 4038.8296];    // y = a*けいど + b*いど + c
-  /* [いど, けいど, xの のこり, yの のこり]
-     め じるしは、え の 中(なか)の 海岸線(かいがんせん)の はしっこを
-     コンピューターに はからせて きめた（岬(みさき)や 島(しま)の 先(さき)）。
-     東京(とうきょう)だけは 湾(わん)の かたちが よみにくい ので、
-     えの 中(なか)の 東京タワーを め じるしに した。*/
-  const JP_FIX = [
-    [45.52, 141.94,   56,  -26],   // 宗谷岬
-    [43.39, 145.82,   26,  -19],   // 納沙布岬
-    [41.55, 140.91,   -8,  -42],   // 大間崎
-    [39.55, 142.07,   -6,   15],   // 魹ヶ崎
-    [37.51, 137.34,  -21,  -48],   // 能登半島の 先
-    [35.71, 140.87,   -5,   37],   // 犬吠埼
-    [35.66, 139.75,  -13,  -50],   // 東京タワー
-    [33.95, 130.94,   16,   -3],   // 下関
-    [33.44, 135.76,  -37,   81],   // 潮岬
-    [32.72, 133.02,  -13,  117],   // 足摺岬
-    [32.58, 129.76,  -38,   -3],   // 野母崎
-    [31.03, 130.67, -104,  141],   // 佐多岬
-    [26.50, 127.98,  146, -201],   // 沖縄本島
-  ];
-  // え の うえの いち（え の ピクセル）。にほんの そとは null
-  function jpPoint(lat, lng) {
-    if (lat < 23 || lat > 47 || lng < 121 || lng > 150) return null;
-    let x = JP_AX[0] * lng + JP_AX[1] * lat + JP_AX[2];
-    let y = JP_AY[0] * lng + JP_AY[1] * lat + JP_AY[2];
-    let w = 0, ex = 0, ey = 0;
-    for (const [la, ln, rx, ry] of JP_FIX) {
-      const d2 = (lat - la) * (lat - la) + (lng - ln) * (lng - ln);
-      if (d2 < 1e-8) { x += rx; y += ry; w = 0; break; }
-      const k = 1 / (d2 * d2);              // きょりの 4じょうの ぎゃく数(すう)
-      w += k; ex += k * rx; ey += k * ry;
-    }
-    if (w) { x += ex / w; y += ey / w; }
-    if (x < -20 || y < -20 || x > JP_W + 20 || y > JP_H + 20) return null;
-    return { x, y };
-  }
-
-  /* え の 地図(ちず)の 大(おお)きさと いち。
-     ピンは % で おいて ある ので、わくを 大(おお)きく するだけで
-     ピンも いっしょに ひろがる（ピンの 大(おお)きさは かわらない）。*/
-  function mmJapanLayout() {
-    const st = $("#mm-stage"), wrap = $("#mm-jp-wrap");
-    const W = st.clientWidth, H = st.clientHeight;
-    const k = Math.min(W / JP_W, H / JP_H) * jpZoom;
-    const w = Math.round(JP_W * k), h = Math.round(JP_H * k);
-    wrap.style.width = w + "px";
-    wrap.style.height = h + "px";
-    // はみ出(で)た ぶんだけ うごかせる（まっしろな ところまで 行(い)かない）
-    const mx = Math.max(0, (w - W) / 2), my = Math.max(0, (h - H) / 2);
-    jpX = Math.max(-mx, Math.min(mx, jpX));
-    jpY = Math.max(-my, Math.min(my, jpY));
-    wrap.style.left = Math.round((W - w) / 2 + jpX) + "px";
-    wrap.style.top = Math.round((H - h) / 2 + jpY) + "px";
-  }
-
-  function mmDrawJapan() {
-    const wrap = $("#mm-jp-wrap");
-    let html = `<img class="mm-jp-img" src="img/japan.webp" alt="" draggable="false">`;
-    let far = 0;
-    for (const s of mmSpots()) {
-      const p = jpPoint(s.place.lat, s.place.lng);
-      if (!p) { far++; continue; }
-      const pic = s.place.photo || (s.bugs[0] && s.bugs[0].blob ? urlFor(s.bugs[0].blob) : "");
-      html +=
-        `<button class="mm-pin" type="button" data-id="${escapeHtml(String(s.place.id))}" ` +
-        `style="left:${(p.x / JP_W * 100).toFixed(3)}%;top:${(p.y / JP_H * 100).toFixed(3)}%">` +
-          `<span class="mm-pin-pic">` +
-            (pic ? `<img src="${pic}" alt="" draggable="false">` : `<span class="mm-pin-emoji">${s.place.emoji || "🌳"}</span>`) +
-          `</span>` +
-          (s.bugs.length ? `<span class="mm-pin-n">${s.bugs.length}</span>` : "") +
-          `<span class="mm-pin-name">${escapeHtml(s.place.name)}</span>` +
-        `</button>`;
-    }
-    wrap.innerHTML = html;
-    mmJapanLayout();
-    const fe = $("#mm-far");
-    fe.hidden = !far;
-    if (far) {
-      fe.textContent = `日本(にほん)の そとの 場所(ばしょ)が ${far}か所(しょ) あるよ。「🗺️ ふつうの ちず」で 見(み)てね`;
-      rubyifyDOM(fe);
-    }
-  }
-
-  // ピンの まんなか（え の ピクセル）
-  function jpCentroid() {
-    let n = 0, x = 0, y = 0;
-    for (const s of mmSpots()) {
-      const p = jpPoint(s.place.lat, s.place.lng);
-      if (p) { x += p.x; y += p.y; n++; }
-    }
-    return n ? { x: x / n, y: y / n } : { x: JP_W / 2, y: JP_H / 2 };
-  }
-
-  /* え の 地図(ちず)の ズーム。
-     ぜんたいが 見(み)えて いる ときの さいしょの ＋は、なにも ない 空(そら)では なく
-     「おもいでの ある あたり」に よって いく。そのあとは 今(いま)見(み)えて いる
-     まんなかを かえずに 大(おお)きく／小(ちい)さく する。*/
-  function mmJapanZoom(mul) {
-    const z = Math.max(1, Math.min(JP_ZMAX, jpZoom * mul));
-    if (Math.abs(z - jpZoom) < 0.001) return;
-    const st = $("#mm-stage");
-    const W = st.clientWidth, H = st.clientHeight;
-    if (jpZoom === 1 && z > 1) {
-      const c = jpCentroid();
-      const k = Math.min(W / JP_W, H / JP_H) * z;
-      jpX = W / 2 - c.x * k - (W - JP_W * k) / 2;
-      jpY = H / 2 - c.y * k - (H - JP_H * k) / 2;
-    } else {
-      const r = z / jpZoom;
-      jpX *= r; jpY *= r;
-    }
-    jpZoom = z;
-    mmJapanLayout();
-  }
-  function mmJapanReset() { jpZoom = 1; jpX = 0; jpY = 0; mmJapanLayout(); }
-  // つまんだ ときの ズーム（ピンチ）
-  function mmJapanPinch(z) {
-    z = Math.max(1, Math.min(JP_ZMAX, z));
-    const r = z / jpZoom;
-    jpZoom = z; jpX *= r; jpY *= r;
-    mmJapanLayout();
-  }
-
-  // え の 地図(ちず)と ふつうの 地図(ちず)を きりかえる
-  function mmSetMode(mode) {
-    mmMode = mode;
-    const jp = mode === "japan";
-    $("#mm-japan").hidden = !jp;
-    $("#mm-canvas").hidden = jp;
-    $("#mm-credit").hidden = jp;
-    $("#mm-jp").textContent = jp ? "🗺️ ふつうの ちず" : "🗾 にほん";
-    $("#mm-far").hidden = true;
-    mmCloseSheet();
-    if (jp) { mmJapanReset(); mmDrawJapan(); } else mmDraw();
-  }
 
   // いど・けいど → ちずの ピクセル（ウェブメルカトル）
   function mmProject(lat, lng, z) {
@@ -4253,20 +4105,57 @@
     if (mmWired) return;
     mmWired = true;
     const st = $("#mm-stage"), cv = $("#mm-canvas");
+
+    // がめんの ざひょう → ちずの わくの 中(なか)の ざひょう
+    const local = (cx, cy) => {
+      const r = st.getBoundingClientRect();
+      return { x: cx - r.left, y: cy - r.top };
+    };
+    /* つまんで いる あいだは、ちずを CSSで のばして 見(み)せる だけ。
+       ゆびを はなした ときに、いちばん ちかい ズーム段(だん)に そろえて
+       タイルを 取(と)り直(なお)す（タイルは 1・2・4倍(ばい)…しか ない ため）。*/
+    function pinchShow() {
+      const s2 = mmPinch.scale;
+      cv.style.transformOrigin = `${mmPinch.mid.x}px ${mmPinch.mid.y}px`;
+      cv.style.transform = `scale(${s2})`;
+    }
+    function pinchEnd() {
+      const s2 = mmPinch.scale;
+      const mid = mmPinch.mid;
+      cv.style.transform = ""; cv.style.transformOrigin = "";
+      const z = Math.max(MM_MIN_Z, Math.min(MM_MAX_Z, Math.round(mmZ + Math.log2(s2))));
+      if (z !== mmZ) {
+        // つまんだ まんなかの 場所(ばしょ)が うごかない ように まんなかを ずらす
+        const W = st.clientWidth, H = st.clientHeight;
+        const c0 = mmProject(mmLat, mmLng, mmZ);
+        const off = { x: mid.x - W / 2, y: mid.y - H / 2 };
+        const k = Math.pow(2, z - mmZ);
+        const q = mmUnproject((c0.x + off.x) * k - off.x, (c0.y + off.y) * k - off.y, z);
+        mmZ = z;
+        mmLat = Math.max(-85, Math.min(85, q.lat));
+        mmLng = ((((q.lng + 180) % 360) + 360) % 360) - 180;
+      }
+      mmPinch = null;
+      mmMoveEnd = Date.now();
+      mmDraw();
+    }
+
     /* ゆびで うごかす。ピンの 上(うえ)から でも 動(うご)かせる
        （ピンが かたまって いる ときに つかめなく なる のを ふせぐ）。
        すこしでも 動(うご)いたら「タップ」とは みなさない。*/
-    const wrap = $("#mm-jp-wrap");
     st.addEventListener("pointerdown", (e) => {
       mmPtr.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (mmPtr.size === 2) {                 // 2本(ほん)の ゆびで つまむ＝ズーム
         const [a, b] = [...mmPtr.values()];
-        mmPinch = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, z: jpZoom };
-        mmDrag = null; mmMoved = true;
+        if (mmDrag) { cv.style.transform = ""; mmDrag = null; }
+        mmPinch = {
+          d: Math.hypot(a.x - b.x, a.y - b.y) || 1, scale: 1,
+          mid: local((a.x + b.x) / 2, (a.y + b.y) / 2),
+        };
         return;
       }
-      mmDrag = { x: e.clientX, y: e.clientY, dx: 0, dy: 0, id: e.pointerId, moved: false,
-                 jx: jpX, jy: jpY };
+      if (mmPtr.size > 2) return;
+      mmDrag = { x: e.clientX, y: e.clientY, dx: 0, dy: 0, id: e.pointerId, moved: false };
     });
     st.addEventListener("pointermove", (e) => {
       const p = mmPtr.get(e.pointerId);
@@ -4274,7 +4163,9 @@
       if (mmPinch && mmPtr.size >= 2) {
         const [a, b] = [...mmPtr.values()];
         const d = Math.hypot(a.x - b.x, a.y - b.y) || 1;
-        mmJapanPinch(mmPinch.z * (d / mmPinch.d));
+        // のばしすぎない ように（ズーム段(だん)で 3つぶん まで）
+        mmPinch.scale = Math.max(0.125, Math.min(8, d / mmPinch.d));
+        pinchShow();
         return;
       }
       if (!mmDrag || e.pointerId !== mmDrag.id) return;
@@ -4285,42 +4176,42 @@
         // うごかしはじめて から つかむ（うごかさなければ ピンが おせる ように）
         try { st.setPointerCapture(e.pointerId); } catch (err) {}
       }
-      if (!mmDrag.moved) return;
-      if (mmMode === "japan") {
-        jpX = mmDrag.jx + mmDrag.dx; jpY = mmDrag.jy + mmDrag.dy;
-        mmJapanLayout();
-      } else {
-        cv.style.transform = `translate(${mmDrag.dx}px,${mmDrag.dy}px)`;
-      }
+      if (mmDrag.moved) cv.style.transform = `translate(${mmDrag.dx}px,${mmDrag.dy}px)`;
     });
     const stop = (e) => {
       if (e && e.pointerId != null) mmPtr.delete(e.pointerId);
-      if (mmPinch) { if (mmPtr.size < 2) mmPinch = null; return; }
+      if (mmPinch) {
+        if (mmPtr.size < 2) pinchEnd();       // ゆびが 1本(ぽん)に なったら きめる
+        return;
+      }
       if (!mmDrag) return;
       const moved = mmDrag.moved;
-      if (moved && mmMode === "real") {
+      if (moved) {
         const ctr = mmProject(mmLat, mmLng, mmZ);
         const q = mmUnproject(ctr.x - mmDrag.dx, ctr.y - mmDrag.dy, mmZ);
         mmLat = Math.max(-85, Math.min(85, q.lat));
         mmLng = ((((q.lng + 180) % 360) + 360) % 360) - 180;
       }
       mmDrag = null;
-      mmMoved = moved;
-      if (moved && mmMode === "real") mmDraw();
+      if (moved) { mmMoveEnd = Date.now(); mmDraw(); }
     };
     st.addEventListener("pointerup", stop);
     st.addEventListener("pointercancel", stop);
+    // パソコンの ホイールでも ズームできる ように
+    st.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const m = local(e.clientX, e.clientY);
+      mmPinch = { d: 1, scale: e.deltaY < 0 ? 2 : 0.5, mid: m };
+      pinchEnd();
+    }, { passive: false });
     const tap = (e) => {
-      if (mmMoved) { mmMoved = false; return; }   // うごかした ぶんは タップに しない
+      // うごかした／つまんだ すぐ あとの タップは 見(み)ない（ゆびの はなしぎわ よけ）
+      if (Date.now() - mmMoveEnd < 350) return;
       const pin = e.target.closest(".mm-pin");
       if (pin) mmOpenSpot(pin.dataset.id);
     };
     cv.addEventListener("click", tap);
-    wrap.addEventListener("click", tap);
-    window.addEventListener("resize", () => {
-      if ($("#memmap").hidden) return;
-      if (mmMode === "japan") mmJapanLayout(); else mmDraw();
-    });
+    window.addEventListener("resize", () => { if (!$("#memmap").hidden) mmDraw(); });
   }
 
   function openMemMap() {
@@ -4338,21 +4229,8 @@
       ? `${spots.length}か所(しょ)・${kinds.size}しゅるいの おもいで`
       : "";
     rubyifyDOM($("#memmap"));
-    $("#mm-jp").hidden = spots.length === 0;
-    // 日本(にほん)の 場所(ばしょ)が 1つも なければ ふつうの 地図(ちず)から
-    if (mmMode === "japan" && spots.length &&
-        !spots.some((s) => jpPoint(s.place.lat, s.place.lng))) mmMode = "real";
-    const jp = mmMode === "japan";
-    $("#mm-japan").hidden = !jp;
-    $("#mm-canvas").hidden = jp;
-    $("#mm-credit").hidden = jp;
-    $("#mm-jp").textContent = jp ? "🗺️ ふつうの ちず" : "🗾 にほん";
-    if (!jp) $("#mm-far").hidden = true;
     if (spots.length) {
-      requestAnimationFrame(() => {
-        mmFit(spots);                       // ふつうの 地図(ちず)の いちは いつも ととのえて おく
-        if (mmMode === "japan") { mmJapanReset(); mmDrawJapan(); } else mmDraw();
-      });
+      requestAnimationFrame(() => { mmFit(spots); mmDraw(); });
     } else {
       $("#mm-canvas").innerHTML = "";
     }
@@ -5033,17 +4911,9 @@
     $("#map-open").addEventListener("click", openMemMap);
     $("#mm-close").addEventListener("click", closeMemMap);
     $("#mm-sheet-close").addEventListener("click", mmCloseSheet);
-    $("#mm-in").addEventListener("click", () => {
-      if (mmMode === "japan") { mmJapanZoom(1.6); sound.blip(); } else mmZoom(1);
-    });
-    $("#mm-out").addEventListener("click", () => {
-      if (mmMode === "japan") { mmJapanZoom(1 / 1.6); sound.blip(); } else mmZoom(-1);
-    });
-    $("#mm-fit").addEventListener("click", () => {
-      if (mmMode === "japan") mmJapanReset(); else { mmFit(mmSpots()); mmDraw(); }
-      sound.blip();
-    });
-    $("#mm-jp").addEventListener("click", () => { mmSetMode(mmMode === "japan" ? "real" : "japan"); sound.blip(); });
+    $("#mm-in").addEventListener("click", () => mmZoom(1));
+    $("#mm-out").addEventListener("click", () => mmZoom(-1));
+    $("#mm-fit").addEventListener("click", () => { mmFit(mmSpots()); mmDraw(); sound.blip(); });
     $("#sort-done").addEventListener("click", closeSortSheet);
     $("#sort-sheet").addEventListener("click", (e) => { if (e.target.id === "sort-sheet") closeSortSheet(); });
     $("#sort-reset").addEventListener("click", () => {
