@@ -171,9 +171,10 @@ body[data-zukan="doubutsu"] .title-plate { background-image: url("../img/plate-d
    ふだ（よこ:たて＝765:234）と おなじ たかさに なる はばを けいさんで だす。
    すきま 10px を のぞいた のこりを、ふだと ボタンで わける と
    ボタンの はば ＝ (はば - 10) / 4.361 に なる。*/
-.topbar-btns { width: min(calc((100% - 10px) / 4.361), 100px); }
+.topbar-btns { width: min(calc((100% - 10px) / 4.361), 100px); justify-content: flex-end; }
 .topbar-btns .menu-btn {
-  width: 100%; height: auto; aspect-ratio: 750 / 771;
+  /* ばしょ（わく）は ふだと おなじ たかさの まま、え だけ すこし 小(ちい)さく */
+  width: 82%; height: auto; aspect-ratio: 750 / 771;
   border-radius: 0; box-shadow: none;
   background: url("../img/menu-btn.webp") center / 100% 100% no-repeat;
   filter: drop-shadow(0 2px 3px rgba(0,0,0,.34));
