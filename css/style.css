@@ -119,6 +119,19 @@ button { font-family: inherit; cursor: pointer; border: none; color: inherit; }
 .plate-tape.left  { left: 14px;  transform: rotate(-7deg); }
 .plate-tape.right { right: 14px; transform: rotate(7deg); }
 
+/* むしずかん の ふだは 1まいの え。中(なか)の 文字(もじ)は かくす
+   （はな／どうぶつ は これまでの CSSの ふだの まま）*/
+body[data-zukan="mushi"] .title-plate {
+  aspect-ratio: 760 / 453;
+  padding: 0; border: 0; border-radius: 0; box-shadow: none;
+  background: url("../img/plate-mushi.webp") center / contain no-repeat;
+  filter: drop-shadow(0 4px 5px rgba(40,60,20,.35));
+  max-height: 168px;
+}
+body[data-zukan="mushi"] .title-plate::before { display: none; }
+body[data-zukan="mushi"] .title-plate > * { visibility: hidden; }
+body[data-zukan="mushi"] .title-plate:active { transform: translateY(2px); }
+
 .plate-title-row { display: flex; align-items: center; justify-content: center; gap: 8px; }
 .plate-leaf { font-size: 16px; opacity: .9; animation: leafSway 4s ease-in-out infinite; }
 .plate-leaf.flip { transform: scaleX(-1); animation-delay: .6s; }
