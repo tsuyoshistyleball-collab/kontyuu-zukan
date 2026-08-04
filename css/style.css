@@ -198,11 +198,11 @@ button { font-family: inherit; cursor: pointer; border: none; color: inherit; }
 .drawer-item > * { display: none; }
 .drawer-item:active { transform: translateY(3px); filter: drop-shadow(0 1px 2px rgba(0,0,0,.34)); }
 .drawer-item[hidden] { display: none; }
-.drawer-item.di-book  { aspect-ratio: 620 / 217; background-image: url("../img/di-book.webp"); }
-.drawer-item.di-arena { aspect-ratio: 620 / 213; background-image: url("../img/di-arena.webp"); }
-.drawer-item.di-quiz  { aspect-ratio: 620 / 208; background-image: url("../img/di-quiz.webp"); }
-.drawer-item.di-sort  { aspect-ratio: 620 / 212; background-image: url("../img/di-sort.webp"); }
-.drawer-item.di-map   { aspect-ratio: 620 / 197; background-image: url("../img/di-map.webp"); }
+.drawer-item.di-book  { aspect-ratio: 620 / 239; background-image: url("../img/di-book.webp"); }
+.drawer-item.di-arena { aspect-ratio: 620 / 233; background-image: url("../img/di-arena.webp"); }
+.drawer-item.di-quiz  { aspect-ratio: 620 / 231; background-image: url("../img/di-quiz.webp"); }
+.drawer-item.di-sort  { aspect-ratio: 620 / 229; background-image: url("../img/di-sort.webp"); }
+.drawer-item.di-map   { aspect-ratio: 620 / 196; background-image: url("../img/di-map.webp"); }
 /* いちばん した：ばーじょん（ひだり）と ⚙️設定（みぎ） */
 .drawer-bottom {
   margin-top: auto; display: flex; align-items: flex-end; justify-content: space-between; gap: 10px;
@@ -227,6 +227,10 @@ button { font-family: inherit; cursor: pointer; border: none; color: inherit; }
 @keyframes diIn {
   0% { transform: translateX(36px); opacity: 0; }
   100% { transform: none; opacity: 1; }
+}
+/* せの ひくい がめんでは すきまを つめて、メニューが はみ出(だ)さない ように */
+@media (max-height: 720px) {
+  .drawer { gap: 8px; padding-top: calc(var(--safe-top) + 10px); }
 }
 @media (prefers-reduced-motion: reduce) {
   .drawer { transition: none; }
