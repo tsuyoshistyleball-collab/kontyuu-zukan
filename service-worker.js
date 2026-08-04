@@ -1,5 +1,5 @@
 /* むしずかん — サービスワーカー（オフラインでも つかえる／あたらしい ばんに すぐ なる）*/
-const CACHE = "mushizukan-v124";
+const CACHE = "mushizukan-v125";
 const ASSETS = [
   "./",
   "./index.html",
@@ -7,6 +7,11 @@ const ASSETS = [
   "./img/arena-bg.webp",
   "./img/pick-bg.webp",
   "./img/fab-mushi.webp",
+  "./img/di-book.webp",
+  "./img/di-arena.webp",
+  "./img/di-quiz.webp",
+  "./img/di-sort.webp",
+  "./img/di-settings.webp",
   "./img/hand-g.png",
   "./img/hand-c.png",
   "./img/hand-p.png",
