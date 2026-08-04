@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v139";
+  const APP_VERSION = "v140";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -2034,9 +2034,54 @@
     rebuildBook(name || flatOrder[0]);
   }
   function closeBook() {
+    closeBookToc();
     $("#book").hidden = true;
     document.body.classList.remove("noscroll");
   }
+
+  /* ---- もくじ（ページを えらんで とぶ）----
+     ならびは 図鑑(ずかん)の ページと おなじ（科(か)ごと）。
+     字(じ)が よめなくても わかる ように、しゃしんで えらぶ。*/
+  function openBookToc() {
+    const wrap = $("#btoc-list");
+    wrap.innerHTML = "";
+    const now = flatOrder[bookIdx];
+    let nowBtn = null;
+    for (const sec of groupedByCategory()) {
+      const meta = categoryMeta(sec.catId);
+      const head = document.createElement("div");
+      head.className = "btoc-sec";
+      head.innerHTML = sec.family
+        ? `<span class="e">${meta.emoji}</span><span>${escapeHtml(sec.family)}</span>` +
+          `<span class="n">${sec.groups.length}</span>`
+        : `<span class="e">🤖</span><span>なかまわけ まち</span>` +
+          `<span class="n">${sec.groups.length}</span>`;
+      wrap.appendChild(head);
+      const grid = document.createElement("div");
+      grid.className = "btoc-grid";
+      for (const g of sec.groups) {
+        const i = flatOrder.indexOf(g.name);
+        const b = document.createElement("button");
+        b.className = "btoc-item" + (g.name === now ? " now" : "");
+        b.type = "button";
+        const ph = g.cover && g.cover.blob;
+        b.innerHTML = (ph ? `<img src="${urlFor(ph)}" alt="" draggable="false">`
+                          : `<span class="btoc-svg">${illustFor(g.name).svg}</span>`) +
+                      `<b>${escapeHtml(g.name)}</b>`;
+        b.addEventListener("click", () => { closeBookToc(); showBookPage(i); sound.blip(); });
+        if (g.name === now) nowBtn = b;
+        grid.appendChild(b);
+      }
+      wrap.appendChild(grid);
+    }
+    $("#book-toc").hidden = false;
+    rubyifyDOM($("#book-toc"));
+    sound.blip();
+    // いま みて いる ページが 見(み)える ところに
+    if (nowBtn) requestAnimationFrame(() => nowBtn.scrollIntoView({ block: "center" }));
+  }
+  const closeBookToc = () => { $("#book-toc").hidden = true; };
+  const bookTocOpen = () => !$("#book-toc").hidden;
 
   /* ---- ページを めくる（3Dの ぺージターン）----
      ページは かさねて おき、いま みている 1まいだけ ひょうじ する。
@@ -4978,6 +5023,9 @@
     $("#ar-swap-cancel").addEventListener("click", () => arCloseSwap(-1));
     $$("#ar-hands .ar-hand").forEach((b) => b.addEventListener("click", () => arPlay(b.dataset.hand)));
     $("#book-open").addEventListener("click", () => openBook(flatOrder[0]));
+    $("#book-toc-open").addEventListener("click", openBookToc);
+    $("#book-toc-close").addEventListener("click", closeBookToc);
+    $("#book-toc").addEventListener("click", (e) => { if (e.target === $("#book-toc")) closeBookToc(); });
     $("#book-close").addEventListener("click", closeBook);
     $("#book-prev").addEventListener("click", () => bookNav(-1));
     $("#book-next").addEventListener("click", () => bookNav(1));

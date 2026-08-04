@@ -114,6 +114,9 @@
 
   <!-- ブック（よこに めくる） -->
   <div id="book" class="book" hidden>
+    <button id="book-toc-open" class="book-toc-btn" aria-label="もくじ">
+      <span class="btc-ico">📑</span><span class="btc-tx">もくじ</span>
+    </button>
     <button id="book-close" class="book-close" aria-label="閉じる">✕</button>
     <div class="book-board">
       <div class="book-spine" aria-hidden="true">
@@ -129,6 +132,18 @@
     <button id="book-prev" class="book-nav prev" aria-label="前">‹</button>
     <button id="book-next" class="book-nav next" aria-label="次">›</button>
     <div class="book-hint">← 横(よこ)に めくってね →</div>
+
+    <!-- もくじ（ページを えらんで とぶ）-->
+    <div id="book-toc" class="book-toc" hidden>
+      <div class="btoc-card">
+        <div class="btoc-head">
+          <p class="btoc-title">📑 もくじ</p>
+          <button id="book-toc-close" class="btoc-close" aria-label="閉じる">✕</button>
+        </div>
+        <p class="btoc-tip">見(み)たい 子(こ)を タップすると そのページに とぶよ</p>
+        <div id="btoc-list" class="btoc-list"></div>
+      </div>
+    </div>
   </div>
 
   <!-- けっか（AIすいそく → なまえ しゅうせい → とうろく） -->

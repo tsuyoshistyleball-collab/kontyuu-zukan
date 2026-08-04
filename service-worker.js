@@ -1,5 +1,5 @@
 /* むしずかん — サービスワーカー（オフラインでも つかえる／あたらしい ばんに すぐ なる）*/
-const CACHE = "mushizukan-v139";
+const CACHE = "mushizukan-v140";
 /* ちずの タイルは バージョンを 上(あ)げても すてない（ためた ぶんが むだに ならない）*/
 const TILES = "mushizukan-tiles";
 const TILE_HOST = "https://tile.openstreetmap.org/";

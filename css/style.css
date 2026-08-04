@@ -461,6 +461,60 @@ body[data-zukan="mushi"] .fab:active { transform: translateY(4px) scale(.97); bo
   font-size: 18px; font-weight: 800; box-shadow: 0 3px 0 var(--frame-d);
 }
 
+/* もくじ ボタン（ひだり上(うえ)）*/
+.book-toc-btn {
+  position: absolute; top: calc(var(--safe-top) + 10px); left: 14px; z-index: 8;
+  display: flex; align-items: center; gap: 5px; height: 42px; padding: 0 14px 0 11px;
+  border-radius: 21px; font-family: inherit; background: var(--card); color: var(--ink);
+  box-shadow: 0 3px 0 var(--frame-d);
+}
+.book-toc-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--frame-d); }
+.btc-ico { font-size: 17px; }
+.btc-tx { font-size: 13.5px; font-weight: 900; }
+
+/* もくじ の がめん */
+.book-toc {
+  position: absolute; inset: 0; z-index: 12; display: flex; align-items: flex-end;
+  justify-content: center; background: rgba(30,18,6,.55); backdrop-filter: blur(2px);
+}
+.btoc-card {
+  width: min(560px, 100%); max-height: 86%; display: flex; flex-direction: column;
+  padding: 14px 14px calc(var(--safe-bot) + 14px);
+  border-radius: 24px 24px 0 0; background: linear-gradient(180deg,#fffdf6,#f4ead2);
+  box-shadow: 0 -10px 26px rgba(0,0,0,.45);
+  animation: mmUp .26s cubic-bezier(.2,1.2,.4,1) both;
+}
+.btoc-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.btoc-title { margin: 0; font-family: "MushiTitle", var(--font); font-size: 19px; color: var(--green-d); }
+.btoc-close {
+  width: 34px; height: 34px; border-radius: 50%; font-size: 15px; font-weight: 900;
+  background: #fff; color: var(--green-d); box-shadow: 0 2px 0 rgba(0,0,0,.22);
+}
+.btoc-tip { margin: 4px 0 10px; font-size: 11.5px; font-weight: 800; color: var(--ink-sub); }
+.btoc-list { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.btoc-sec {
+  display: flex; align-items: center; gap: 6px; margin: 12px 0 6px;
+  font-size: 12.5px; font-weight: 900; color: var(--ink);
+}
+.btoc-sec:first-child { margin-top: 0; }
+.btoc-sec span.e { font-size: 15px; }
+.btoc-sec span.n { flex: none; margin-left: auto; font-size: 11px; font-weight: 900;
+  color: #7a5b22; background: var(--paper2); border-radius: 999px; padding: 1px 9px; }
+.btoc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 8px; }
+.btoc-item { padding: 0; background: none; border: 0; font-family: inherit; display: block; text-align: center; }
+.btoc-item img, .btoc-item .btoc-svg {
+  display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 14px;
+  border: 3px solid #fff; box-shadow: 0 3px 0 rgba(0,0,0,.18); background: var(--paper2);
+}
+.btoc-item .btoc-svg { display: grid; place-items: center; }
+.btoc-item .btoc-svg svg { width: 74%; height: 74%; }
+.btoc-item b { display: block; margin-top: 3px; font-size: 9.5px; font-weight: 900; color: var(--ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.btoc-item:active img, .btoc-item:active .btoc-svg { transform: translateY(2px); }
+.btoc-item.now img, .btoc-item.now .btoc-svg { border-color: var(--honey-d); box-shadow: 0 0 0 3px var(--honey), 0 3px 0 rgba(0,0,0,.18); }
+.btoc-item.now b { color: #b3670a; }
+@media (prefers-reduced-motion: reduce) { .btoc-card { animation: none; } }
+
 /* ほんの おもて（ぼーど）*/
 .book-board {
   position: relative; width: 100%; height: 100%; max-width: 560px; max-height: 880px;
