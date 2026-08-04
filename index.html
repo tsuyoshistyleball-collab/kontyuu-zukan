@@ -406,6 +406,11 @@
       <span class="di-tx"><b>科(か)の ならびかえ</b><small>すきな 順番(じゅんばん)に できるよ</small></span>
       <span class="di-go">›</span>
     </button>
+    <button id="map-open" class="drawer-item di-map di-plain" hidden aria-label="おもいで マップ">
+      <span class="di-ico">🗺️</span>
+      <span class="di-tx"><b>おもいで マップ</b><small>どこで 会(あ)ったか 見(み)て みよう</small></span>
+      <span class="di-go">›</span>
+    </button>
     <div class="drawer-bottom">
       <p class="drawer-foot" id="drawer-ver"></p>
       <button id="settings-btn" class="drawer-gear" aria-label="設定">
@@ -543,6 +548,35 @@
       <div id="sort-list" class="sort-list"></div>
       <button id="sort-reset" class="sheet-btn cancel">↩️ もとの 順番(じゅんばん)に もどす</button>
       <button id="sort-done" class="sheet-btn file">✓ これで OK</button>
+    </div>
+  </div>
+
+  <!-- おもいで マップ -->
+  <div id="memmap" class="memmap" hidden>
+    <button id="mm-close" class="ar-close" aria-label="閉じる">✕</button>
+    <div class="mm-head">
+      <p class="mm-title">🗺️ おもいで マップ</p>
+      <p class="mm-sub" id="mm-sub"></p>
+    </div>
+    <div class="mm-stage" id="mm-stage">
+      <div class="mm-canvas" id="mm-canvas"></div>
+      <p class="mm-credit">© OpenStreetMap</p>
+      <p class="mm-empty" id="mm-empty" hidden>
+        まだ 地図(ちず)に のせられる 場所(ばしょ)が ないよ。<br>
+        トップの「行(い)った 場所(ばしょ)」で 📍を おして 登録(とうろく)してね。
+      </p>
+    </div>
+    <div class="mm-tools" id="mm-tools">
+      <button id="mm-out" class="mm-tool" type="button" aria-label="小さくする">−</button>
+      <button id="mm-fit" class="mm-tool wide" type="button">ぜんぶ 見(み)る</button>
+      <button id="mm-in" class="mm-tool" type="button" aria-label="大きくする">＋</button>
+    </div>
+    <div id="mm-sheet" class="mm-sheet" hidden>
+      <button id="mm-sheet-close" class="mm-sheet-close" type="button" aria-label="閉じる">✕</button>
+      <p class="mm-sheet-title" id="mm-sheet-title"></p>
+      <p class="mm-sheet-meta" id="mm-sheet-meta"></p>
+      <div class="mm-sheet-bugs" id="mm-sheet-bugs"></div>
+      <p class="mm-sheet-none" id="mm-sheet-none" hidden>ここでは まだ 見(み)つけて いないよ</p>
     </div>
   </div>
 

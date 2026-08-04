@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v126";
+  const APP_VERSION = "v127";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -761,6 +761,7 @@
     // 科(か)が 2つ いじょう ある ときだけ ならびかえが つかえる
     $("#sort-open").hidden = groupedByCategory().filter((x) => x.family).length < 2;
     $("#quiz-open").hidden = n < 2;
+    $("#map-open").hidden = !mmHasSpots();
     updateBackupHint();
   }
 
@@ -2011,6 +2012,7 @@
     const dr = $("#drawer"), bg = $("#drawer-bg");
     dr.hidden = false; bg.hidden = false;
     $("#drawer-ver").textContent = "むしずかん " + APP_VERSION;
+    $("#map-open").hidden = !mmHasSpots();
     void dr.offsetWidth;                       // アニメを かならず さいしょから
     dr.classList.add("open"); bg.classList.add("open");
     $("#menu-btn").setAttribute("aria-expanded", "true");
@@ -3954,6 +3956,208 @@
     }
   }
 
+  // ============ おもいで マップ（ちずの うえに しゃしんを おく）============
+  const MM_TILE = 256, MM_MIN_Z = 3, MM_MAX_Z = 18;
+  let mmZ = 15, mmLat = 35.68, mmLng = 139.77;   // ちずの まんなか
+  let mmDrag = null, mmWired = false, mmMoved = false;
+
+  // いど・けいど → ちずの ピクセル（ウェブメルカトル）
+  function mmProject(lat, lng, z) {
+    const n = Math.pow(2, z);
+    const r = (Math.max(-85, Math.min(85, lat)) * Math.PI) / 180;
+    return {
+      x: ((lng + 180) / 360) * n * MM_TILE,
+      y: ((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * n * MM_TILE,
+    };
+  }
+  // ピクセル → いど・けいど
+  function mmUnproject(x, y, z) {
+    const n = Math.pow(2, z);
+    const k = Math.PI - (2 * Math.PI * (y / MM_TILE)) / n;
+    return {
+      lng: (x / MM_TILE / n) * 360 - 180,
+      lat: (180 / Math.PI) * Math.atan(0.5 * (Math.exp(k) - Math.exp(-k))),
+    };
+  }
+
+  /* 地図に のせられる ばしょ＝いど・けいどが ある ばしょ。
+     いっしょに「そこで 見(み)つけた むし」も かぞえる。*/
+  function mmSpots() {
+    const byPlace = new Map();
+    for (const c of captures) {
+      if (!c.placeId) continue;
+      let m = byPlace.get(c.placeId);
+      if (!m) { m = new Map(); byPlace.set(c.placeId, m); }
+      if (!m.has(c.name)) m.set(c.name, c);
+    }
+    return Places.all
+      .filter((p) => p.lat != null && p.lng != null)
+      .map((p) => ({ place: p, bugs: [...(byPlace.get(p.id) || new Map()).values()] }))
+      .sort((a, b) => a.bugs.length - b.bugs.length);   // かずの おおい ピンを 上(うえ)に
+  }
+  const mmHasSpots = () => Places.all.some((p) => p.lat != null && p.lng != null);
+
+  // ぜんぶの ばしょが 入(はい)る ように まんなかと おおきさを きめる
+  function mmFit(spots) {
+    if (!spots.length) return;
+    const st = $("#mm-stage");
+    const W = st.clientWidth || 320, H = st.clientHeight || 320;
+    let a = 90, b = -90, c = 180, d = -180;
+    for (const s of spots) {
+      a = Math.min(a, s.place.lat); b = Math.max(b, s.place.lat);
+      c = Math.min(c, s.place.lng); d = Math.max(d, s.place.lng);
+    }
+    mmLat = (a + b) / 2; mmLng = (c + d) / 2;
+    const PAD = 110;                       // ピンと なまえの ぶんの よゆう
+    let z = 16;
+    for (; z > MM_MIN_Z; z--) {
+      const p1 = mmProject(b, c, z), p2 = mmProject(a, d, z);
+      if (Math.abs(p2.x - p1.x) + PAD <= W && Math.abs(p2.y - p1.y) + PAD <= H) break;
+    }
+    mmZ = z;
+  }
+
+  function mmDraw() {
+    const st = $("#mm-stage"), cv = $("#mm-canvas");
+    if (!st || $("#memmap").hidden) return;
+    const W = st.clientWidth, H = st.clientHeight;
+    const ctr = mmProject(mmLat, mmLng, mmZ);
+    const ox = ctr.x - W / 2, oy = ctr.y - H / 2;      // ひだり上(うえ)の ちずピクセル
+    const n = Math.pow(2, mmZ);
+    let html = "";
+    for (let ty = Math.floor(oy / MM_TILE); ty <= Math.floor((oy + H) / MM_TILE); ty++) {
+      if (ty < 0 || ty >= n) continue;
+      for (let tx = Math.floor(ox / MM_TILE); tx <= Math.floor((ox + W) / MM_TILE); tx++) {
+        const wx = ((tx % n) + n) % n;                  // よこは ぐるっと まわる
+        html += `<img class="mm-tile" alt="" loading="lazy" ` +
+                `src="https://tile.openstreetmap.org/${mmZ}/${wx}/${ty}.png" ` +
+                `style="left:${Math.round(tx * MM_TILE - ox)}px;top:${Math.round(ty * MM_TILE - oy)}px">`;
+      }
+    }
+    for (const s of mmSpots()) {
+      const p = mmProject(s.place.lat, s.place.lng, mmZ);
+      const px = Math.round(p.x - ox), py = Math.round(p.y - oy);
+      if (px < -90 || py < -90 || px > W + 90 || py > H + 90) continue;
+      const pic = s.place.photo || (s.bugs[0] && s.bugs[0].blob ? urlFor(s.bugs[0].blob) : "");
+      html +=
+        `<button class="mm-pin" type="button" data-id="${escapeHtml(String(s.place.id))}" ` +
+        `style="left:${px}px;top:${py}px">` +
+          `<span class="mm-pin-pic">` +
+            (pic ? `<img src="${pic}" alt="" draggable="false">` : `<span class="mm-pin-emoji">${s.place.emoji || "🌳"}</span>`) +
+          `</span>` +
+          (s.bugs.length ? `<span class="mm-pin-n">${s.bugs.length}</span>` : "") +
+          `<span class="mm-pin-name">${escapeHtml(s.place.name)}</span>` +
+        `</button>`;
+    }
+    cv.style.transform = "";
+    cv.innerHTML = html;
+    $("#mm-in").disabled = mmZ >= MM_MAX_Z;
+    $("#mm-out").disabled = mmZ <= MM_MIN_Z;
+  }
+
+  function mmZoom(d) {
+    const z = Math.max(MM_MIN_Z, Math.min(MM_MAX_Z, mmZ + d));
+    if (z === mmZ) return;
+    mmZ = z; sound.blip(); mmDraw();
+  }
+
+  // ピンを おしたら、その ばしょの おもいでを 下(した)から 出(だ)す
+  function mmOpenSpot(id) {
+    const s = mmSpots().find((x) => String(x.place.id) === String(id));
+    if (!s) return;
+    const p = s.place;
+    $("#mm-sheet-title").textContent = `${p.emoji || "🌳"} ${p.name}`;
+    $("#mm-sheet-meta").textContent =
+      `はじめて：${fmtDate(p.first || p.last)}` +
+      (p.visits > 1 ? ` ・ 行(い)った 回数(かいすう)：${p.visits}回(かい)` : "");
+    const wrap = $("#mm-sheet-bugs");
+    wrap.innerHTML = "";
+    for (const c of s.bugs) {
+      const b = document.createElement("button");
+      b.className = "mm-bug";
+      b.type = "button";
+      b.innerHTML = `<img src="${urlFor(c.blob)}" alt=""><span>${escapeHtml(c.name)}</span>`;
+      b.addEventListener("click", () => { closeMemMap(); openBook(c.name); });
+      wrap.appendChild(b);
+    }
+    $("#mm-sheet-none").hidden = s.bugs.length > 0;
+    $("#mm-sheet").hidden = false;
+    rubyifyDOM($("#mm-sheet"));
+    sound.blip();
+  }
+  const mmCloseSheet = () => { $("#mm-sheet").hidden = true; };
+
+  function mmWire() {
+    if (mmWired) return;
+    mmWired = true;
+    const st = $("#mm-stage"), cv = $("#mm-canvas");
+    /* ゆびで うごかす。ピンの 上(うえ)から でも 動(うご)かせる
+       （ピンが かたまって いる ときに つかめなく なる のを ふせぐ）。
+       すこしでも 動(うご)いたら「タップ」とは みなさない。*/
+    st.addEventListener("pointerdown", (e) => {
+      mmDrag = { x: e.clientX, y: e.clientY, dx: 0, dy: 0, id: e.pointerId, moved: false };
+    });
+    st.addEventListener("pointermove", (e) => {
+      if (!mmDrag || e.pointerId !== mmDrag.id) return;
+      mmDrag.dx = e.clientX - mmDrag.x;
+      mmDrag.dy = e.clientY - mmDrag.y;
+      if (!mmDrag.moved && Math.abs(mmDrag.dx) + Math.abs(mmDrag.dy) > 6) {
+        mmDrag.moved = true;
+        // うごかしはじめて から つかむ（うごかさなければ ピンが おせる ように）
+        try { st.setPointerCapture(e.pointerId); } catch (err) {}
+      }
+      if (mmDrag.moved) cv.style.transform = `translate(${mmDrag.dx}px,${mmDrag.dy}px)`;
+    });
+    const stop = () => {
+      if (!mmDrag) return;
+      const moved = mmDrag.moved;
+      if (moved) {
+        const ctr = mmProject(mmLat, mmLng, mmZ);
+        const q = mmUnproject(ctr.x - mmDrag.dx, ctr.y - mmDrag.dy, mmZ);
+        mmLat = Math.max(-85, Math.min(85, q.lat));
+        mmLng = ((((q.lng + 180) % 360) + 360) % 360) - 180;
+      }
+      mmDrag = null;
+      mmMoved = moved;
+      if (moved) mmDraw();
+    };
+    st.addEventListener("pointerup", stop);
+    st.addEventListener("pointercancel", stop);
+    cv.addEventListener("click", (e) => {
+      if (mmMoved) { mmMoved = false; return; }   // うごかした ぶんは タップに しない
+      const pin = e.target.closest(".mm-pin");
+      if (pin) mmOpenSpot(pin.dataset.id);
+    });
+    window.addEventListener("resize", () => { if (!$("#memmap").hidden) mmDraw(); });
+  }
+
+  function openMemMap() {
+    closeDrawer();
+    const spots = mmSpots();
+    $("#memmap").hidden = false;
+    document.body.classList.add("noscroll");
+    mmCloseSheet();
+    mmWire();
+    $("#mm-empty").hidden = spots.length > 0;
+    $("#mm-tools").hidden = spots.length === 0;
+    const kinds = new Set();
+    for (const s of spots) for (const b of s.bugs) kinds.add(b.name);
+    $("#mm-sub").textContent = spots.length
+      ? `${spots.length}か所(しょ)・${kinds.size}しゅるいの おもいで`
+      : "";
+    rubyifyDOM($("#memmap"));
+    if (spots.length) {
+      requestAnimationFrame(() => { mmFit(spots); mmDraw(); });
+    } else {
+      $("#mm-canvas").innerHTML = "";
+    }
+  }
+  function closeMemMap() {
+    $("#memmap").hidden = true;
+    mmCloseSheet();
+    document.body.classList.remove("noscroll");
+  }
+
   // ---- せってい ----
   function openSettings() {
     $("#s-key").value = Settings.key;
@@ -4621,6 +4825,12 @@
       sound.blip();
     });
     $("#sort-open").addEventListener("click", openSortSheet);
+    $("#map-open").addEventListener("click", openMemMap);
+    $("#mm-close").addEventListener("click", closeMemMap);
+    $("#mm-sheet-close").addEventListener("click", mmCloseSheet);
+    $("#mm-in").addEventListener("click", () => mmZoom(1));
+    $("#mm-out").addEventListener("click", () => mmZoom(-1));
+    $("#mm-fit").addEventListener("click", () => { mmFit(mmSpots()); mmDraw(); sound.blip(); });
     $("#sort-done").addEventListener("click", closeSortSheet);
     $("#sort-sheet").addEventListener("click", (e) => { if (e.target.id === "sort-sheet") closeSortSheet(); });
     $("#sort-reset").addEventListener("click", () => {

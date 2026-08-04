@@ -1,5 +1,20 @@
 /* むしずかん — サービスワーカー（オフラインでも つかえる／あたらしい ばんに すぐ なる）*/
-const CACHE = "mushizukan-v126";
+const CACHE = "mushizukan-v127";
+/* ちずの タイルは バージョンを 上(あ)げても すてない（ためた ぶんが むだに ならない）*/
+const TILES = "mushizukan-tiles";
+const TILE_HOST = "https://tile.openstreetmap.org/";
+const TILE_MAX = 400;
+
+// ためすぎない ように、ふるい ものから すてる
+let trimming = false;
+async function trimTiles(c) {
+  if (trimming) return;
+  trimming = true;
+  try {
+    const keys = await c.keys();
+    for (let i = 0; i < keys.length - TILE_MAX; i++) await c.delete(keys[i]);
+  } catch (e) {} finally { trimming = false; }
+}
 const ASSETS = [
   "./",
   "./index.html",
@@ -47,7 +62,7 @@ self.addEventListener("install", (e) => {
 self.addEventListener("activate", (e) => {
   e.waitUntil((async () => {
     const keys = await caches.keys();
-    await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
+    await Promise.all(keys.filter((k) => k !== CACHE && k !== TILES).map((k) => caches.delete(k)));
     await self.clients.claim();
   })());
 });
@@ -59,6 +74,24 @@ self.addEventListener("message", (e) => {
 self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
+  /* おもいでマップの ちずの タイルは べつの ひきだしに ためて おく。
+     おなじ ばしょを 何度(なんど)も ひらいても とりに いかずに すむし、
+     ネットが なくても まえに 見(み)た ところは 出(で)る。*/
+  if (req.url.startsWith(TILE_HOST)) {
+    e.respondWith((async () => {
+      const c = await caches.open(TILES);
+      const hit = await c.match(req);
+      if (hit) return hit;
+      try {
+        const res = await fetch(req);
+        if (res && res.ok) { c.put(req, res.clone()); trimTiles(c); }
+        return res;
+      } catch (err) {
+        return new Response("", { status: 504 });
+      }
+    })());
+    return;
+  }
   // よその サイト（Google の ログインや API）は そのまま とおす
   if (new URL(req.url).origin !== location.origin) return;
 
