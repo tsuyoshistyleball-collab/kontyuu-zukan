@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v120";
+  const APP_VERSION = "v121";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -2884,8 +2884,6 @@
       else if (flatOrder.length) rebuildBook(flatOrder[0]);
       else closeBook();
     }
-    // おいわいの あとに そっと じどう バックアップ
-    setTimeout(() => { maybeAutoBackup(); }, 1200);
   }
 
   // ---- しゃしんを えらぶ（カメラ or ファイル）----
@@ -3436,7 +3434,6 @@
     pendingShots = [];                 // つぎの とうろくに もちこさない
     if (isNew) celebrate(rec, leveledUp); else miniCheer(rec);
     if (shots > 1) setTimeout(() => miniNote(`📷 写真(しゃしん) ${shots}枚(まい)を 図鑑(ずかん)に 入(い)れたよ！`), 900);
-    setTimeout(() => { maybeAutoBackup(); }, 1200);
     if (gdAutoOn() && GDrive.wasSignedIn()) setTimeout(() => syncDrive({ quiet: true }), 2200);
   }
 
@@ -3955,11 +3952,9 @@
     $("#s-key").value = Settings.key;
     $("#s-model").value = Settings.model;
     $("#s-test-result").textContent = ""; $("#s-test-result").className = "s-test-result";
-    $("#s-auto-backup").checked = autoBackupOn();
     refreshGDriveUI();
     $("#settings").showModal();
     rubyifyDOM($("#settings"));
-    updateBackupInfo();
   }
   function saveSettings() {
     Settings.key = $("#s-key").value.trim();
@@ -4072,56 +4067,20 @@
   }
 
   // バックアップの おすすめ（ながらく していない ときだけ）
-  const BACKUP_KEY = "mz-last-backup";
-  const BACKUP_EVERY = 3 * 24 * 60 * 60 * 1000;
+  /* トップの おび：まだ ドライブに つないで いない ときだけ 出(だ)して、
+     せってい を ひらく。バックアップは ドライブ 1本(ぽん)に した ので、
+     ここも ドライブへ さそう だけに する。*/
   function updateBackupHint() {
     const el = $("#backup-hint");
     if (!el) return;
-    const n = captures.length;
-    let last = 0;
-    try { last = parseInt(localStorage.getItem(BACKUP_KEY) || "0", 10) || 0; } catch (e) {}
-    const need = n > 0 && (!last || Date.now() - last > BACKUP_EVERY);
+    const need = captures.length > 0 && !GDrive.wasSignedIn();
     el.hidden = !need;
-    el.textContent = last
-      ? "💾 前(まえ)の バックアップから 時間(じかん)が たったよ。タップで 保存(ほぞん)"
-      : "💾 大事(だいじ)な 写真(しゃしん)を 守(まも)ろう！ タップで バックアップ";
-  }
-
-  /* ---- じどう バックアップ ----
-     バックアップは 1つの ファイルに「ぜんぶの しゃしん」が 入(はい)る ので、
-     何回(なんかい)も じどうで ほぞんすると ダウンロード フォルダが
-     おなじ 中身(なかみ)の おおきな ファイルで いっぱいに なって しまう。
-     そこで きほんは オフ。オンに しても 1週間(しゅうかん)に 1回(かい)までに する。*/
-  const AUTO_KEY = "mz-auto-backup";   // "1" なら オン（きほんは オフ）
-  const SIG_KEY = "mz-backup-sig";     // さいごに ほぞんした データの しるし
-  const AUTO_EVERY = 7 * 24 * 60 * 60 * 1000;  // 1しゅうかんに 1かいまで
-  const autoBackupOn = () => { try { return localStorage.getItem(AUTO_KEY) === "1"; } catch (e) { return false; } };
-  function markBackedUp(sig) {
-    try {
-      localStorage.setItem(BACKUP_KEY, String(Date.now()));
-      if (sig) localStorage.setItem(SIG_KEY, sig);
-    } catch (e) {}
-    updateBackupHint();
-  }
-  // データが かわって、まえの じどう ほぞんから じかんが たっていたら ほぞんする
-  async function maybeAutoBackup() {
-    if (!autoBackupOn()) return;
-    let last = 0, lastSig = "";
-    try {
-      last = parseInt(localStorage.getItem(BACKUP_KEY) || "0", 10) || 0;
-      lastSig = localStorage.getItem(SIG_KEY) || "";
-    } catch (e) {}
-    if (last && Date.now() - last < AUTO_EVERY) return;       // まだ はやい
-    try {
-      const { blob, ext, count, size, sig } = await buildBackup();
-      if (!count || sig === lastSig) return;                  // なにも かわって いない
-      downloadBlob(blob, backupFileName(ext));
-      markBackedUp(sig);
-      miniNote(`💾 自動(じどう)で バックアップしたよ（写真(しゃしん) ${count}枚(まい)・${fmtSize(size)}）`);
-    } catch (err) {
-      console.warn("auto backup failed:", err);
+    if (need) {
+      el.textContent = "☁️ 大事(だいじ)な 写真(しゃしん)を 守(まも)ろう！ タップで Google ドライブに 保存(ほぞん)";
+      rubyifyDOM(el);
     }
   }
+
   // ちいさな おしらせ（3びょうで きえる）
   function miniNote(text) {
     const el = $("#mini-note");
@@ -4169,12 +4128,11 @@
   }
 
   function refreshGDriveUI() {
+    updateBackupHint();                 // つないだら トップの おびを 消(け)す
     const on = GDrive.wasSignedIn() && GDrive.configured();
     const off = $("#gd-off"), onBox = $("#gd-on");
     if (!off || !onBox) return;
     off.hidden = on; onBox.hidden = !on;
-    const fold = $("#gd-fold");
-    if (fold && on) fold.open = true;   // つかって いる ときは ひらいて おく
     const au = $("#gd-auto"); if (au) au.checked = gdAutoOn();
     const st = $("#gd-state");
     if (st) {
@@ -4310,17 +4268,8 @@
   }
 
   // バックアップの ファイルを つくる（てどうも じどうも これを つかう）
-  /* バックアップは そのままだと おおきい（しゃしんを もじに するので 1.37ばい）。
-     ブラウザが つかえるなら gzip で ちぢめて から ほぞんする。
-     もどす ときは、ちぢめた ファイルも ふつうの JSONも どちらも 読(よ)める。*/
-  const canGzip = () => typeof CompressionStream === "function";
-  async function gzipBlob(blob) {
-    if (!canGzip()) return null;
-    try {
-      const s = blob.stream().pipeThrough(new CompressionStream("gzip"));
-      return new Blob([await new Response(s).arrayBuffer()], { type: "application/gzip" });
-    } catch (e) { return null; }
-  }
+  /* もどす とき だけ つかう。むかしの バックアップ ファイルは
+     ちぢめて ある ことが ある ので、どちらでも 読(よ)める ように する。*/
   async function readBackupText(file) {
     const head = new Uint8Array(await file.slice(0, 2).arrayBuffer());
     if (head[0] === 0x1f && head[1] === 0x8b) {          // gzip の めじるし
@@ -4333,70 +4282,8 @@
     return file.text();
   }
 
-  async function buildBackup() {
-    const rows = await DB.getAllRaw();   // ずかん ぜんぶ（むし も おはな も どうぶつ も）
-    const items = [];
-    let newest = 0;
-    for (const r of rows) {
-      const rec = Object.assign({}, r);
-      if (!rec.col) rec.col = "mushi";
-      if (!rec.imgData && rec.blob) rec.imgData = await blobToDataURL(rec.blob);
-      delete rec.blob; delete rec.img; delete rec.id;
-      if (rec.date > newest) newest = rec.date;
-      items.push(rec);
-    }
-    const data = {
-      app: "mushizukan", version: APP_VERSION, exportedAt: Date.now(),
-      captures: items, places: Places.all, covers: Covers.all,
-    };
-    const plain = new Blob([JSON.stringify(data)], { type: "application/json" });
-    const small = await gzipBlob(plain);
-    return {
-      blob: small || plain,
-      ext: small ? "json.gz" : "json",
-      count: items.length,
-      size: (small || plain).size,
-      sig: `${items.length}|${newest}|${Places.all.length}`,
-    };
-  }
-  /* ファイル名は 時刻(じこく)まで 入れる。
-     おなじ 名前だと ブラウザが「もう一度 ダウンロードしますか？」と
-     きいて きて、あそびの じゃまに なる ため。*/
-  function backupFileName(ext) {
-    const d = new Date();
-    const p2 = (n) => String(n).padStart(2, "0");
-    return `mushizukan-backup-${toDateInput(d.getTime())}-${p2(d.getHours())}${p2(d.getMinutes())}.${ext || "json"}`;
-  }
   const fmtSize = (n) => (n >= 1048576 ? (n / 1048576).toFixed(1) + "MB" : Math.max(1, Math.round(n / 1024)) + "KB");
 
-  /* せってい がめんに「1回ぶんの おおきさ」を だす。
-     バックアップは 1回ごとに ぜんぶの しゃしんが 入(はい)る ので、
-     何回(なんかい)も ためると そのぶん 場所(ばしょ)を 使(つか)う ことを つたえる。*/
-  async function updateBackupInfo() {
-    const el = $("#s-backup-info");
-    if (!el) return;
-    el.textContent = "大(おお)きさを 調(しら)べて いるよ…";
-    try {
-      const rows = await DB.getAllRaw();
-      let bytes = 0;
-      for (const r of rows) {
-        if (r.blob && r.blob.size) bytes += r.blob.size;
-        else if (r.img && r.img.byteLength) bytes += r.img.byteLength;
-        else if (r.imgData) bytes += Math.round(r.imgData.length * 0.75);
-      }
-      // もじに すると 1.37ばい。ちぢめられる ときは ほぼ もとの 大きさに もどる
-      const one = Math.round(bytes * (canGzip() ? 1.02 : 1.37)) + 2048;
-      let last = 0;
-      try { last = parseInt(localStorage.getItem(BACKUP_KEY) || "0", 10) || 0; } catch (e) {}
-      el.textContent =
-        `写真(しゃしん) ${rows.length}枚(まい)／バックアップ 1回(かい)ぶん およそ ${fmtSize(one)}。` +
-        (last ? ` 前(まえ)の 保存(ほぞん)は ${fmtDate(last)}。` : " まだ 保存(ほぞん)して いないよ。") +
-        " 古(ふる)い ファイルは 消(け)して だいじょうぶ（いちばん 新(あたら)しい 1つだけ あれば 戻(もど)せます）。";
-      rubyifyDOM(el);
-    } catch (e) {
-      el.textContent = "";
-    }
-  }
   /* ============================================================
      しゃしんを あとから とりだす（ふつうの 画像(がぞう)ファイルとして）
      ・1まいなら そのまま .jpg
@@ -4550,61 +4437,8 @@
     setTimeout(() => URL.revokeObjectURL(url), 4000);
   }
 
-  async function exportBackup() {
-    const out = $("#s-backup-result");
-    out.textContent = "バックアップを 作(つく)って いるよ…"; out.className = "s-test-result";
-    try {
-      const { blob, ext, count, size, sig } = await buildBackup();
-      downloadBlob(blob, backupFileName(ext));
-      markBackedUp(sig);
-      out.textContent = `✓ ${count}枚(まい)の 写真(しゃしん)を 保存(ほぞん)したよ！（${fmtSize(size)}）`;
-      updateBackupInfo();
-      out.className = "s-test-result ok";
-    } catch (err) {
-      console.error(err);
-      out.textContent = "✕ " + (err.message || "できませんでした");
-      out.className = "s-test-result warn";
-    }
-  }
-
-  /* バックアップを ほかの アプリへ わたす（Google ドライブ・LINE・メール など）。
-     スマホなら 1タップで クラウドに あずけられる ので、機種変更(きしゅへんこう)の ときに らく。*/
-  function canShareFiles() {
-    try {
-      if (!navigator.canShare || !navigator.share) return false;
-      const f = new File(["{}"], "t.json", { type: "application/json" });
-      return navigator.canShare({ files: [f] });
-    } catch (e) { return false; }
-  }
-
-  async function shareBackup() {
-    const out = $("#s-backup-result");
-    out.textContent = "バックアップを 作(つく)って いるよ…"; out.className = "s-test-result"; rubyifyDOM(out);
-    try {
-      const { blob, ext, count, sig } = await buildBackup();
-      const file = new File([blob], backupFileName(ext), { type: blob.type });
-      if (canShareFiles()) {
-        await navigator.share({ files: [file], title: "むしずかんの バックアップ" });
-        markBackedUp(sig);
-        out.textContent = `✓ ${count}枚(まい)の 写真(しゃしん)を 送(おく)ったよ！`;
-        out.className = "s-test-result ok";
-      } else {
-        downloadBlob(blob, backupFileName(ext));
-        markBackedUp(sig);
-        out.textContent = `✓ ${count}枚(まい)を この 端末(たんまつ)に 保存(ほぞん)したよ`;
-        out.className = "s-test-result ok";
-      }
-      rubyifyDOM(out);
-    } catch (err) {
-      if (err && (err.name === "AbortError" || err.name === "NotAllowedError")) { out.textContent = ""; return; }
-      console.error(err);
-      out.textContent = "✕ " + ((err && err.message) || "できませんでした");
-      out.className = "s-test-result warn";
-    }
-  }
-
   async function importBackup(file) {
-    const out = $("#s-backup-result");
+    const out = $("#s-import-result");
     out.textContent = "読(よ)みこんで いるよ…"; out.className = "s-test-result";
     try {
       const data = JSON.parse(await readBackupText(file));
@@ -4783,10 +4617,6 @@
     $("#s-test").addEventListener("click", testSettings);
     $("#s-reclass").addEventListener("click", reclassifyWithAI);
     $("#s-find").addEventListener("click", findMyData);
-    $("#s-auto-backup").checked = autoBackupOn();
-    $("#s-auto-backup").addEventListener("change", (e) => {
-      try { localStorage.setItem(AUTO_KEY, e.target.checked ? "1" : "0"); } catch (err) {}
-    });
     $("#gd-signin").addEventListener("click", async () => {
       if (!GDrive.configured()) { gdSay("この アプリの 準備(じゅんび)が まだ です", "warn"); return; }
       gdSay("Google の ログイン がめんを ひらきます…");
@@ -4801,11 +4631,8 @@
     $("#gd-auto").addEventListener("change", (e) => {
       try { localStorage.setItem(GD_AUTO_KEY, e.target.checked ? "1" : "0"); } catch (err) {}
     });
-    if (canShareFiles()) $("#s-share").hidden = false;
-    $("#s-share").addEventListener("click", shareBackup);
-    $("#s-export").addEventListener("click", exportBackup);
     $("#s-photos").addEventListener("click", saveAllPhotos);
-    $("#backup-hint").addEventListener("click", exportBackup);
+    $("#backup-hint").addEventListener("click", openSettings);
     $("#s-import").addEventListener("click", () => $("#s-import-file").click());
     $("#s-import-file").addEventListener("change", (e) => {
       const f = e.target.files && e.target.files[0];
