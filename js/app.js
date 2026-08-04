@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v125";
+  const APP_VERSION = "v126";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -2887,7 +2887,7 @@
       else closeBook();
     }
     // なまえ・★・消(け)した などの 変(か)わりも ドライブへ
-    gdSyncSoon(1500);
+    gdChanged(1500);
   }
 
   // ---- しゃしんを えらぶ（カメラ or ファイル）----
@@ -2924,7 +2924,7 @@
       try { await afterChange(pendingAppendName, true); } catch (e) { console.error(e); }
       $("#loading").hidden = true;
       miniCheer(rec);
-      gdSyncSoon(400);                 // たした しゃしんも すぐ ドライブへ
+      gdChanged(400);                  // たした しゃしんも すぐ ドライブへ
       return;
     }
 
@@ -3439,7 +3439,7 @@
     pendingShots = [];                 // つぎの とうろくに もちこさない
     if (isNew) celebrate(rec, leveledUp); else miniCheer(rec);
     if (shots > 1) setTimeout(() => miniNote(`📷 写真(しゃしん) ${shots}枚(まい)を 図鑑(ずかん)に 入(い)れたよ！`), 900);
-    gdSyncSoon(400);                   // とった しゃしんを すぐ ドライブへ
+    gdChanged(400);                    // とった しゃしんを すぐ ドライブへ
   }
 
   function errText(err) {
@@ -3966,7 +3966,7 @@
   function saveSettings() {
     Settings.key = $("#s-key").value.trim();
     Settings.model = $("#s-model").value.trim() || Gemini.DEFAULT_MODEL;
-    markSettingsChanged(); gdSyncSoon(1500);
+    markSettingsChanged(); gdChanged(1500);
     $("#settings").close(); renderProgress();
   }
   async function testSettings() {
@@ -4156,6 +4156,8 @@
 
   const GD_AUTO_KEY = "mz-gdrive-auto";
   const GD_LAST_KEY = "mz-gdrive-last";
+  const GD_DIRTY_KEY = "mz-gdrive-dirty";   // まだ ドライブに おくって いない ものが あるか
+  const GD_STALE_MS = 20 * 3600 * 1000;     // これいじょう 同期(どうき)して いなければ 1回 つなぐ
   const DEL_KEY = "mz-deleted";
   const gdAutoOn = () => { try { return localStorage.getItem(GD_AUTO_KEY) !== "0"; } catch (e) { return true; } };
   const capKey = (c) => `${c.col || "mushi"}|${c.name}|${c.date}`;
@@ -4193,6 +4195,19 @@
     }
   }
 
+  /* まだ ドライブに おくって いない ものが あるか。
+     まだ 一度(いちど)も しるしを つけて いない ときは「ある」あつかい。*/
+  const gdDirty = () => { try { return localStorage.getItem(GD_DIRTY_KEY) !== "0"; } catch (e) { return true; } };
+  const setGdDirty = (v) => { try { localStorage.setItem(GD_DIRTY_KEY, v ? "1" : "0"); } catch (e) {} };
+  /* いま ドライブに つなぐ 用(よう)が あるか。
+     用(よう)が ない ときは つながない ＝ ログインの がめんが チラッと 出(で)ない。*/
+  function gdNeedSync() {
+    if (gdDirty()) return true;
+    let last = 0;
+    try { last = parseInt(localStorage.getItem(GD_LAST_KEY) || "0", 10) || 0; } catch (e) {}
+    return Date.now() - last > GD_STALE_MS;
+  }
+
   /* とった しゃしんを できるだけ すぐ ドライブへ。
      つづけて 何回か 呼(よ)ばれても 1回に まとめる（デバウンス）。*/
   function gdSyncSoon(ms) {
@@ -4200,6 +4215,8 @@
     clearTimeout(gdSyncSoon._t);
     gdSyncSoon._t = setTimeout(() => syncDrive({ quiet: true }), ms == null ? 400 : ms);
   }
+  // データが かわった とき（＝ドライブに おくる ものが できた とき）
+  function gdChanged(ms) { setGdDirty(true); gdSyncSoon(ms); }
 
   let gdSyncing = false, gdPending = false;
   async function syncDrive(opts) {
@@ -4210,7 +4227,13 @@
     gdSyncing = true;
     if (!quiet) gdSay("☁️ 同期中(どうきちゅう)…");
     try {
-      await GDrive.silentSignIn();
+      /* かぎ（トークン）が まだ 生(い)きて いれば、Google には 何(なに)も 聞(き)かない。
+         きれて いる ときは、じどうの ときに かぎり「用(よう)が ある ときだけ」とり直(なお)す。
+         そうしないと アプリを ひらく たびに ログインの がめんが チラッと 出(で)て しまう。*/
+      if (!GDrive.signedIn()) {
+        if (quiet && !gdNeedSync()) { updateBackupHint(); return; }
+        await GDrive.silentSignIn();
+      }
       /* じどうの ときは、ぜったいに ログイン がめんを ださない。
          だまって あきらめて、トップの おびで「つなぎ直(なお)してね」と つたえる。*/
       if (!GDrive.signedIn()) {
@@ -4303,6 +4326,7 @@
       await GDrive.upload(GD_META, blob, "application/json", metaEntry ? metaEntry.id : null);
 
       try { localStorage.setItem(GD_LAST_KEY, String(Date.now())); } catch (e) {}
+      setGdDirty(false);   // ここまでの ぶんは ぜんぶ おくれた
       if (got || removed) { await reload(); renderProgress(); renderGrid(); renderPlaces(); }
       if (setGot) { renderProgress(); miniNote("⚙️ 設定(せってい)も もどしたよ"); }
       refreshGDriveUI();
@@ -4725,7 +4749,7 @@
       $("#s-key-toggle").textContent = masked ? "👁" : "🙈";
     });
 
-    $$(".size-btn").forEach((btn) => btn.addEventListener("click", () => { applyCols(+btn.dataset.cols, true); gdSyncSoon(2000); }));
+    $$(".size-btn").forEach((btn) => btn.addEventListener("click", () => { applyCols(+btn.dataset.cols, true); gdChanged(2000); }));
 
     $("#pl-close").addEventListener("click", () => $("#place-modal").close());
     // はいけいを タップでも とじられる
@@ -4872,10 +4896,17 @@
     }
     rubyAll();
     startRubyWatch();
-    // まえに ログイン して いれば、そっと つないで 同期(どうき)する
+    /* まえに ログイン して いれば、そっと つないで 同期(どうき)する。
+       ★ ひらく たびに ログインの がめんが チラッと 出(で)ない ように：
+         ・まだ きげんの きれて いない かぎが あれば、それを つかう（がめんは 出(で)ない）
+         ・かぎが きれて いる ときは、おくる ものが ある ときだけ とり直(なお)す */
     if (GDrive.configured() && GDrive.wasSignedIn()) {
       setTimeout(async () => {
-        if (await GDrive.silentSignIn()) { refreshGDriveUI(); wireDriveRetry(); if (gdAutoOn()) syncDrive({ quiet: true }); }
+        let ok = GDrive.signedIn();
+        if (!ok && gdNeedSync()) ok = await GDrive.silentSignIn();
+        if (!ok) return;
+        refreshGDriveUI(); wireDriveRetry();
+        if (gdAutoOn()) syncDrive({ quiet: true });
       }, 1500);
     }
     setupUpdater();

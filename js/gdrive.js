@@ -30,6 +30,11 @@ const GDrive = (() => {
   const SCOPE = "https://www.googleapis.com/auth/drive.file openid email";
   const HINT_KEY = "mz-gdrive-hint";         // まえに つかった アドレス
   const FAIL_KEY = "mz-gdrive-silentfail";   // だまって とれなかった かいすう
+  /* とった かぎ（アクセストークン）を とって おく ばしょ。
+     アプリを ひらき直(なお)しても きげん内(ない)なら その まま つかえるので、
+     Google の ログイン がめんが チラッと 出(で)なく なる。
+     この かぎは この 端末(たんまつ)の 中(なか)だけ。1時間(じかん)ほどで きれる。*/
+  const TOK_KEY = "mz-gdrive-tok";
   const FOLDER_NAME = "むしずかん";
   const GIS = "https://accounts.google.com/gsi/client";
   const API = "https://www.googleapis.com/drive/v3";
@@ -50,6 +55,24 @@ const GDrive = (() => {
   try { localStorage.removeItem("mz-gdrive-client"); } catch (e) {}
   const wasSignedIn = () => get(ON_KEY) === "1";
   const signedIn = () => !!token && Date.now() < expires;
+
+  // かぎを しまう / とりだす
+  function keepToken(t, exp) {
+    token = t; expires = exp;
+    try { localStorage.setItem(TOK_KEY, JSON.stringify({ t, exp })); } catch (e) {}
+  }
+  function dropToken() {
+    token = null; expires = 0;
+    try { localStorage.removeItem(TOK_KEY); } catch (e) {}
+  }
+  (function loadToken() {
+    if (!wasSignedIn()) { try { localStorage.removeItem(TOK_KEY); } catch (e) {} return; }
+    try {
+      const o = JSON.parse(localStorage.getItem(TOK_KEY) || "null");
+      if (o && o.t && Date.now() < o.exp) { token = o.t; expires = o.exp; }
+      else localStorage.removeItem(TOK_KEY);
+    } catch (e) {}
+  })();
 
   // ---- GIS（Googleの ログイン ぶひん）を よみこむ ----
   function loadGIS() {
@@ -105,8 +128,7 @@ const GDrive = (() => {
       const fin = (fn, v) => { if (!done) { done = true; fn(v); } };
       c.callback = (res) => {
         if (res && res.access_token) {
-          token = res.access_token;
-          expires = Date.now() + (Number(res.expires_in || 3600) - 120) * 1000;
+          keepToken(res.access_token, Date.now() + (Number(res.expires_in || 3600) - 120) * 1000);
           set(ON_KEY, "1"); set(FAIL_KEY, "");
           rememberAccount();
           fin(resolve, token);
@@ -146,7 +168,7 @@ const GDrive = (() => {
         google.accounts.oauth2.revoke(token, () => {});
       }
     } catch (e) {}
-    token = null; expires = 0; client = null; clientHint = null;
+    dropToken(); client = null; clientHint = null;
     set(ON_KEY, ""); set(FOLDER_KEY, ""); set(HINT_KEY, ""); set(FAIL_KEY, "");
   }
 
@@ -156,7 +178,7 @@ const GDrive = (() => {
     const o = Object.assign({}, opts);
     o.headers = Object.assign({ Authorization: "Bearer " + token }, o.headers || {});
     const r = await fetch(url, o);
-    if (r.status === 401 || r.status === 403) { token = null; expires = 0; throw new Error("NEED_SIGNIN"); }
+    if (r.status === 401 || r.status === 403) { dropToken(); throw new Error("NEED_SIGNIN"); }
     if (!r.ok) {
       let m = "HTTP " + r.status;
       try { const j = await r.json(); if (j.error && j.error.message) m = j.error.message; } catch (e) {}
