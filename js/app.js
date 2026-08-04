@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v123";
+  const APP_VERSION = "v124";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -97,6 +97,7 @@
       const m = this.all;
       if (arr && arr.length) m[Zukan.id] = arr; else delete m[Zukan.id];
       try { localStorage.setItem("mz-secorder", JSON.stringify(m)); } catch (e) {}
+      markSettingsChanged();
     },
     clear() { this.list = null; },
     // 科の なまえ → 何(なん)ばんめ（きめて いなければ 大(おお)きい すうじ）
@@ -1129,12 +1130,13 @@
   }
 
   // ---- カードの おおきさ（1れつの まいすう）----
-  function applyCols(n) {
+  function applyCols(n, byUser) {
     n = Math.min(5, Math.max(2, parseInt(n, 10) || 2));
     const s = $("#sections");
     s.style.setProperty("--cols", n);
     s.dataset.cols = n;
     localStorage.setItem("mz-cols", n);
+    if (byUser) markSettingsChanged();   // ひらいた ときの よびだしでは しるしを つけない
     $$(".size-btn").forEach((b) => b.classList.toggle("active", +b.dataset.cols === n));
   }
 
@@ -1236,7 +1238,7 @@
      ============================================================ */
   const AR_KEY = "mz-arena";
   const arRecord = () => { try { return JSON.parse(localStorage.getItem(AR_KEY) || "{}"); } catch (e) { return {}; } };
-  function arSave(rec) { try { localStorage.setItem(AR_KEY, JSON.stringify(rec)); } catch (e) {} }
+  function arSave(rec) { try { localStorage.setItem(AR_KEY, JSON.stringify(rec)); markSettingsChanged(); } catch (e) {} }
   const arSleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   const arHp = (f) => Math.round((f.defense * 2 + 200) / 10) * 10;
@@ -3524,7 +3526,8 @@
     return {
       get on() { return on; },
       ctx() { return ac(); },
-      toggle() { on = !on; localStorage.setItem("mz-sound", on ? "on" : "off"); if (on) this.blip(); return on; },
+      toggle() { on = !on; localStorage.setItem("mz-sound", on ? "on" : "off"); markSettingsChanged(); if (on) this.blip(); return on; },
+      reload() { try { on = localStorage.getItem("mz-sound") !== "off"; } catch (e) {} },
       fanfare(p) { if (!on) return; try { [523, 659, 784, 1047].forEach((f, i) => note(f, i * 0.12, 0.5, "triangle", 0.16)); if (clampR(p) >= 4) note(1319, 0.5, 0.7, "triangle", 0.16); if (clampR(p) >= 5) note(1568, 0.62, 0.8, "triangle", 0.16); } catch (e) {} },
       blip() { if (!on) return; try { note(880, 0, 0.16, "triangle", 0.12); note(1175, 0.08, 0.16, "triangle", 0.12); } catch (e) {} },
       // かみを めくる おと（ノイズを フィルターで うごかして「シャラッ」）
@@ -3884,6 +3887,7 @@
       toggle() {
         on = !on;
         try { localStorage.setItem(KEY, on ? "on" : "off"); } catch (e) {}
+        markSettingsChanged();
         if (!on) this.stop(); else if (arenaOpen()) this.start();
         return on;
       },
@@ -3962,6 +3966,7 @@
   function saveSettings() {
     Settings.key = $("#s-key").value.trim();
     Settings.model = $("#s-model").value.trim() || Gemini.DEFAULT_MODEL;
+    markSettingsChanged(); gdSyncSoon(1500);
     $("#settings").close(); renderProgress();
   }
   async function testSettings() {
@@ -4114,6 +4119,41 @@
      けした ものは meta.json の deleted に のこして、どの 端末でも きえる ように する。
      ============================================================ */
   const GD_META = "meta.json";
+  /* ============================================================
+     せっていも いっしょに ドライブへ。
+     あたらしい スマホで ログインしたら、そのまま つづきから あそべる。
+     ・APIキー … 入(い)れなおさずに すぐ AIが つかえる ように
+     ・音(おと)・カードの 大(おお)きさ・科(か)の ならび・とうぎじょうの せんせき
+     ※「いま どの 図鑑(ずかん)を ひらいて いるか」は 端末(たんまつ)ごとで
+       いい ので、はこばない。
+     ============================================================ */
+  const SETTING_KEYS = ["mz-gemini-key", "mz-gemini-model", "mz-sound", "mz-bgm",
+                        "mz-cols", "mz-secorder", "mz-arena"];
+  const SET_AT_KEY = "mz-settings-at";
+  const settingsStamp = () => { try { return parseInt(localStorage.getItem(SET_AT_KEY) || "0", 10) || 0; } catch (e) { return 0; } };
+  function markSettingsChanged() { try { localStorage.setItem(SET_AT_KEY, String(Date.now())); } catch (e) {} }
+  function localSettings() {
+    const o = {};
+    for (const k of SETTING_KEYS) {
+      try { const v = localStorage.getItem(k); if (v != null) o[k] = v; } catch (e) {}
+    }
+    return o;
+  }
+  // クラウドの ほうが あたらしい ときだけ、こちらに いれる
+  function applySettings(obj) {
+    let n = 0;
+    for (const k in obj) {
+      if (SETTING_KEYS.indexOf(k) < 0) continue;
+      try { if (localStorage.getItem(k) !== obj[k]) { localStorage.setItem(k, obj[k]); n++; } } catch (e) {}
+    }
+    if (!n) return 0;
+    // 画面に すぐ はんえいさせる
+    try { applyCols(localStorage.getItem("mz-cols") || 2); } catch (e) {}
+    try { sound.reload(); } catch (e) {}
+    try { renderGrid(); } catch (e) {}
+    return n;
+  }
+
   const GD_AUTO_KEY = "mz-gdrive-auto";
   const GD_LAST_KEY = "mz-gdrive-last";
   const DEL_KEY = "mz-deleted";
@@ -4182,6 +4222,14 @@
       const metaEntry = remote.get(GD_META);
       const meta = metaEntry ? (await GDrive.downloadJSON(metaEntry.id)) : null;
 
+      // ---- せってい（あたらしい ほうを つかう）----
+      let setGot = 0;
+      const cloudAt = (meta && meta.settingsAt) || 0;
+      if (meta && meta.settings && cloudAt > settingsStamp()) {
+        setGot = applySettings(meta.settings);
+        try { localStorage.setItem(SET_AT_KEY, String(cloudAt)); } catch (e) {}
+      }
+
       // ---- けした ものの リスト（ローカル＋クラウド）----
       const gone = new Set(deletedKeys());
       for (const k of (meta && meta.deleted) || []) gone.add(k);
@@ -4249,12 +4297,14 @@
       const nextMeta = {
         app: "mushizukan", v: 1, updatedAt: Date.now(),
         captures: caps, places: Places.all, covers, deleted: [...gone].slice(-500),
+        settings: localSettings(), settingsAt: Math.max(settingsStamp(), cloudAt),
       };
       const blob = new Blob([JSON.stringify(nextMeta)], { type: "application/json" });
       await GDrive.upload(GD_META, blob, "application/json", metaEntry ? metaEntry.id : null);
 
       try { localStorage.setItem(GD_LAST_KEY, String(Date.now())); } catch (e) {}
       if (got || removed) { await reload(); renderProgress(); renderGrid(); renderPlaces(); }
+      if (setGot) { renderProgress(); miniNote("⚙️ 設定(せってい)も もどしたよ"); }
       refreshGDriveUI();
       const msg = `✓ 同期(どうき)できたよ！（もらった ${got}まい・送(おく)った ${put}まい）`;
       if (quiet) {
@@ -4675,7 +4725,7 @@
       $("#s-key-toggle").textContent = masked ? "👁" : "🙈";
     });
 
-    $$(".size-btn").forEach((btn) => btn.addEventListener("click", () => applyCols(+btn.dataset.cols)));
+    $$(".size-btn").forEach((btn) => btn.addEventListener("click", () => { applyCols(+btn.dataset.cols, true); gdSyncSoon(2000); }));
 
     $("#pl-close").addEventListener("click", () => $("#place-modal").close());
     // はいけいを タップでも とじられる
