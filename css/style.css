@@ -151,12 +151,15 @@ button { font-family: inherit; cursor: pointer; border: none; color: inherit; }
 /* ============================================================
    メニュー（右から シュッと でる）
    ============================================================ */
-.menu-btn { display: grid; place-content: center; gap: 4px; }
-.mb-bar { display: block; width: 18px; height: 2.6px; border-radius: 2px; background: var(--green-d);
-  transition: transform .25s ease, opacity .2s ease; }
-.menu-btn[aria-expanded="true"] .mb-bar:nth-child(1) { transform: translateY(6.6px) rotate(45deg); }
-.menu-btn[aria-expanded="true"] .mb-bar:nth-child(2) { opacity: 0; }
-.menu-btn[aria-expanded="true"] .mb-bar:nth-child(3) { transform: translateY(-6.6px) rotate(-45deg); }
+/* メニューの ボタンは 1まいの え（中(なか)の 3本(ぼん)せんは かくす）*/
+.menu-btn {
+  width: 52px; height: 46px; border-radius: 0; box-shadow: none;
+  background: url("../img/menu-btn.webp") center / 100% 100% no-repeat;
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,.32));
+}
+.menu-btn > * { display: none; }
+.menu-btn:active { transform: translateY(2px); box-shadow: none;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,.32)); }
 
 .drawer-bg {
   position: fixed; inset: 0; z-index: 60; background: rgba(8,22,6,.5);
@@ -247,6 +250,7 @@ button { font-family: inherit; cursor: pointer; border: none; color: inherit; }
   .plate-leaf { display: none; }
   .logo { font-size: 23px; letter-spacing: .03em; }
   .icon-btn { width: 36px; height: 36px; font-size: 16px; }
+  .menu-btn { width: 48px; height: 43px; }
   .topbar-btns { gap: 5px; }
   .title-plate { padding: 9px 10px 8px; }
   .plate-tape { width: 34px; height: 14px; }
@@ -256,6 +260,7 @@ button { font-family: inherit; cursor: pointer; border: none; color: inherit; }
 @media (max-width: 360px) {
   .logo { font-size: 20px; }
   .icon-btn { width: 33px; height: 33px; font-size: 15px; }
+  .menu-btn { width: 44px; height: 39px; }
 }
 /* ひろい がめんでは タイトルを まんなかに、ボタンは かどに */
 @media (min-width: 620px) {
