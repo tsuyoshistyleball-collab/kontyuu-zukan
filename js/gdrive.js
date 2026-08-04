@@ -18,7 +18,7 @@ const GDrive = (() => {
      ※ ウェブアプリの クライアントIDは 公開(こうかい)される もの なので、
         ここに 書(か)いて だいじょうぶ です（ひみつの かぎでは ない）。
      ============================================================ */
-  const DEFAULT_CLIENT_ID = "";
+  const DEFAULT_CLIENT_ID = "42855051432-rvh3nq4ju8jgd1r4lcnjgf24ncgcp0t2.apps.googleusercontent.com";
 
   const CLIENT_KEY = "mz-gdrive-client";     // じぶんで 入れた クライアントID（あれば ゆうせん）
   const ON_KEY = "mz-gdrive-on";             // ログイン したことが あるか
