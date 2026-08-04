@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v128";
+  const APP_VERSION = "v129";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -3960,6 +3960,95 @@
   const MM_TILE = 256, MM_MIN_Z = 3, MM_MAX_Z = 18;
   let mmZ = 15, mmLat = 35.68, mmLng = 139.77;   // ちずの まんなか
   let mmDrag = null, mmWired = false, mmMoved = false;
+  let mmMode = "real";          // "real"＝ふつうの ちず ／ "japan"＝え の にほん地図
+
+  /* ---- え の にほん地図(ちず)（img/japan.webp）----
+     手(て)で かいた 絵(え)なので、ほんとうの 地図(ちず)とは かたちが すこし ちがう。
+     そこで「この 場所(ばしょ)は 絵(え)の ここ」という め じるしを いくつか きめて、
+     ・まず ぜんたいを ざっくり あわせる 式(しき)（アフィン変換(へんかん)）を つくり
+     ・そのうえで め じるしの まわりだけ ずれを なおす（きょりの ぎゃく数(すう)で なめらかに）
+     という 2だんがまえで ピンの いちを 出(だ)して いる。
+     め じるしの ところでは ぴったり、はなれる ほど ゆるやかに なる。*/
+  const JP_W = 1024, JP_H = 1536;              // め じるしを きめた ときの え の おおきさ
+  const JP_AX = [62.06947, -17.26423, -7322.5611];   // x = a*けいど + b*いど + c
+  const JP_AY = [1.89216, -66.76513, 2939.8845];     // y = a*けいど + b*いど + c
+  /* [いど, けいど, xの のこり, yの のこり] */
+  const JP_FIX = [
+    [45.52, 141.94,  58, -51],   // 宗谷岬
+    [43.39, 145.82,  23, -14],   // 納沙布岬
+    [41.55, 140.91,  29,  20],   // 大間崎
+    [37.90, 139.02,   0,  27],   // 新潟
+    [36.56, 136.66,  -9,  37],   // 金沢
+    [35.69, 139.69, -22,  31],   // 東京
+    [35.36, 138.73, -70, -72],   // 富士山
+    [33.95, 130.94, -41, -18],   // 下関
+    [33.70, 133.50, -12,  67],   // 四国
+    [33.59, 130.40, -39, -16],   // 福岡
+    [31.03, 130.67, -67,  70],   // 佐多岬
+    [26.21, 127.68, 150, -82],   // 那覇
+  ];
+  // え の うえの いち（え の ピクセル）。にほんの そとは null
+  function jpPoint(lat, lng) {
+    if (lat < 23 || lat > 47 || lng < 121 || lng > 150) return null;
+    let x = JP_AX[0] * lng + JP_AX[1] * lat + JP_AX[2];
+    let y = JP_AY[0] * lng + JP_AY[1] * lat + JP_AY[2];
+    let w = 0, ex = 0, ey = 0;
+    for (const [la, ln, rx, ry] of JP_FIX) {
+      const d2 = (lat - la) * (lat - la) + (lng - ln) * (lng - ln);
+      if (d2 < 1e-8) { x += rx; y += ry; w = 0; break; }
+      const k = 1 / (d2 * d2);              // きょりの 4じょうの ぎゃく数(すう)
+      w += k; ex += k * rx; ey += k * ry;
+    }
+    if (w) { x += ex / w; y += ey / w; }
+    if (x < -20 || y < -20 || x > JP_W + 20 || y > JP_H + 20) return null;
+    return { x, y };
+  }
+
+  function mmDrawJapan() {
+    const st = $("#mm-stage"), wrap = $("#mm-jp-wrap");
+    const W = st.clientWidth, H = st.clientHeight;
+    const k = Math.min(W / JP_W, H / JP_H);
+    const w = Math.round(JP_W * k), h = Math.round(JP_H * k);
+    wrap.style.width = w + "px";
+    wrap.style.height = h + "px";
+    let html = `<img class="mm-jp-img" src="img/japan.webp" alt="" draggable="false">`;
+    let far = 0;
+    for (const s of mmSpots()) {
+      const p = jpPoint(s.place.lat, s.place.lng);
+      if (!p) { far++; continue; }
+      const pic = s.place.photo || (s.bugs[0] && s.bugs[0].blob ? urlFor(s.bugs[0].blob) : "");
+      html +=
+        `<button class="mm-pin" type="button" data-id="${escapeHtml(String(s.place.id))}" ` +
+        `style="left:${Math.round(p.x * k)}px;top:${Math.round(p.y * k)}px">` +
+          `<span class="mm-pin-pic">` +
+            (pic ? `<img src="${pic}" alt="" draggable="false">` : `<span class="mm-pin-emoji">${s.place.emoji || "🌳"}</span>`) +
+          `</span>` +
+          (s.bugs.length ? `<span class="mm-pin-n">${s.bugs.length}</span>` : "") +
+          `<span class="mm-pin-name">${escapeHtml(s.place.name)}</span>` +
+        `</button>`;
+    }
+    wrap.innerHTML = html;
+    const fe = $("#mm-far");
+    fe.hidden = !far;
+    if (far) {
+      fe.textContent = `日本(にほん)の そとの 場所(ばしょ)が ${far}か所(しょ) あるよ。「🗺️ ふつうの ちず」で 見(み)てね`;
+      rubyifyDOM(fe);
+    }
+  }
+
+  // え の 地図(ちず)と ふつうの 地図(ちず)を きりかえる
+  function mmSetMode(mode) {
+    mmMode = mode;
+    const jp = mode === "japan";
+    $("#mm-japan").hidden = !jp;
+    $("#mm-canvas").hidden = jp;
+    $("#mm-credit").hidden = jp;
+    $("#mm-in").hidden = jp; $("#mm-out").hidden = jp; $("#mm-fit").hidden = jp;
+    $("#mm-jp").textContent = jp ? "🗺️ ふつうの ちず" : "🗾 にほん";
+    $("#mm-far").hidden = true;
+    mmCloseSheet();
+    if (jp) mmDrawJapan(); else { $("#mm-far").hidden = true; mmDraw(); }
+  }
 
   // いど・けいど → ちずの ピクセル（ウェブメルカトル）
   function mmProject(lat, lng, z) {
@@ -4002,12 +4091,19 @@
     if (!spots.length) return;
     const st = $("#mm-stage");
     const W = st.clientWidth || 320, H = st.clientHeight || 320;
-    let a = 90, b = -90, c = 180, d = -180;
+    /* けいどは 180どで 一周(いっしゅう)する ので、そのまま 平均(へいきん)すると
+       日本(にほん)と ハワイの まんなかが 大西洋(たいせいよう)に なって しまう。
+       1つめの 場所(ばしょ)を 基準(きじゅん)に「近(ちか)い ほう」へ そろえて から くらべる。*/
+    const base = spots[0].place.lng;
+    const near = (ln) => base + (((ln - base + 540) % 360) - 180);
+    let a = 90, b = -90, c = 1e9, d = -1e9;
     for (const s of spots) {
+      const ln = near(s.place.lng);
       a = Math.min(a, s.place.lat); b = Math.max(b, s.place.lat);
-      c = Math.min(c, s.place.lng); d = Math.max(d, s.place.lng);
+      c = Math.min(c, ln); d = Math.max(d, ln);
     }
-    mmLat = (a + b) / 2; mmLng = (c + d) / 2;
+    mmLat = (a + b) / 2;
+    mmLng = (((c + d) / 2 + 540) % 360) - 180;
     const PAD = 110;                       // ピンと なまえの ぶんの よゆう
     let z = 16;
     for (; z > MM_MIN_Z; z--) {
@@ -4034,9 +4130,13 @@
                 `style="left:${Math.round(tx * MM_TILE - ox)}px;top:${Math.round(ty * MM_TILE - oy)}px">`;
       }
     }
+    const worldW = MM_TILE * n;
     for (const s of mmSpots()) {
       const p = mmProject(s.place.lat, s.place.lng, mmZ);
-      const px = Math.round(p.x - ox), py = Math.round(p.y - oy);
+      // よこは ぐるっと まわる ので、がめんに いちばん ちかい ほうに よせる
+      let fx = (((p.x - ox) % worldW) + worldW) % worldW;
+      if (fx - W / 2 > worldW / 2) fx -= worldW;
+      const px = Math.round(fx), py = Math.round(p.y - oy);
       if (px < -90 || py < -90 || px > W + 90 || py > H + 90) continue;
       const pic = s.place.photo || (s.bugs[0] && s.bugs[0].blob ? urlFor(s.bugs[0].blob) : "");
       html +=
@@ -4095,6 +4195,7 @@
        （ピンが かたまって いる ときに つかめなく なる のを ふせぐ）。
        すこしでも 動(うご)いたら「タップ」とは みなさない。*/
     st.addEventListener("pointerdown", (e) => {
+      if (mmMode !== "real") return;          // え の 地図(ちず)は うごかさない
       mmDrag = { x: e.clientX, y: e.clientY, dx: 0, dy: 0, id: e.pointerId, moved: false };
     });
     st.addEventListener("pointermove", (e) => {
@@ -4123,12 +4224,17 @@
     };
     st.addEventListener("pointerup", stop);
     st.addEventListener("pointercancel", stop);
-    cv.addEventListener("click", (e) => {
+    const tap = (e) => {
       if (mmMoved) { mmMoved = false; return; }   // うごかした ぶんは タップに しない
       const pin = e.target.closest(".mm-pin");
       if (pin) mmOpenSpot(pin.dataset.id);
+    };
+    cv.addEventListener("click", tap);
+    $("#mm-jp-wrap").addEventListener("click", tap);
+    window.addEventListener("resize", () => {
+      if ($("#memmap").hidden) return;
+      if (mmMode === "japan") mmDrawJapan(); else mmDraw();
     });
-    window.addEventListener("resize", () => { if (!$("#memmap").hidden) mmDraw(); });
   }
 
   function openMemMap() {
@@ -4146,8 +4252,12 @@
       ? `${spots.length}か所(しょ)・${kinds.size}しゅるいの おもいで`
       : "";
     rubyifyDOM($("#memmap"));
+    $("#mm-jp").hidden = spots.length === 0;
     if (spots.length) {
-      requestAnimationFrame(() => { mmFit(spots); mmDraw(); });
+      requestAnimationFrame(() => {
+        mmFit(spots);                       // ふつうの 地図(ちず)の いちは いつも ととのえて おく
+        if (mmMode === "japan") mmDrawJapan(); else mmDraw();
+      });
     } else {
       $("#mm-canvas").innerHTML = "";
     }
@@ -4831,6 +4941,7 @@
     $("#mm-in").addEventListener("click", () => mmZoom(1));
     $("#mm-out").addEventListener("click", () => mmZoom(-1));
     $("#mm-fit").addEventListener("click", () => { mmFit(mmSpots()); mmDraw(); sound.blip(); });
+    $("#mm-jp").addEventListener("click", () => { mmSetMode(mmMode === "japan" ? "real" : "japan"); sound.blip(); });
     $("#sort-done").addEventListener("click", closeSortSheet);
     $("#sort-sheet").addEventListener("click", (e) => { if (e.target.id === "sort-sheet") closeSortSheet(); });
     $("#sort-reset").addEventListener("click", () => {
