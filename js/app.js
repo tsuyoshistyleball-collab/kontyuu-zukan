@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "v119";
+  const APP_VERSION = "v120";
 
   const $ = (s, e = document) => e.querySelector(s);
   const $$ = (s, e = document) => [...e.querySelectorAll(s)];
@@ -4175,11 +4175,6 @@
     off.hidden = on; onBox.hidden = !on;
     const fold = $("#gd-fold");
     if (fold && on) fold.open = true;   // つかって いる ときは ひらいて おく
-    const ci = $("#gd-client");
-    if (ci && !ci.value && !GDrive.usingDefault()) ci.value = GDrive.clientId;
-    // クライアントIDが まだ ない ときは「準備中」と 出(だ)す
-    const su = $("#gd-setup"); if (su) su.hidden = GDrive.configured();
-    const sb = $("#gd-signin"); if (sb) sb.disabled = !GDrive.configured();
     const au = $("#gd-auto"); if (au) au.checked = gdAutoOn();
     const st = $("#gd-state");
     if (st) {
@@ -4792,10 +4787,7 @@
     $("#s-auto-backup").addEventListener("change", (e) => {
       try { localStorage.setItem(AUTO_KEY, e.target.checked ? "1" : "0"); } catch (err) {}
     });
-    $("#gd-client").addEventListener("change", (e) => { GDrive.clientId = e.target.value; refreshGDriveUI(); });
     $("#gd-signin").addEventListener("click", async () => {
-      const v = $("#gd-client").value.trim();
-      if (v) GDrive.clientId = v;
       if (!GDrive.configured()) { gdSay("この アプリの 準備(じゅんび)が まだ です", "warn"); return; }
       gdSay("Google の ログイン がめんを ひらきます…");
       try { await GDrive.signIn(); refreshGDriveUI(); await syncDrive(); }

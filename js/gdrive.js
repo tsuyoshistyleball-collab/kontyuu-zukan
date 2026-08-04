@@ -11,16 +11,15 @@
  */
 const GDrive = (() => {
   /* ============================================================
-     ここに この アプリの クライアントID を 入(い)れると、
-     つかう 人(ひと)は「Google で ログイン」を 押(お)すだけで
-     ドライブに バックアップ できる ように なります。
-     （つくりかたは README の「Google ドライブ 連携」を 見(み)てね）
+     この アプリの クライアントID。つかう 人(ひと)は
+     「Google で ログイン」を 押(お)すだけで つながります。
      ※ ウェブアプリの クライアントIDは 公開(こうかい)される もの なので、
         ここに 書(か)いて だいじょうぶ です（ひみつの かぎでは ない）。
+        これは「どの アプリか」の 名ふだ で、だれかの データを
+        のぞける ものでは ありません。
      ============================================================ */
-  const DEFAULT_CLIENT_ID = "42855051432-rvh3nq4ju8jgd1r4lcnjgf24ncgcp0t2.apps.googleusercontent.com";
+  const CLIENT_ID = "42855051432-rvh3nq4ju8jgd1r4lcnjgf24ncgcp0t2.apps.googleusercontent.com";
 
-  const CLIENT_KEY = "mz-gdrive-client";     // じぶんで 入れた クライアントID（あれば ゆうせん）
   const ON_KEY = "mz-gdrive-on";             // ログイン したことが あるか
   const FOLDER_KEY = "mz-gdrive-folder";     // ドライブの「むしずかん」フォルダの id
   /* drive.file＝この アプリが 作(つく)った ファイルだけ さわれる スコープ。
@@ -39,9 +38,10 @@ const GDrive = (() => {
   const get = (k) => { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } };
   const set = (k, v) => { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch (e) {} };
 
-  const clientId = () => get(CLIENT_KEY).trim() || DEFAULT_CLIENT_ID;
-  const usingDefault = () => !get(CLIENT_KEY).trim() && !!DEFAULT_CLIENT_ID;
-  const configured = () => !!clientId();
+  const clientId = () => CLIENT_ID;
+  const configured = () => !!CLIENT_ID;
+  // むかし じぶんで 入(い)れて いた IDが のこって いたら すてる
+  try { localStorage.removeItem("mz-gdrive-client"); } catch (e) {}
   const wasSignedIn = () => get(ON_KEY) === "1";
   const signedIn = () => !!token && Date.now() < expires;
 
@@ -200,9 +200,8 @@ const GDrive = (() => {
 
   return {
     get clientId() { return clientId(); },
-    set clientId(v) { set(CLIENT_KEY, String(v || "").trim()); set(FOLDER_KEY, ""); client = null; token = null; expires = 0; },
     get folderName() { return FOLDER_NAME; },
-    configured, usingDefault, wasSignedIn, signedIn,
+    configured, wasSignedIn, signedIn,
     signIn, silentSignIn, signOut,
     list, upload, download, downloadJSON, remove,
   };
