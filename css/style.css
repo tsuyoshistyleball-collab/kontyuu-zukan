@@ -119,18 +119,20 @@ button { font-family: inherit; cursor: pointer; border: none; color: inherit; }
 .plate-tape.left  { left: 14px;  transform: rotate(-7deg); }
 .plate-tape.right { right: 14px; transform: rotate(7deg); }
 
-/* むしずかん の ふだは 1まいの え。中(なか)の 文字(もじ)は かくす
-   （はな／どうぶつ は これまでの CSSの ふだの まま）*/
-body[data-zukan="mushi"] .title-plate {
-  aspect-ratio: 760 / 453;
+/* ずかんの ふだは 1まいの え（3つとも おなじ 大(おお)きさに そろえて ある）。
+   中(なか)の 文字(もじ)は え に 入(はい)って いる ので かくす。*/
+.title-plate {
+  aspect-ratio: 765 / 234;
   padding: 0; border: 0; border-radius: 0; box-shadow: none;
-  background: url("../img/plate-mushi.webp") center / contain no-repeat;
+  background: center / contain no-repeat;
   filter: drop-shadow(0 4px 5px rgba(40,60,20,.35));
-  max-height: 168px;
 }
-body[data-zukan="mushi"] .title-plate::before { display: none; }
-body[data-zukan="mushi"] .title-plate > * { visibility: hidden; }
-body[data-zukan="mushi"] .title-plate:active { transform: translateY(2px); }
+.title-plate::before { display: none; }
+button.title-plate > * { display: none; }   /* 場所(ばしょ)も とらない ように（え の 比(ひ)で 高(たか)さを きめる）*/
+.title-plate:active { transform: translateY(2px); }
+body[data-zukan="mushi"]    .title-plate { background-image: url("../img/plate-mushi.webp"); }
+body[data-zukan="hana"]     .title-plate { background-image: url("../img/plate-hana.webp"); }
+body[data-zukan="doubutsu"] .title-plate { background-image: url("../img/plate-doubutsu.webp"); }
 
 .plate-title-row { display: flex; align-items: center; justify-content: center; gap: 8px; }
 .plate-leaf { font-size: 16px; opacity: .9; animation: leafSway 4s ease-in-out infinite; }
@@ -165,14 +167,20 @@ body[data-zukan="mushi"] .title-plate:active { transform: translateY(2px); }
    メニュー（右から シュッと でる）
    ============================================================ */
 /* メニューの ボタンは 1まいの え（中(なか)の 3本(ぼん)せんは かくす）*/
-.menu-btn {
-  width: 52px; height: 46px; border-radius: 0; box-shadow: none;
+/* メニューの ボタンは 1まいの え。
+   ふだ（よこ:たて＝765:234）と おなじ たかさに なる はばを けいさんで だす。
+   すきま 10px を のぞいた のこりを、ふだと ボタンで わける と
+   ボタンの はば ＝ (はば - 10) / 4.361 に なる。*/
+.topbar-btns { width: min(calc((100% - 10px) / 4.361), 100px); }
+.topbar-btns .menu-btn {
+  width: 100%; height: auto; aspect-ratio: 750 / 771;
+  border-radius: 0; box-shadow: none;
   background: url("../img/menu-btn.webp") center / 100% 100% no-repeat;
-  filter: drop-shadow(0 2px 2px rgba(0,0,0,.32));
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,.34));
 }
 .menu-btn > * { display: none; }
-.menu-btn:active { transform: translateY(2px); box-shadow: none;
-  filter: drop-shadow(0 1px 1px rgba(0,0,0,.32)); }
+.topbar-btns .menu-btn:active { transform: translateY(2px); box-shadow: none;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,.34)); }
 
 .drawer-bg {
   position: fixed; inset: 0; z-index: 60; background: rgba(8,22,6,.5);
@@ -263,7 +271,6 @@ body[data-zukan="mushi"] .title-plate:active { transform: translateY(2px); }
   .plate-leaf { display: none; }
   .logo { font-size: 23px; letter-spacing: .03em; }
   .icon-btn { width: 36px; height: 36px; font-size: 16px; }
-  .menu-btn { width: 48px; height: 43px; }
   .topbar-btns { gap: 5px; }
   .title-plate { padding: 9px 10px 8px; }
   .plate-tape { width: 34px; height: 14px; }
@@ -273,13 +280,15 @@ body[data-zukan="mushi"] .title-plate:active { transform: translateY(2px); }
 @media (max-width: 360px) {
   .logo { font-size: 20px; }
   .icon-btn { width: 33px; height: 33px; font-size: 15px; }
-  .menu-btn { width: 44px; height: 39px; }
 }
 /* ひろい がめんでは タイトルを まんなかに、ボタンは かどに */
 @media (min-width: 620px) {
   /* ボタンの ぶんだけ りょうがわを あけて、タイトルが かぶらないように */
   .topbar-row { position: relative; justify-content: center; padding: 0 186px; }
-  .topbar-btns { position: absolute; right: 0; top: 50%; transform: translateY(-50%); }
+  /* ここでは ふだの はばが「よこはば − 186px×2」に なる ので、
+     ボタンの はばも それに あわせて 出(だ)しなおす */
+  .topbar-btns { position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+    width: min(calc((100% - 372px) / 3.361), 128px); }
   .title-plate { margin: 4px auto; max-width: 430px; }
   .logo { font-size: 28px; }
   .plate-leaf { font-size: 17px; }
@@ -1506,7 +1515,7 @@ input[type="date"].s-input { -webkit-appearance: none; appearance: none; }
   color: var(--frame-d); letter-spacing: .04em; white-space: nowrap;
 }
 button.title-plate { font-family: inherit; cursor: pointer; -webkit-appearance: none; appearance: none; }
-button.title-plate:active { transform: translateY(2px); box-shadow: 0 3px 0 #b3843f, 0 6px 12px rgba(70,50,30,.3); }
+button.title-plate:active { transform: translateY(2px); box-shadow: none; }
 
 .zukan-list { display: flex; flex-direction: column; gap: 10px; }
 .zukan-pick {
