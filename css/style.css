@@ -202,7 +202,7 @@ button { font-family: inherit; cursor: pointer; border: none; color: inherit; }
 .drawer-item.di-arena { aspect-ratio: 620 / 233; background-image: url("../img/di-arena.webp"); }
 .drawer-item.di-quiz  { aspect-ratio: 620 / 231; background-image: url("../img/di-quiz.webp"); }
 .drawer-item.di-sort  { aspect-ratio: 620 / 229; background-image: url("../img/di-sort.webp"); }
-.drawer-item.di-map   { aspect-ratio: 620 / 196; background-image: url("../img/di-map.webp"); }
+.drawer-item.di-map   { aspect-ratio: 620 / 197; background-image: url("../img/di-map.webp"); }
 /* いちばん した：ばーじょん（ひだり）と ⚙️設定（みぎ） */
 .drawer-bottom {
   margin-top: auto; display: flex; align-items: flex-end; justify-content: space-between; gap: 10px;
